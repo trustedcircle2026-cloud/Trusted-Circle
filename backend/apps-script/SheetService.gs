@@ -6,6 +6,19 @@ function ensureSheet_(name, headers) {
   return sheet;
 }
 
+function ensureColumns_(name, columns) {
+  const sheet = getSpreadsheet_().getSheetByName(name);
+  require_(sheet, 'Sheet not initialized: ' + name);
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  columns.forEach(function(column) {
+    if (headers.indexOf(column) < 0) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(column);
+      headers.push(column);
+    }
+  });
+  return sheet;
+}
+
 function setupBackend() {
   const tables = {
     Users: ['UserID','Email','Name','Role','Status','CreatedAt','UpdatedAt','LastLoginAt'],
@@ -14,14 +27,16 @@ function setupBackend() {
     AuditLogs: ['AuditID','UserID','Action','Entity','EntityID','Metadata','CreatedAt'],
     Products: ['ProductID','BrandID','SKU','Title','Description','FaceValue','SellingPrice','DiscountPercent','Currency','InventoryStatus','Active','CreatedAt','UpdatedAt'],
     Brands: ['BrandID','Name','Slug','LogoURL','Active','CreatedAt','UpdatedAt'],
-    Cart: ['CartID','UserID','ProductID','Quantity','CreatedAt','UpdatedAt'],
+    Cart: ['CartID','UserID','ProductID','Quantity','Denomination','CreatedAt','UpdatedAt'],
     Orders: ['OrderID','UserID','OrderNumber','Status','Subtotal','Discount','Total','Currency','CreatedAt','UpdatedAt'],
-    OrderItems: ['OrderItemID','OrderID','ProductID','Quantity','FaceValue','UnitPrice','Total'],
+    OrderItems: ['OrderItemID','OrderID','ProductID','Quantity','FaceValue','UnitPrice','Denomination','Total'],
     Payments: ['PaymentID','OrderID','Provider','ProviderOrderID','ProviderPaymentID','Amount','Currency','Status','VerifiedAt','CreatedAt','UpdatedAt'],
     Vouchers: ['VoucherID','ProductID','OrderID','Code','Pin','Status','IssuedAt','DeliveredAt'],
     Notifications: ['NotificationID','UserID','Type','Title','Message','ReadAt','CreatedAt']
   };
   Object.keys(tables).forEach(function(name) { ensureSheet_(name, tables[name]); });
+  ensureColumns_('Cart', ['Denomination']);
+  ensureColumns_('OrderItems', ['Denomination']);
   var catalog = typeof seedDefaultCatalog_ === 'function' ? seedDefaultCatalog_() : null;
   return { message: 'Trusted Circle backend sheets initialized.', catalog: catalog };
 }
