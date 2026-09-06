@@ -1,35 +1,158 @@
-import { useMemo, useState } from 'react'
-import { ArrowRight, ChevronDown, Gift, Heart, Menu, Search, ShoppingBag, Sparkles, ShieldCheck, Tag, UserRound, X, Zap } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, Gift, Heart, Menu, Search, ShoppingBag, Sparkles, ShieldCheck, Tag, UserRound, X, Zap } from 'lucide-react'
+import { api } from './api'
 
-const brands = [
-  { name: 'Amazon', icon: 'A', tone: 'dark' },
-  { name: 'Myntra', icon: 'M', tone: 'pink' },
-  { name: 'Flipkart', icon: 'F', tone: 'blue' },
-  { name: 'Swiggy', icon: 'S', tone: 'orange' },
-  { name: 'BookMyShow', icon: 'B', tone: 'red' },
-  { name: 'Croma', icon: 'C', tone: 'green' },
-]
+const toneFor = value => {
+  const tones = ['dark', 'pink', 'blue', 'orange', 'red', 'green']
+  const text = String(value || '')
+  let hash = 0
+  for (let i = 0; i < text.length; i += 1) hash = (hash + text.charCodeAt(i)) % tones.length
+  return tones[hash]
+}
 
-const products = [
-  { id: 1, brand: 'Amazon', title: 'Amazon Gift Card', value: 1000, price: 965, discount: 3.5, tone: 'dark' },
-  { id: 2, brand: 'Myntra', title: 'Myntra E-Gift Card', value: 2000, price: 1900, discount: 5, tone: 'pink' },
-  { id: 3, brand: 'Flipkart', title: 'Flipkart Gift Voucher', value: 1000, price: 960, discount: 4, tone: 'blue' },
-  { id: 4, brand: 'Swiggy', title: 'Swiggy Money Voucher', value: 500, price: 465, discount: 7, tone: 'orange' },
-]
+const money = value => `₹${Number(value || 0).toLocaleString('en-IN')}`
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [cartCount, setCartCount] = useState(0)
+  const [products, setProducts] = useState([])
+  const [brands, setBrands] = useState([])
+  const [cart, setCart] = useState([])
   const [liked, setLiked] = useState([])
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState(() => localStorage.getItem('tc_session') || '')
+  const [loading, setLoading] = useState(true)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState('login')
+  const [authStep, setAuthStep] = useState('email')
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [otp, setOtp] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authMessage, setAuthMessage] = useState('')
+  const [actionMessage, setActionMessage] = useState('')
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return q ? products.filter(p => `${p.brand} ${p.title}`.toLowerCase().includes(q)) : products
+  const loadCatalog = async (q = '') => {
+    try {
+      const [brandData, productData] = await Promise.all([api.brands(), api.products(q)])
+      setBrands(brandData?.items || [])
+      setProducts(productData?.items || [])
+    } catch (error) {
+      setActionMessage(error.message)
+    }
+  }
+
+  const loadCart = async activeToken => {
+    if (!activeToken) {
+      setCart([])
+      return
+    }
+    try {
+      const data = await api.cart(activeToken)
+      setCart(data?.items || [])
+    } catch {
+      localStorage.removeItem('tc_session')
+      setToken('')
+      setUser(null)
+      setCart([])
+    }
+  }
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      try {
+        await api.health()
+        await loadCatalog()
+        if (token) {
+          const me = await api.me(token)
+          if (mounted) setUser(me)
+          await loadCart(token)
+        }
+      } catch (error) {
+        if (mounted) setActionMessage(error.message)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadCatalog(query.trim())
+    }, 250)
+    return () => clearTimeout(timer)
   }, [query])
 
-  const toggleLike = id => setLiked(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])
+  const cartCount = useMemo(() => cart.reduce((sum, item) => sum + Number(item.Quantity || 0), 0), [cart])
+
+  const toggleLike = id => setLiked(value => value.includes(id) ? value.filter(x => x !== id) : [...value, id])
+
+  const openAuth = mode => {
+    setAuthMode(mode)
+    setAuthStep('email')
+    setOtp('')
+    setAuthMessage('')
+    setAuthOpen(true)
+  }
+
+  const requestOtp = async event => {
+    event.preventDefault()
+    setAuthBusy(true)
+    setAuthMessage('')
+    try {
+      await api.requestOtp(email, authMode === 'register' ? 'SHOP_REGISTER' : 'SHOP_LOGIN')
+      setAuthStep('otp')
+      setAuthMessage(`Verification code sent to ${email}.`)
+    } catch (error) {
+      setAuthMessage(error.message)
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const verifyOtp = async event => {
+    event.preventDefault()
+    setAuthBusy(true)
+    setAuthMessage('')
+    try {
+      const data = await api.verifyOtp(email, otp, name, authMode === 'register' ? 'SHOP_REGISTER' : 'SHOP_LOGIN')
+      localStorage.setItem('tc_session', data.session.token)
+      setToken(data.session.token)
+      setUser(data.user)
+      setAuthOpen(false)
+      await loadCart(data.session.token)
+    } catch (error) {
+      setAuthMessage(error.message)
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const logout = async () => {
+    try { if (token) await api.logout(token) } catch { /* local logout still succeeds */ }
+    localStorage.removeItem('tc_session')
+    setToken('')
+    setUser(null)
+    setCart([])
+  }
+
+  const addToCart = async product => {
+    if (!token) {
+      openAuth('login')
+      return
+    }
+    try {
+      const data = await api.cartAdd(token, product.ProductID, 1)
+      setCart(data?.items || [])
+      setActionMessage(`${product.Title} added to your cart.`)
+      setTimeout(() => setActionMessage(''), 2500)
+    } catch (error) {
+      setActionMessage(error.message)
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -57,7 +180,7 @@ function App() {
           <div className="header-actions">
             <button className="icon-btn" onClick={() => setSearchOpen(!searchOpen)} aria-label="Search"><Search size={20} /></button>
             <a className="icon-btn cart-btn" href="#cart" aria-label="Cart"><ShoppingBag size={20} /><b>{cartCount}</b></a>
-            <a className="login-btn" href="#login"><UserRound size={17} /> Login / Register</a>
+            {user ? <button className="account-btn" onClick={logout}><UserRound size={17} /> {user.name || user.email}</button> : <button className="login-btn" onClick={() => openAuth('login')}><UserRound size={17} /> Login / Register</button>}
           </div>
         </div>
         {searchOpen && <div className="search-panel"><Search size={19} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search vouchers, brands..." /><button onClick={() => { setQuery(''); setSearchOpen(false) }}>Close</button></div>}
@@ -81,13 +204,12 @@ function App() {
 
         <section className="section" id="brands">
           <div className="section-head"><div><span className="section-kicker">SHOP BY BRAND</span><h2>Your favourites, all in one place</h2></div><a href="#vouchers">View all brands <ArrowRight size={17} /></a></div>
-          <div className="brand-grid">{brands.map(b => <a className="brand-tile" href="#vouchers" key={b.name}><span className={`brand-icon ${b.tone}`}>{b.icon}</span><strong>{b.name}</strong><small>Gift vouchers</small></a>)}</div>
+          {loading ? <div className="empty">Loading brands…</div> : brands.length ? <div className="brand-grid">{brands.map(b => <a className="brand-tile" href="#vouchers" key={b.BrandID || b.Name}><span className={`brand-icon ${toneFor(b.Name)}`}>{String(b.Name || '?').charAt(0).toUpperCase()}</span><strong>{b.Name}</strong><small>Gift vouchers</small></a>)}</div> : <div className="empty">No brands are available yet.</div>}
         </section>
 
         <section className="section product-section" id="vouchers">
-          <div className="section-head"><div><span className="section-kicker">POPULAR RIGHT NOW</span><h2>Gift vouchers worth buying</h2></div><a href="#all-vouchers">View all <ArrowRight size={17} /></a></div>
-          <div className="product-grid">{filtered.map(p => <article className="product-card" key={p.id}><div className={`product-art ${p.tone}`}><span>{p.brand}</span><Gift size={40} /><small>Digital Voucher</small><button className={`heart ${liked.includes(p.id) ? 'active' : ''}`} onClick={() => toggleLike(p.id)} aria-label="Wishlist"><Heart size={18} fill={liked.includes(p.id) ? 'currentColor' : 'none'} /></button></div><div className="product-info"><div className="product-title"><div><small>{p.brand}</small><h3>{p.title}</h3></div><span className="discount">{p.discount}% OFF</span></div><div className="price-row"><div><span className="value">₹{p.value.toLocaleString('en-IN')}</span><strong>₹{p.price.toLocaleString('en-IN')}</strong></div><button className="add-btn" onClick={() => setCartCount(v => v + 1)}>Add <ShoppingBag size={16} /></button></div></div></article>)}</div>
-          {!filtered.length && <div className="empty">No vouchers found for “{query}”.</div>}
+          <div className="section-head"><div><span className="section-kicker">POPULAR RIGHT NOW</span><h2>Gift vouchers worth buying</h2></div><a href="#vouchers">View all <ArrowRight size={17} /></a></div>
+          {loading ? <div className="empty">Loading vouchers…</div> : products.length ? <div className="product-grid">{products.map(p => { const tone = toneFor(p.BrandID || p.Title); return <article className="product-card" key={p.ProductID}><div className={`product-art ${tone}`}><span>{p.Title || 'Gift Voucher'}</span><Gift size={40} /><small>Digital Voucher</small><button className={`heart ${liked.includes(p.ProductID) ? 'active' : ''}`} onClick={() => toggleLike(p.ProductID)} aria-label="Wishlist"><Heart size={18} fill={liked.includes(p.ProductID) ? 'currentColor' : 'none'} /></button></div><div className="product-info"><div className="product-title"><div><small>{p.SKU || 'Trusted Circle'}</small><h3>{p.Title}</h3></div><span className="discount">{Number(p.DiscountPercent || 0)}% OFF</span></div><div className="price-row"><div><span className="value">{money(p.FaceValue)}</span><strong>{money(p.SellingPrice)}</strong></div><button className="add-btn" onClick={() => addToCart(p)}>Add <ShoppingBag size={16} /></button></div></div></article> })}</div> : <div className="empty">No vouchers found{query ? ` for “${query}”` : ''}. Add products in the Google Sheet to publish them here.</div>}
         </section>
 
         <section className="benefit-strip" id="offers"><div><span className="benefit-icon"><Tag /></span><div><strong>Real savings</strong><p>Pay less than the voucher value.</p></div></div><div><span className="benefit-icon"><Zap /></span><div><strong>Digital delivery</strong><p>Get eligible vouchers quickly.</p></div></div><div><span className="benefit-icon"><ShieldCheck /></span><div><strong>Secure checkout</strong><p>Your payment is protected.</p></div></div></section>
@@ -95,7 +217,11 @@ function App() {
         <section className="how" id="how-it-works"><div className="section-kicker">HOW IT WORKS</div><h2>Gift smarter in three simple steps.</h2><div className="steps"><div><span>01</span><Gift /><h3>Choose a voucher</h3><p>Pick your favourite brand and voucher value.</p></div><div><span>02</span><ShoppingBag /><h3>Pay securely</h3><p>Complete checkout with your preferred payment method.</p></div><div><span>03</span><Zap /><h3>Receive & enjoy</h3><p>Your digital voucher is delivered to your account and email.</p></div></div></section>
       </main>
 
-      <footer className="footer" id="help"><div className="footer-main"><div><a className="brand-logo footer-logo" href="#home"><span className="logo-mark"><Gift size={21} /></span><span>Trusted<span>Circle</span></span></a><p>Branded gift vouchers, better value, simpler gifting.</p></div><div><h4>Shop</h4><a href="#vouchers">Gift Vouchers</a><a href="#brands">Brands</a><a href="#offers">Offers</a></div><div><h4>Support</h4><a href="#help">Help Centre</a><a href="#orders">Orders</a><a href="#contact">Contact Us</a></div><div><h4>Account</h4><a href="#login">Login / Register</a><a href="#cart">My Cart</a><a href="#profile">My Profile</a></div></div><div className="footer-bottom"><span>© 2026 Trusted Circle. All rights reserved.</span><span><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a className="erp-link" href="#erp-login">ERP Login</a></span></div></footer>
+      <footer className="footer" id="help"><div className="footer-main"><div><a className="brand-logo footer-logo" href="#home"><span className="logo-mark"><Gift size={21} /></span><span>Trusted<span>Circle</span></span></a><p>Branded gift vouchers, better value, simpler gifting.</p></div><div><h4>Shop</h4><a href="#vouchers">Gift Vouchers</a><a href="#brands">Brands</a><a href="#offers">Offers</a></div><div><h4>Support</h4><a href="#help">Help Centre</a><a href="#orders">Orders</a><a href="#contact">Contact Us</a></div><div><h4>Account</h4><button className="footer-action" onClick={() => user ? logout() : openAuth('login')}>{user ? 'Logout' : 'Login / Register'}</button><a href="#cart">My Cart</a><a href="#profile">My Profile</a></div></div><div className="footer-bottom"><span>© 2026 Trusted Circle. All rights reserved.</span><span><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a className="erp-link" href="#erp-login">ERP Login</a></span></div></footer>
+
+      {actionMessage && <div className="toast">{actionMessage}</div>}
+
+      {authOpen && <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && setAuthOpen(false)}><div className="auth-modal"><button className="modal-close" onClick={() => setAuthOpen(false)} aria-label="Close"><X size={20} /></button><span className="modal-icon"><Gift size={22} /></span><h2>{authStep === 'email' ? (authMode === 'register' ? 'Create your account' : 'Welcome back') : 'Enter your OTP'}</h2><p>{authStep === 'email' ? 'Use your email to receive a secure verification code.' : `We sent a 6-digit code to ${email}.`}</p>{authStep === 'email' ? <form onSubmit={requestOtp}>{authMode === 'register' && <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" maxLength={120} required />}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoFocus required /><button className="modal-submit" disabled={authBusy}>{authBusy ? 'Sending…' : 'Send OTP'}</button></form> : <form onSubmit={verifyOtp}><input inputMode="numeric" autoFocus value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6-digit OTP" maxLength={6} required /><button className="modal-submit" disabled={authBusy || otp.length !== 6}>{authBusy ? 'Verifying…' : 'Verify & Continue'}</button><button type="button" className="modal-secondary" onClick={() => setAuthStep('email')}>Change email</button></form>}{authMessage && <div className="auth-message">{authMessage}</div>}<div className="auth-switch">{authMode === 'login' ? <>New to Trusted Circle? <button onClick={() => { setAuthMode('register'); setAuthStep('email'); setAuthMessage('') }}>Create account</button></> : <>Already have an account? <button onClick={() => { setAuthMode('login'); setAuthStep('email'); setAuthMessage('') }}>Login</button></>}</div></div></div>}
     </div>
   )
 }
