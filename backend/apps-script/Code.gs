@@ -9,23 +9,15 @@ function doPost(e) {
 function handleRequest_(e, isPost) {
   try {
     let input = {};
-
     if (isPost) {
       const body = e && e.postData ? String(e.postData.contents || '') : '';
       const type = e && e.postData ? String(e.postData.type || '').toLowerCase() : '';
       const parameters = e && e.parameter ? e.parameter : {};
       const hasParameters = Object.keys(parameters).length > 0;
-
-      if (body && (type.indexOf('application/json') >= 0 || looksLikeJson_(body))) {
-        input = safeJsonParse_(body) || {};
-      } else if (hasParameters) {
-        input = parameters;
-      } else if (body) {
-        input = parseUrlEncoded_(body);
-      }
-    } else {
-      input = e && e.parameter ? e.parameter : {};
-    }
+      if (body && (type.indexOf('application/json') >= 0 || looksLikeJson_(body))) input = safeJsonParse_(body) || {};
+      else if (hasParameters) input = parameters;
+      else if (body) input = parseUrlEncoded_(body);
+    } else input = e && e.parameter ? e.parameter : {};
 
     require_(input && typeof input === 'object' && Object.keys(input).length > 0, 'Invalid request.');
     const action = cleanText_(input.action || 'health', 50);
@@ -48,43 +40,30 @@ function parseUrlEncoded_(body) {
     const index = pair.indexOf('=');
     const rawKey = index >= 0 ? pair.substring(0, index) : pair;
     const rawValue = index >= 0 ? pair.substring(index + 1) : '';
-    const key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
-    const value = decodeURIComponent(rawValue.replace(/\+/g, ' '));
-    result[key] = value;
+    result[decodeURIComponent(rawKey.replace(/\+/g, ' '))] = decodeURIComponent(rawValue.replace(/\+/g, ' '));
   });
   return result;
 }
 
 function routeAction_(action, input) {
   switch (action) {
-    case 'health':
-      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.3' };
-    case 'setupBackend':
-      return setupBackend();
-    case 'requestOtp':
-      return requestOtp_(input);
-    case 'verifyOtp':
-      return verifyOtpAndLogin_(input);
-    case 'logout':
-      return { loggedOut: revokeSession_(input.token) };
-    case 'me':
-      return publicUser_(authenticate_(input.token));
-    case 'brands':
-      return ProductService.listBrands(input);
-    case 'products':
-      return ProductService.listProducts(input);
-    case 'product':
-      return ProductService.getProduct(input);
-    case 'cart':
-      return CartService.getCart(input);
-    case 'cartAdd':
-      return CartService.addItem(input);
-    case 'cartUpdate':
-      return CartService.updateItem(input);
-    case 'cartRemove':
-      return CartService.removeItem(input);
-    default:
-      throw new Error('Unknown API action.');
+    case 'health': return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.3.0' };
+    case 'setupBackend': return setupBackend();
+    case 'requestOtp': return requestOtp_(input);
+    case 'verifyOtp': return verifyOtpAndLogin_(input);
+    case 'logout': return { loggedOut: revokeSession_(input.token) };
+    case 'me': return publicUser_(authenticate_(input.token));
+    case 'profileUpdate': return updateProfile_(input);
+    case 'brands': return ProductService.listBrands(input);
+    case 'products': return ProductService.listProducts(input);
+    case 'product': return ProductService.getProduct(input);
+    case 'cart': return CartService.getCart(input);
+    case 'cartAdd': return CartService.addItem(input);
+    case 'cartUpdate': return CartService.updateItem(input);
+    case 'cartRemove': return CartService.removeItem(input);
+    case 'placeOrder': return OrderService.placeOrder(input);
+    case 'orders': return OrderService.listOrders(input);
+    default: throw new Error('Unknown API action.');
   }
 }
 
@@ -92,52 +71,23 @@ function verifyOtpAndLogin_(input) {
   verifyOtp_(input);
   const email = normalizeEmail_(input.email);
   const user = createOrGetUser_(email, input.name);
-
-  updateRowById_(TC_CONFIG.SHEETS.USERS, 'UserID', user.UserID, {
-    LastLoginAt: isoNow_(),
-    UpdatedAt: isoNow_()
-  });
-
+  updateRowById_(TC_CONFIG.SHEETS.USERS, 'UserID', user.UserID, { LastLoginAt: isoNow_(), UpdatedAt: isoNow_() });
   const refreshedUser = getUserByEmail_(email);
-  const session = issueSession_(refreshedUser);
-
-  return {
-    user: publicUser_(refreshedUser),
-    session: session
-  };
+  return { user: publicUser_(refreshedUser), session: issueSession_(refreshedUser) };
 }
 
-/**
- * Keep the session helpers in the API entrypoint as well as AuthService.gs.
- * This makes the deployed web app resilient when an Apps Script deployment
- * contains the entrypoint but an older deployment is missing AuthService.gs.
- */
 function issueSession_(user) {
   const rawToken = Utilities.getUuid() + '.' + Utilities.getUuid();
   const sessionId = newId_('TCSES');
   const expires = new Date(Date.now() + getSessionTtl_() * 1000);
-
-  appendRowObject_(TC_CONFIG.SHEETS.SESSIONS, {
-    SessionID: sessionId,
-    UserID: user.UserID,
-    TokenHash: hash_(rawToken),
-    ExpiresAt: expires.toISOString(),
-    CreatedAt: isoNow_(),
-    RevokedAt: '',
-    Status: 'ACTIVE'
-  });
-
-  return {
-    token: rawToken,
-    expiresAt: expires.toISOString()
-  };
+  appendRowObject_(TC_CONFIG.SHEETS.SESSIONS, { SessionID: sessionId, UserID: user.UserID, TokenHash: hash_(rawToken), ExpiresAt: expires.toISOString(), CreatedAt: isoNow_(), RevokedAt: '', Status: 'ACTIVE' });
+  return { token: rawToken, expiresAt: expires.toISOString() };
 }
 
 function authenticate_(token) {
   require_(token, 'Authentication required.');
   const tokenHash = hash_(String(token));
   const rows = getRows_(TC_CONFIG.SHEETS.SESSIONS);
-
   for (let i = rows.length - 1; i >= 0; i--) {
     const row = rows[i];
     if (row.Status === 'ACTIVE' && constantTimeEquals_(String(row.TokenHash), tokenHash)) {
@@ -147,23 +97,17 @@ function authenticate_(token) {
       return user;
     }
   }
-
   throw new Error('Invalid session.');
 }
 
 function revokeSession_(token) {
   const tokenHash = hash_(String(token || ''));
   const rows = getRows_(TC_CONFIG.SHEETS.SESSIONS);
-
   for (let i = rows.length - 1; i >= 0; i--) {
     if (constantTimeEquals_(String(rows[i].TokenHash), tokenHash) && rows[i].Status === 'ACTIVE') {
-      updateRowById_(TC_CONFIG.SHEETS.SESSIONS, 'SessionID', rows[i].SessionID, {
-        Status: 'REVOKED',
-        RevokedAt: isoNow_()
-      });
+      updateRowById_(TC_CONFIG.SHEETS.SESSIONS, 'SessionID', rows[i].SessionID, { Status: 'REVOKED', RevokedAt: isoNow_() });
       return true;
     }
   }
-
   return false;
 }
