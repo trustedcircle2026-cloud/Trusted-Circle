@@ -8,9 +8,14 @@ function doPost(e) {
 
 function handleRequest_(e, isPost) {
   try {
-    const input = isPost
-      ? safeJsonParse_(e && e.postData ? e.postData.contents : '')
-      : (e && e.parameter ? e.parameter : {});
+    let input = {};
+
+    if (isPost) {
+      const body = e && e.postData ? String(e.postData.contents || '') : '';
+      input = body ? safeJsonParse_(body) : (e && e.parameter ? e.parameter : {});
+    } else {
+      input = e && e.parameter ? e.parameter : {};
+    }
 
     require_(input, 'Invalid request.');
     const action = cleanText_(input.action || 'health', 50);
