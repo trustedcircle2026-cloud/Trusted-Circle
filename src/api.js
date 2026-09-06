@@ -11,17 +11,17 @@ async function request(action, params = {}, method = 'GET') {
     })
     response = await fetch(url.toString(), { method: 'GET', credentials: 'omit' })
   } else {
-    const body = new URLSearchParams()
-    Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) body.set(key, String(value))
-    })
+    // Use text/plain so the browser makes a simple cross-origin POST without
+    // an OPTIONS preflight. Apps Script parses the JSON body explicitly.
     response = await fetch(API_BASE, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body,
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify(payload),
       credentials: 'omit',
     })
   }
+
+  if (!response.ok) throw new Error(`API request failed (${response.status}).`)
 
   const json = await response.json()
   if (!json.ok) throw new Error(json.error?.message || 'Request failed.')
