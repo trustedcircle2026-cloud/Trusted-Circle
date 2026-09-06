@@ -47,7 +47,7 @@ function parseUrlEncoded_(body) {
 
 function routeAction_(action, input) {
   switch (action) {
-    case 'health': return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.3.0' };
+    case 'health': return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.4.0' };
     case 'setupBackend': return setupBackend();
     case 'requestOtp': return requestOtp_(input);
     case 'verifyOtp': return verifyOtpAndLogin_(input);
