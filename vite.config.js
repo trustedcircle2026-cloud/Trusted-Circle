@@ -3,5 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Trusted-Circle/'
+  // GitHub Pages serves the project under /Trusted-Circle/ while
+  // AWS Amplify serves the application from the domain root.
+  base: process.env.VITE_BASE || '/Trusted-Circle/'
 })
