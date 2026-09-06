@@ -22,7 +22,8 @@ function setupBackend() {
     Notifications: ['NotificationID','UserID','Type','Title','Message','ReadAt','CreatedAt']
   };
   Object.keys(tables).forEach(function(name) { ensureSheet_(name, tables[name]); });
-  return 'Trusted Circle backend sheets initialized.';
+  var catalog = typeof seedDefaultCatalog_ === 'function' ? seedDefaultCatalog_() : null;
+  return { message: 'Trusted Circle backend sheets initialized.', catalog: catalog };
 }
 
 function getRows_(sheetName) {
