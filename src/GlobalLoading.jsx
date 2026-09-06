@@ -19,21 +19,17 @@ export default function GlobalLoading() {
     return () => window.removeEventListener('tc:loading', onLoading)
   }, [])
 
-  useEffect(() => {
-    if (!state.active) return undefined
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = previous }
-  }, [state.active])
-
+  // Informational only: never block scrolling, clicks, or page interaction.
   if (!state.active) return null
 
   return (
     <div className="global-loading" role="status" aria-live="polite" aria-busy="true">
       <div className="global-loading-card">
-        <div className="global-loading-icon"><LoaderCircle className="global-loading-spin" size={30} /></div>
-        <strong>{state.message}</strong>
-        <span><ShieldCheck size={13} /> Securely processing your request</span>
+        <div className="global-loading-icon"><LoaderCircle className="global-loading-spin" size={19} /></div>
+        <div className="global-loading-copy">
+          <strong>{state.message}</strong>
+          <span><ShieldCheck size={12} /> Securely processing</span>
+        </div>
       </div>
     </div>
   )
