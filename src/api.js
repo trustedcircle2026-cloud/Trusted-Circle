@@ -1,7 +1,7 @@
 const API_BASE = 'https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec'
 
 const LOADING_MESSAGES = {
-  health: 'Connecting securely…', brands: 'Loading brands…', products: 'Loading vouchers…', product: 'Loading voucher…', cart: 'Restoring your cart…', cartAdd: 'Adding to cart…', cartUpdate: 'Updating cart…', cartRemove: 'Removing item…', requestOtp: 'Sending verification code…', verifyOtp: 'Signing you in…', profileUpdate: 'Saving your profile…', orders: 'Loading your orders…', placeOrder: 'Preparing your order…', logout: 'Signing you out…',
+  health: 'Connecting securely…', brands: 'Loading brands…', products: 'Loading vouchers…', product: 'Loading voucher…', cart: 'Restoring your cart…', cartAdd: 'Adding to cart…', cartUpdate: 'Updating cart…', cartDenomination: 'Updating denomination…', cartRemove: 'Removing item…', requestOtp: 'Sending verification code…', verifyOtp: 'Signing you in…', profileUpdate: 'Saving your profile…', orders: 'Loading your orders…', placeOrder: 'Preparing your order…', logout: 'Signing you out…',
 }
 
 function emitLoading(active, action) {
@@ -50,8 +50,9 @@ export const api = {
   products: (q = '', brand = '') => requestWithRetry('products', { q, brand }),
   product: productId => requestWithRetry('product', { productId }),
   cart: token => requestWithRetry('cart', { token }),
-  cartAdd: (token, productId, quantity = 1) => requestWithRetry('cartAdd', { token, productId, quantity }, 'POST'),
+  cartAdd: (token, productId, quantity = 1, denomination = undefined) => requestWithRetry('cartAdd', { token, productId, quantity, denomination }, 'POST'),
   cartUpdate: (token, cartItemId, quantity) => requestWithRetry('cartUpdate', { token, cartItemId, quantity }, 'POST'),
+  cartDenomination: (token, cartItemId, denomination) => requestWithRetry('cartDenomination', { token, cartItemId, denomination }, 'POST'),
   cartRemove: (token, cartItemId) => requestWithRetry('cartRemove', { token, cartItemId }, 'POST'),
   placeOrder: token => requestWithRetry('placeOrder', { token }, 'POST'),
   orders: token => requestWithRetry('orders', { token }),
