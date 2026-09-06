@@ -11,11 +11,13 @@ import CheckoutPage from './pages/CheckoutPage'
 import ProfilePage from './pages/ProfilePage'
 import OrdersPage from './pages/OrdersPage'
 import OrderPlacedPage from './pages/OrderPlacedPage'
+import InfoPage from './pages/InfoPage'
 import './app.css'
 import './mobile.css'
 
 const LOGO_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const QR_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg'
+const WHATSAPP_NUMBER = '919442456039'
 
 function readRoute() {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home'
@@ -25,9 +27,7 @@ function readRoute() {
 
 const friendlyApiError = error => {
   const message = String(error?.message || 'Request failed.')
-  if (/unknown api action/i.test(message)) {
-    return 'The backend is on an older deployment. Please deploy the latest Trusted Circle Backend version, then try again.'
-  }
+  if (/unknown api action/i.test(message)) return 'The backend is on an older deployment. Please deploy the latest Trusted Circle Backend version, then try again.'
   return message
 }
 
@@ -50,7 +50,7 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileName, setProfileName] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('upi')
   const [lastOrder, setLastOrder] = useState(null)
 
   const navigate = useCallback((path, id = '') => {
@@ -59,139 +59,51 @@ export default function App() {
     else setRoute({ path, id })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
-
-  useEffect(() => {
-    const onHash = () => setRoute(readRoute())
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
-
+  useEffect(() => { const onHash = () => setRoute(readRoute()); window.addEventListener('hashchange', onHash); return () => window.removeEventListener('hashchange', onHash) }, [])
   const brandName = useCallback(id => brands.find(b => String(b.BrandID) === String(id))?.Name || 'Gift Voucher', [brands])
-
-  const loadCatalog = useCallback(async (q = query, brand = brandFilter) => {
-    const data = await api.products(q.trim(), brand)
-    setProducts(data?.items || [])
-  }, [query, brandFilter])
-
-  const loadAllProducts = useCallback(async () => {
-    const data = await api.products('', '')
-    const items = data?.items || []
-    setAllProducts(items)
-    return items
-  }, [])
-
-  const loadCart = useCallback(async currentToken => {
-    if (!currentToken) { setCart([]); return }
-    const data = await api.cart(currentToken)
-    setCart(data?.items || [])
-  }, [])
-
-  const loadOrders = useCallback(async currentToken => {
-    if (!currentToken) { setOrders([]); return }
-    const data = await api.orders(currentToken)
-    setOrders(data?.items || [])
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      try {
-        await api.health()
-        const [brandData, productData] = await Promise.all([api.brands(), api.products('', '')])
-        if (!active) return
-        setBrands(brandData?.items || [])
-        setProducts(productData?.items || [])
-        setAllProducts(productData?.items || [])
-        if (token) {
-          try {
-            const me = await api.me(token)
-            if (!active) return
-            setUser(me); setProfileName(me.name || '')
-            if (!me.name) setProfileOpen(true)
-            await Promise.all([loadCart(token), loadOrders(token)])
-          } catch (error) {
-            localStorage.removeItem('tc_session'); setToken(''); setUser(null); setCart([])
-            console.warn('Session restore:', error.message)
-          }
-        }
-      } catch (error) {
-        console.warn('Trusted Circle startup:', error.message)
-      }
-    })()
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (route.path !== 'vouchers' && route.path !== 'home') return
-    const timer = setTimeout(() => { loadCatalog(query, brandFilter).catch(() => {}) }, 250)
-    return () => clearTimeout(timer)
-  }, [query, brandFilter, route.path])
-
+  const loadCatalog = useCallback(async (q = query, brand = brandFilter) => { const data = await api.products(q.trim(), brand); setProducts(data?.items || []) }, [query, brandFilter])
+  const loadAllProducts = useCallback(async () => { const data = await api.products('', ''); const items = data?.items || []; setAllProducts(items); return items }, [])
+  const loadCart = useCallback(async currentToken => { if (!currentToken) { setCart([]); return }; const data = await api.cart(currentToken); setCart(data?.items || []) }, [])
+  const loadOrders = useCallback(async currentToken => { if (!currentToken) { setOrders([]); return }; const data = await api.orders(currentToken); setOrders(data?.items || []) }, [])
+  useEffect(() => { let active = true; (async () => { try { await api.health(); const [brandData, productData] = await Promise.all([api.brands(), api.products('', '')]); if (!active) return; setBrands(brandData?.items || []); setProducts(productData?.items || []); setAllProducts(productData?.items || []); if (token) { try { const me = await api.me(token); if (!active) return; setUser(me); setProfileName(me.name || ''); if (!me.name) setProfileOpen(true); await Promise.all([loadCart(token), loadOrders(token)]) } catch { localStorage.removeItem('tc_session'); setToken(''); setUser(null); setCart([]) } } } catch (error) { console.warn('Trusted Circle startup:', error.message) } })(); return () => { active = false } }, [])
+  useEffect(() => { if (!['vouchers', 'home'].includes(route.path)) return; const timer = setTimeout(() => { loadCatalog(query, brandFilter).catch(() => {}) }, 250); return () => clearTimeout(timer) }, [query, brandFilter, route.path])
   const cartDetailed = useMemo(() => cart.map(item => ({ ...item, product: allProducts.find(p => String(p.ProductID) === String(item.ProductID)) })).filter(item => item.product), [cart, allProducts])
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + Number(item.Quantity || 0), 0), [cart])
   const subtotal = useMemo(() => cartDetailed.reduce((sum, item) => sum + Number(item.product.FaceValue || 0) * Number(item.Quantity || 0), 0), [cartDetailed])
   const total = useMemo(() => cartDetailed.reduce((sum, item) => sum + Number(item.product.SellingPrice || 0) * Number(item.Quantity || 0), 0), [cartDetailed])
   const savings = Math.max(0, subtotal - total)
   const currentProduct = useMemo(() => allProducts.find(p => String(p.ProductID) === String(route.id)), [allProducts, route.id])
-
   const toggleLike = id => setLiked(current => { const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]; localStorage.setItem('tc_liked', JSON.stringify(next)); return next })
-
   const openAuth = () => { setAuthStep('email'); setOtp(''); setAuthMessage(''); setAuthOpen(true) }
   const requestOtp = async event => { event.preventDefault(); setAuthMessage(''); try { await api.requestOtp(email); setAuthStep('otp'); setAuthMessage(`Verification code sent to ${email}.`) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
-  const verifyOtp = async event => {
-    event.preventDefault(); setAuthMessage('')
-    try {
-      const data = await api.verifyOtp(email, otp, '')
-      localStorage.setItem('tc_session', data.session.token)
-      setToken(data.session.token); setUser(data.user); setProfileName(data.user.name || '')
-      await Promise.all([loadCart(data.session.token), loadOrders(data.session.token), loadAllProducts()])
-      setAuthOpen(false)
-      if (!data.user.name) setProfileOpen(true)
-      else navigate('home')
-    } catch (error) { setAuthMessage(friendlyApiError(error)) }
-  }
-
-  const saveProfile = async event => {
-    event.preventDefault(); setAuthMessage('')
-    try { const data = await api.profileUpdate(token, profileName); setUser(data); setProfileOpen(false); navigate('home') } catch (error) { setAuthMessage(friendlyApiError(error)) }
-  }
-
-  const logout = async () => {
-    try { if (token) await api.logout(token) } catch {}
-    localStorage.removeItem('tc_session'); setToken(''); setUser(null); setCart([]); setOrders([]); setProfileOpen(false); navigate('home')
-  }
-
-  const addToCart = async product => {
-    if (!token) { openAuth(); return }
-    try { const data = await api.cartAdd(token, product.ProductID, 1); setCart(data?.items || []); await loadAllProducts() } catch (error) { setAuthMessage(friendlyApiError(error)) }
-  }
+  const verifyOtp = async event => { event.preventDefault(); setAuthMessage(''); try { const data = await api.verifyOtp(email, otp, ''); localStorage.setItem('tc_session', data.session.token); setToken(data.session.token); setUser(data.user); setProfileName(data.user.name || ''); await Promise.all([loadCart(data.session.token), loadOrders(data.session.token), loadAllProducts()]); setAuthOpen(false); if (!data.user.name) setProfileOpen(true); else navigate('home') } catch (error) { setAuthMessage(friendlyApiError(error)) } }
+  const saveProfile = async event => { event.preventDefault(); setAuthMessage(''); try { const data = await api.profileUpdate(token, profileName); setUser(data); setProfileOpen(false); navigate('home') } catch (error) { setAuthMessage(friendlyApiError(error)) } }
+  const logout = async () => { try { if (token) await api.logout(token) } catch {} localStorage.removeItem('tc_session'); setToken(''); setUser(null); setCart([]); setOrders([]); setProfileOpen(false); navigate('home') }
+  const addToCart = async product => { if (!token) { openAuth(); return }; try { const data = await api.cartAdd(token, product.ProductID, 1); setCart(data?.items || []); await loadAllProducts() } catch (error) { setAuthMessage(friendlyApiError(error)) } }
   const changeQty = async (item, quantity) => { if (quantity < 1) return removeItem(item); try { const data = await api.cartUpdate(token, item.CartID, quantity); setCart(data?.items || []) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
   const removeItem = async item => { try { const data = await api.cartRemove(token, item.CartID); setCart(data?.items || []) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
-  const checkout = () => { if (!token) { openAuth(); return } if (cartDetailed.length) navigate('checkout') }
-  const createPendingOrder = async () => {
-    if (paymentMethod !== 'upi') return
-    try { const data = await api.placeOrder(token); setLastOrder(data); await Promise.all([loadCart(token), loadOrders(token)]); navigate('order-placed') } catch (error) { setAuthMessage(friendlyApiError(error)) }
-  }
+  const checkout = () => { if (!token) { openAuth(); return }; if (cartDetailed.length) { setPaymentMethod('upi'); navigate('checkout') } }
+  const createPendingOrder = async () => { if (!paymentMethod || paymentMethod === 'link') return; const orderSnapshot = { items: cartDetailed.map(i => ({ title: i.product.Title, brand: brandName(i.product.BrandID), quantity: Number(i.Quantity || 0), unitPrice: Number(i.product.SellingPrice || 0), faceValue: Number(i.product.FaceValue || 0), total: Number(i.product.SellingPrice || 0) * Number(i.Quantity || 0) })), subtotal, savings, total, user: { name: user?.name || '', email: user?.email || '' } }; try { const data = await api.placeOrder(token); setLastOrder({ ...data, snapshot: orderSnapshot }); await Promise.all([loadCart(token), loadOrders(token)]); navigate('order-placed') } catch (error) { setAuthMessage(friendlyApiError(error)) } }
   const onBrandBrowse = id => { setBrandFilter(id || ''); navigate('vouchers') }
+  const orderForContact = lastOrder?.order || {}
+  const contactItems = lastOrder?.snapshot?.items || []
+  const orderText = `Hello Trusted Circle,\n\nI would like to proceed with my gift voucher order.\n\nOrder Number: ${orderForContact.OrderNumber || 'Pending'}\nCustomer: ${lastOrder?.snapshot?.user?.name || user?.name || ''}\nEmail: ${lastOrder?.snapshot?.user?.email || user?.email || ''}\n\nItems:\n${contactItems.map(i => `• ${i.brand} — ${i.title} × ${i.quantity} — ₹${i.total.toLocaleString('en-IN')}`).join('\n')}\n\nSubtotal: ₹${Number(lastOrder?.snapshot?.subtotal || 0).toLocaleString('en-IN')}\nSavings: ₹${Number(lastOrder?.snapshot?.savings || 0).toLocaleString('en-IN')}\nTotal: ₹${Number(lastOrder?.snapshot?.total || orderForContact.Total || 0).toLocaleString('en-IN')}\n\nPlease share the next payment/order instructions. Thank you.`
+  const emailHref = `mailto:info@trustedcircle.in?subject=${encodeURIComponent(`Trusted Circle Order ${orderForContact.OrderNumber || ''}`)}&body=${encodeURIComponent(orderText)}`
+  const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(orderText)}`
 
-  return <div className="app-root">
-    <GlobalLoading />
-    <header className="new-header"><button className="header-brand" onClick={() => navigate('home')}><span className="header-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span>Trusted<span>Circle</span></span></button><div className="header-actions"><button className="header-tool" onClick={() => navigate('vouchers')} aria-label="Search vouchers"><Search size={19}/></button><button className="header-tool cart-tool" onClick={() => navigate('cart')} aria-label="Cart"><ShoppingBag size={19}/><b>{cartCount}</b></button>{user ? <button className="account-tool" onClick={() => navigate('profile')}><UserRound size={16}/><span>{user.name || 'Complete profile'}</span></button> : <button className="login-tool" onClick={openAuth}>Login <ArrowRight size={15}/></button>}</div></header>
-
+  return <div className="app-root"><GlobalLoading /><header className="new-header"><button className="header-brand" onClick={() => navigate('home')}><span className="header-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span>Trusted<span>Circle</span></span></button><nav className="desktop-nav"><button onClick={() => navigate('home')}>Home</button><button onClick={() => navigate('vouchers')}>Gift Vouchers</button><button onClick={() => navigate('brands')}>Brands</button><button onClick={() => navigate('info', 'how-it-works')}>How It Works</button><button onClick={() => navigate('info', 'help')}>Help</button></nav><div className="header-actions"><button className="header-tool" onClick={() => navigate('vouchers')} aria-label="Search vouchers"><Search size={19}/></button><button className="header-tool cart-tool" onClick={() => navigate('cart')} aria-label="Cart"><ShoppingBag size={19}/><b>{cartCount}</b></button>{user ? <button className="account-tool" onClick={() => navigate('profile')}><UserRound size={16}/><span>{user.name || 'Complete profile'}</span></button> : <button className="login-tool" onClick={openAuth}>Login <ArrowRight size={15}/></button>}</div></header>
     {route.path === 'home' && <HomePage brands={brands} products={products} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id => navigate('voucher', id)} onBrowse={(page = 'vouchers', filter = '') => { if (filter) setBrandFilter(filter); navigate(page) }} />}
     {route.path === 'brands' && <BrandsPage brands={brands} onBrowse={onBrandBrowse} />}
     {route.path === 'vouchers' && <VouchersPage products={products} brands={brands} brandFilter={brandFilter} setBrandFilter={setBrandFilter} query={query} setQuery={setQuery} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id => navigate('voucher', id)} />}
     {route.path === 'voucher' && <VoucherPage product={currentProduct} brandName={currentProduct ? brandName(currentProduct.BrandID) : ''} onBack={() => navigate('vouchers')} onAdd={addToCart} />}
     {route.path === 'cart' && <CartPage items={cartDetailed} brandName={brandName} subtotal={subtotal} savings={savings} total={total} onQty={changeQty} onRemove={removeItem} onContinue={() => navigate('vouchers')} onCheckout={checkout} />}
-    {route.path === 'checkout' && <CheckoutPage user={user} items={cartDetailed} total={total} savings={savings} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} qrUrl={QR_URL} onBack={() => navigate('cart')} onCreateOrder={createPendingOrder} />}
+    {route.path === 'checkout' && <CheckoutPage user={user} items={cartDetailed} total={total} savings={savings} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} qrUrl={QR_URL} logoUrl={LOGO_URL} onBack={() => navigate('cart')} onCreateOrder={createPendingOrder} />}
     {route.path === 'profile' && user && <ProfilePage user={user} name={profileName} setName={setProfileName} onSave={saveProfile} onLogout={logout} onOrders={() => navigate('orders')} />}
     {route.path === 'orders' && <OrdersPage orders={orders} onBack={() => navigate('vouchers')} />}
-    {route.path === 'order-placed' && <OrderPlacedPage order={lastOrder} onOrders={() => navigate('orders')} onShop={() => navigate('vouchers')} />}
-
-    <footer className="new-footer"><div><span className="footer-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><strong>TrustedCircle</strong><p>Gift vouchers with transparent savings and a simple digital shopping experience.</p></div><div className="footer-links"><button onClick={() => navigate('vouchers')}>Gift Vouchers</button><button onClick={() => navigate('brands')}>Brands</button>{user && <button onClick={() => navigate('orders')}>Orders</button>}<a href="#/erp">ERP Login</a></div></footer>
-
+    {route.path === 'order-placed' && <OrderPlacedPage order={lastOrder} onOrders={() => navigate('orders')} onShop={() => navigate('vouchers')} emailHref={emailHref} whatsappHref={whatsappHref} />}
+    {route.path === 'info' && <InfoPage type={route.id || 'about'} onNavigate={navigate} />}
+    <footer className="site-footer"><div className="footer-main"><div className="footer-brand-block"><button className="footer-brand" onClick={() => navigate('home')}><span className="footer-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><strong>TrustedCircle</strong></button><p>Gift vouchers with transparent savings, secure checkout and simple digital delivery.</p><div className="footer-contact"><span>info@trustedcircle.in</span><span>+91 94424 56039</span></div></div><div className="footer-col"><h4>Shop</h4><button onClick={() => navigate('vouchers')}>Gift Vouchers</button><button onClick={() => navigate('brands')}>Brands</button><button onClick={() => navigate('info','offers')}>Offers</button><button onClick={() => navigate('info','how-it-works')}>How It Works</button></div><div className="footer-col"><h4>Trusted Circle</h4><button onClick={() => navigate('info','about')}>About Us</button><button onClick={() => navigate('info','help')}>Help Centre</button><button onClick={() => navigate('info','contact')}>Contact</button><button onClick={() => navigate('info','faq')}>FAQs</button></div><div className="footer-col"><h4>Policies</h4><button onClick={() => navigate('info','terms')}>Terms & Conditions</button><button onClick={() => navigate('info','privacy')}>Privacy Policy</button><button onClick={() => navigate('info','refund')}>Refund & Cancellation</button>{user && <button onClick={() => navigate('orders')}>My Orders</button>}</div></div><div className="footer-bottom"><span>© 2026 Trusted Circle. All rights reserved.</span><a href="#/erp">ERP Login</a></div></footer>
     {authOpen && <div className="modal-layer"><div className="auth-page-modal"><button className="modal-x" onClick={() => setAuthOpen(false)} aria-label="Close login"><X size={17}/></button><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span>{authStep === 'email' ? <><span className="eyebrow">ACCOUNT ACCESS</span><h2>Welcome to Trusted Circle</h2><p>Enter your email. Existing users sign in; new users are guided through profile creation after OTP verification.</p><form onSubmit={requestOtp}><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/><button className="btn-primary wide" type="submit">Continue <ArrowRight size={15}/></button></form></> : <><span className="eyebrow">VERIFY EMAIL</span><h2>Enter your OTP</h2><p>We sent a one-time code to <strong>{email}</strong>.</p><form onSubmit={verifyOtp}><input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" required value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="6-digit OTP"/><button className="btn-primary wide" type="submit">Verify & continue <ArrowRight size={15}/></button><button className="btn-quiet wide" type="button" onClick={() => setAuthStep('email')}>Use another email</button></form></>}{authMessage && <div className="form-message" role="alert">{authMessage}</div>}</div></div>}
-
     {profileOpen && user && <div className="modal-layer"><div className="profile-complete-modal"><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span className="eyebrow">ONE LAST STEP</span><h2>Complete your account</h2><p>We couldn't find a name for this account. Add it now so your orders and profile are ready.</p><form onSubmit={saveProfile}><input required minLength={2} value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Your full name" autoComplete="name"/><button className="btn-primary wide" type="submit">Create my profile <ArrowRight size={15}/></button></form>{authMessage && <div className="form-message" role="alert">{authMessage}</div>}</div></div>}
   </div>
 }
