@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Gift, Heart, Menu, Search, ShoppingBag, Sparkles, ShieldCheck, Tag, UserRound, X, Zap } from 'lucide-react'
 import { api } from './api'
 
+const LOGO_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
+
 const toneFor = value => {
   const tones = ['dark', 'pink', 'blue', 'orange', 'red', 'green']
   const text = String(value || '')
@@ -164,8 +166,7 @@ function App() {
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <a className="brand-logo" href="#home" aria-label="Trusted Circle home">
-            <span className="logo-mark"><Gift size={21} /></span>
-            <span>Trusted<span>Circle</span></span>
+            <img src={LOGO_URL} alt="Trusted Circle" style={{ width: '150px', height: 'auto', maxHeight: '48px', objectFit: 'contain', display: 'block' }} />
           </a>
 
           <nav className={`main-nav ${menuOpen ? 'open' : ''}`}>
@@ -217,7 +218,7 @@ function App() {
         <section className="how" id="how-it-works"><div className="section-kicker">HOW IT WORKS</div><h2>Gift smarter in three simple steps.</h2><div className="steps"><div><span>01</span><Gift /><h3>Choose a voucher</h3><p>Pick your favourite brand and voucher value.</p></div><div><span>02</span><ShoppingBag /><h3>Pay securely</h3><p>Complete checkout with your preferred payment method.</p></div><div><span>03</span><Zap /><h3>Receive & enjoy</h3><p>Your digital voucher is delivered to your account and email.</p></div></div></section>
       </main>
 
-      <footer className="footer" id="help"><div className="footer-main"><div><a className="brand-logo footer-logo" href="#home"><span className="logo-mark"><Gift size={21} /></span><span>Trusted<span>Circle</span></span></a><p>Branded gift vouchers, better value, simpler gifting.</p></div><div><h4>Shop</h4><a href="#vouchers">Gift Vouchers</a><a href="#brands">Brands</a><a href="#offers">Offers</a></div><div><h4>Support</h4><a href="#help">Help Centre</a><a href="#orders">Orders</a><a href="#contact">Contact Us</a></div><div><h4>Account</h4><button className="footer-action" onClick={() => user ? logout() : openAuth('login')}>{user ? 'Logout' : 'Login / Register'}</button><a href="#cart">My Cart</a><a href="#profile">My Profile</a></div></div><div className="footer-bottom"><span>© 2026 Trusted Circle. All rights reserved.</span><span><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a className="erp-link" href="#erp-login">ERP Login</a></span></div></footer>
+      <footer className="footer" id="help"><div className="footer-main"><div><a className="brand-logo footer-logo" href="#home"><img src={LOGO_URL} alt="Trusted Circle" style={{ width: '150px', height: 'auto', maxHeight: '48px', objectFit: 'contain', display: 'block' }} /></a><p>Branded gift vouchers, better value, simpler gifting.</p></div><div><h4>Shop</h4><a href="#vouchers">Gift Vouchers</a><a href="#brands">Brands</a><a href="#offers">Offers</a></div><div><h4>Support</h4><a href="#help">Help Centre</a><a href="#orders">Orders</a><a href="#contact">Contact Us</a></div><div><h4>Account</h4><button className="footer-action" onClick={() => user ? logout() : openAuth('login')}>{user ? 'Logout' : 'Login / Register'}</button><a href="#cart">My Cart</a><a href="#profile">My Profile</a></div></div><div className="footer-bottom"><span>© 2026 Trusted Circle. All rights reserved.</span><span><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a className="erp-link" href="#erp-login">ERP Login</a></span></div></footer>
 
       {actionMessage && <div className="toast">{actionMessage}</div>}
 
