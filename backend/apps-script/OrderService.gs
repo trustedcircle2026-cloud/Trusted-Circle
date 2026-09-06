@@ -17,41 +17,31 @@ var OrderService = {
         require_(product && String(product.Active).toUpperCase() !== 'FALSE', 'A cart item is no longer available.');
         require_(String(product.InventoryStatus || 'AVAILABLE').toUpperCase() !== 'OUT_OF_STOCK', 'A cart item is out of stock.');
         var qty = Number(cart.Quantity || 0);
-        var face = Number(product.FaceValue || 0);
-        var unit = Number(product.SellingPrice || 0);
+        var face = Number(cart.Denomination || product.FaceValue || 0);
+        require_(isFinite(face) && face >= 100 && face <= 10000, 'A cart denomination is invalid.');
+        var discountPercent = Number(product.DiscountPercent || 0);
+        var unit = Math.round(face * (1 - discountPercent / 100) * 100) / 100;
         var line = unit * qty;
         subtotal += face * qty;
         discount += Math.max(0, (face - unit) * qty);
         items.push({ product: product, quantity: qty, faceValue: face, unitPrice: unit, total: line });
       });
 
-      var total = subtotal - discount;
+      var total = Math.round((subtotal - discount) * 100) / 100;
       var now = isoNow_();
       var orderId = newId_('TCORD');
       var orderNumber = 'TC-' + Utilities.formatDate(new Date(), TC_CONFIG.TIMEZONE, 'yyyyMMdd') + '-' + Utilities.getUuid().replace(/-/g, '').substring(0, 8).toUpperCase();
 
       appendRowObject_(TC_CONFIG.SHEETS.ORDERS, {
-        OrderID: orderId,
-        UserID: user.UserID,
-        OrderNumber: orderNumber,
-        Status: 'PENDING_PAYMENT',
-        Subtotal: subtotal,
-        Discount: discount,
-        Total: total,
-        Currency: 'INR',
-        CreatedAt: now,
-        UpdatedAt: now
+        OrderID: orderId, UserID: user.UserID, OrderNumber: orderNumber, Status: 'PENDING_PAYMENT',
+        Subtotal: subtotal, Discount: discount, Total: total, Currency: 'INR', CreatedAt: now, UpdatedAt: now
       });
 
       items.forEach(function(item) {
         appendRowObject_(TC_CONFIG.SHEETS.ORDER_ITEMS, {
-          OrderItemID: newId_('TCORI'),
-          OrderID: orderId,
-          ProductID: item.product.ProductID,
-          Quantity: item.quantity,
-          FaceValue: item.faceValue,
-          UnitPrice: item.unitPrice,
-          Total: item.total
+          OrderItemID: newId_('TCORI'), OrderID: orderId, ProductID: item.product.ProductID,
+          Quantity: item.quantity, FaceValue: item.faceValue, UnitPrice: item.unitPrice,
+          Denomination: item.faceValue, Total: item.total
         });
       });
 
