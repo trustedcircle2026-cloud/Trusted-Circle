@@ -1,0 +1,139 @@
+/* Mobile-first refinements for Trusted Circle */
+html, body, #root { min-width: 0; width: 100%; }
+body { overflow-x: hidden; }
+
+.modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.auth-page-modal,
+.profile-complete-modal {
+  width: min(100%, 430px);
+  max-height: min(720px, calc(100dvh - 32px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.auth-page-modal input,
+.profile-complete-modal input,
+.catalog-search input,
+.catalog-select select {
+  min-width: 0;
+  font-size: 16px; /* prevents iOS/Android browser auto-zoom */
+}
+
+.btn-primary,
+.btn-quiet,
+.login-tool,
+.account-tool,
+.header-tool,
+.voucher-price-row button,
+.qty-control button,
+.remove-line,
+.catalog-search button,
+.text-action,
+.back-link {
+  min-height: 44px;
+}
+
+@media (max-width: 760px) {
+  .new-header {
+    height: 64px;
+    padding: 0 12px;
+  }
+
+  .header-brand { font-size: 17px; gap: 7px; }
+  .header-logo-white { width: 38px; height: 38px; border-radius: 12px; }
+  .header-actions { gap: 6px; }
+  .header-tool { width: 42px; }
+  .login-tool { padding: 0 12px; }
+  .account-tool { max-width: 150px; padding: 0 10px; }
+  .account-tool span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .home-hero {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding: 46px 16px 34px;
+  }
+  .home-hero h1 { font-size: clamp(44px, 14vw, 64px); }
+  .home-hero p, .page-banner p { font-size: 15px; }
+  .hero-art { min-height: 300px; }
+  .hero-orbit-a { width: 310px; height: 310px; }
+  .hero-orbit-b { width: 220px; height: 220px; }
+  .hero-gift-card { width: min(390px, 92vw); padding: 20px; border-radius: 22px; }
+  .hero-gift-card>strong { font-size: 42px; margin: 55px 0 25px; }
+  .hero-save { width: 82px; height: 82px; border-width: 5px; right: 2%; bottom: 10%; }
+  .hero-save strong { font-size: 22px; }
+
+  .home-section, .page-shell { padding: 42px 16px; }
+  .section-title { align-items: flex-start; margin-bottom: 20px; }
+  .section-title h2, .page-banner h1 { font-size: 32px; }
+  .brand-logo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .brand-logo-tile { padding: 14px; gap: 10px; border-radius: 16px; }
+  .brand-logo-md { width: 42px; height: 42px; }
+  .brand-logo-tile strong { font-size: 13px; }
+  .brand-logo-tile small { font-size: 10px; }
+
+  .voucher-grid { grid-template-columns: 1fr; gap: 14px; }
+  .voucher-card-art { min-height: 225px; }
+  .voucher-card-content { padding: 15px; }
+  .voucher-price-row strong { font-size: 19px; }
+  .voucher-price-row button { padding: 10px 12px; }
+
+  .catalog-toolbar { flex-direction: column; gap: 9px; }
+  .catalog-search, .catalog-select { width: 100%; }
+  .all-brand-grid { grid-template-columns: 1fr; }
+
+  .voucher-detail { grid-template-columns: 1fr; gap: 14px; }
+  .voucher-detail-art { min-height: 320px; padding: 25px 18px; border-radius: 22px; }
+  .voucher-detail-art h1 { font-size: 30px; }
+  .voucher-detail-info { padding: 24px 18px; border-radius: 22px; }
+  .voucher-detail-info h2 { font-size: 31px; }
+  .detail-price { grid-template-columns: 1fr auto; }
+  .detail-price>div:first-child { grid-column: 1 / -1; }
+
+  .cart-layout-page, .checkout-layout { grid-template-columns: 1fr; gap: 14px; }
+  .cart-line-card { grid-template-columns: auto minmax(0, 1fr); gap: 10px; padding: 14px; }
+  .cart-line-card .qty-control { grid-column: 1 / -1; justify-self: start; }
+  .cart-line-card .remove-line { justify-self: end; grid-column: 2; grid-row: 2; }
+  .summary-card { position: static; padding: 18px; }
+  .checkout-card { padding: 18px; }
+  .qr-payment, .payment-waiting { flex-direction: column; align-items: stretch; }
+  .qr-box { width: min(220px, 100%); height: min(220px, 100vw); margin: 0 auto; }
+
+  .modal-layer { place-items: start center; padding-top: max(12px, env(safe-area-inset-top)); padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .auth-page-modal, .profile-complete-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    border-radius: 22px;
+    padding: 22px 18px;
+  }
+  .modal-x { width: 42px; height: 42px; }
+  .modal-logo-white { width: 48px; height: 48px; }
+  .auth-page-modal h2, .profile-complete-modal h2 { font-size: 26px; line-height: 1.12; }
+  .auth-page-modal p, .profile-complete-modal p { font-size: 13px; line-height: 1.55; }
+  .auth-page-modal form, .profile-complete-modal form { gap: 10px; }
+  .auth-page-modal input, .profile-complete-modal input { height: 50px; padding: 0 14px; }
+  .auth-page-modal .btn-primary, .auth-page-modal .btn-quiet, .profile-complete-modal .btn-primary { min-height: 50px; }
+  .form-message { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+  .new-footer { padding: 38px 16px; }
+}
+
+@media (max-width: 380px) {
+  .header-brand>span:last-child { display: none; }
+  .login-tool { padding: 0 9px; }
+  .account-tool { max-width: 105px; }
+  .home-hero h1 { font-size: 42px; }
+  .brand-logo-grid { gap: 8px; }
+  .brand-logo-tile { padding: 11px; }
+  .brand-logo-image { width: 38px; height: 38px; }
+}
