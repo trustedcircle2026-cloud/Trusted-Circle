@@ -21,6 +21,14 @@ function createOrGetUser_(email, name) {
   return getUserByEmail_(email);
 }
 
+function updateProfile_(data) {
+  var user = authenticate_(data.token);
+  var name = cleanText_(data.name || '', 120);
+  require_(name.length >= 2, 'Name must contain at least 2 characters.');
+  updateRowById_(TC_CONFIG.SHEETS.USERS, 'UserID', user.UserID, { Name: name, UpdatedAt: isoNow_() });
+  return publicUser_(getUserByEmail_(user.Email));
+}
+
 function publicUser_(user) {
   if (!user) return null;
   return {
