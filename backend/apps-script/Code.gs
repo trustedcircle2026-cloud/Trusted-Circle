@@ -47,7 +47,7 @@ function parseUrlEncoded_(body) {
 
 function routeAction_(action, input) {
   switch (action) {
-    case 'health': return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.4.0' };
+    case 'health': return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.5.0' };
     case 'setupBackend': return setupBackend();
     case 'requestOtp': return requestOtp_(input);
     case 'verifyOtp': return verifyOtpAndLogin_(input);
@@ -60,6 +60,7 @@ function routeAction_(action, input) {
     case 'cart': return CartService.getCart(input);
     case 'cartAdd': return CartService.addItem(input);
     case 'cartUpdate': return CartService.updateItem(input);
+    case 'cartDenomination': return CartService.updateDenomination(input);
     case 'cartRemove': return CartService.removeItem(input);
     case 'placeOrder': return OrderService.placeOrder(input);
     case 'orders': return OrderService.listOrders(input);
