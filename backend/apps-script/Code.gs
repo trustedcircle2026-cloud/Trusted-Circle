@@ -12,7 +12,14 @@ function handleRequest_(e, isPost) {
 
     if (isPost) {
       const body = e && e.postData ? String(e.postData.contents || '') : '';
-      input = body ? safeJsonParse_(body) : (e && e.parameter ? e.parameter : {});
+      const type = e && e.postData ? String(e.postData.type || '').toLowerCase() : '';
+      if (body && type.indexOf('application/json') >= 0) {
+        input = safeJsonParse_(body);
+      } else if (e && e.parameter) {
+        input = e.parameter;
+      } else {
+        input = body ? safeJsonParse_(body) : {};
+      }
     } else {
       input = e && e.parameter ? e.parameter : {};
     }
@@ -29,48 +36,31 @@ function handleRequest_(e, isPost) {
 function routeAction_(action, input) {
   switch (action) {
     case 'health':
-      return {
-        service: TC_CONFIG.APP_NAME + ' API',
-        status: 'ok',
-        version: '1.2.0'
-      };
-
+      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.0' };
     case 'setupBackend':
       return setupBackend();
-
     case 'requestOtp':
       return requestOtp_(input);
-
     case 'verifyOtp':
       return verifyOtpAndLogin_(input);
-
     case 'logout':
       return { loggedOut: revokeSession_(input.token) };
-
     case 'me':
       return publicUser_(authenticate_(input.token));
-
     case 'brands':
       return ProductService.listBrands(input);
-
     case 'products':
       return ProductService.listProducts(input);
-
     case 'product':
       return ProductService.getProduct(input);
-
     case 'cart':
       return CartService.getCart(input);
-
     case 'cartAdd':
       return CartService.addItem(input);
-
     case 'cartUpdate':
       return CartService.updateItem(input);
-
     case 'cartRemove':
       return CartService.removeItem(input);
-
     default:
       throw new Error('Unknown API action.');
   }
