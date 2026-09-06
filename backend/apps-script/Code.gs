@@ -16,7 +16,7 @@ function handleRequest_(e, isPost) {
       const parameters = e && e.parameter ? e.parameter : {};
       const hasParameters = Object.keys(parameters).length > 0;
 
-      if (type.indexOf('application/json') >= 0 && body) {
+      if (body && (type.indexOf('application/json') >= 0 || looksLikeJson_(body))) {
         input = safeJsonParse_(body) || {};
       } else if (hasParameters) {
         input = parameters;
@@ -36,6 +36,11 @@ function handleRequest_(e, isPost) {
   }
 }
 
+function looksLikeJson_(value) {
+  const text = String(value || '').trim();
+  return text.charAt(0) === '{' || text.charAt(0) === '[';
+}
+
 function parseUrlEncoded_(body) {
   const result = {};
   String(body || '').split('&').forEach(function(pair) {
@@ -53,7 +58,7 @@ function parseUrlEncoded_(body) {
 function routeAction_(action, input) {
   switch (action) {
     case 'health':
-      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.1' };
+      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.2' };
     case 'setupBackend':
       return setupBackend();
     case 'requestOtp':
