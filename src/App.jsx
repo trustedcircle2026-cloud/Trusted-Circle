@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage'
 import OrdersPage from './pages/OrdersPage'
 import OrderPlacedPage from './pages/OrderPlacedPage'
 import './app.css'
+import './mobile.css'
 
 const LOGO_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const QR_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg'
@@ -20,6 +21,14 @@ function readRoute() {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home'
   const [path, id] = raw.split('/')
   return { path, id: id || '' }
+}
+
+const friendlyApiError = error => {
+  const message = String(error?.message || 'Request failed.')
+  if (/unknown api action/i.test(message)) {
+    return 'The backend is on an older deployment. Please deploy the latest Trusted Circle Backend version, then try again.'
+  }
+  return message
 }
 
 export default function App() {
@@ -128,7 +137,7 @@ export default function App() {
   const toggleLike = id => setLiked(current => { const next = current.includes(id) ? current.filter(x => x !== id) : [...current, id]; localStorage.setItem('tc_liked', JSON.stringify(next)); return next })
 
   const openAuth = () => { setAuthStep('email'); setOtp(''); setAuthMessage(''); setAuthOpen(true) }
-  const requestOtp = async event => { event.preventDefault(); setAuthMessage(''); try { await api.requestOtp(email); setAuthStep('otp'); setAuthMessage(`Verification code sent to ${email}.`) } catch (error) { setAuthMessage(error.message) } }
+  const requestOtp = async event => { event.preventDefault(); setAuthMessage(''); try { await api.requestOtp(email); setAuthStep('otp'); setAuthMessage(`Verification code sent to ${email}.`) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
   const verifyOtp = async event => {
     event.preventDefault(); setAuthMessage('')
     try {
@@ -139,12 +148,12 @@ export default function App() {
       setAuthOpen(false)
       if (!data.user.name) setProfileOpen(true)
       else navigate('home')
-    } catch (error) { setAuthMessage(error.message) }
+    } catch (error) { setAuthMessage(friendlyApiError(error)) }
   }
 
   const saveProfile = async event => {
     event.preventDefault(); setAuthMessage('')
-    try { const data = await api.profileUpdate(token, profileName); setUser(data); setProfileOpen(false); navigate('home') } catch (error) { setAuthMessage(error.message) }
+    try { const data = await api.profileUpdate(token, profileName); setUser(data); setProfileOpen(false); navigate('home') } catch (error) { setAuthMessage(friendlyApiError(error)) }
   }
 
   const logout = async () => {
@@ -154,14 +163,14 @@ export default function App() {
 
   const addToCart = async product => {
     if (!token) { openAuth(); return }
-    try { const data = await api.cartAdd(token, product.ProductID, 1); setCart(data?.items || []); await loadAllProducts() } catch (error) { setAuthMessage(error.message) }
+    try { const data = await api.cartAdd(token, product.ProductID, 1); setCart(data?.items || []); await loadAllProducts() } catch (error) { setAuthMessage(friendlyApiError(error)) }
   }
-  const changeQty = async (item, quantity) => { if (quantity < 1) return removeItem(item); try { const data = await api.cartUpdate(token, item.CartID, quantity); setCart(data?.items || []) } catch (error) { setAuthMessage(error.message) } }
-  const removeItem = async item => { try { const data = await api.cartRemove(token, item.CartID); setCart(data?.items || []) } catch (error) { setAuthMessage(error.message) } }
+  const changeQty = async (item, quantity) => { if (quantity < 1) return removeItem(item); try { const data = await api.cartUpdate(token, item.CartID, quantity); setCart(data?.items || []) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
+  const removeItem = async item => { try { const data = await api.cartRemove(token, item.CartID); setCart(data?.items || []) } catch (error) { setAuthMessage(friendlyApiError(error)) } }
   const checkout = () => { if (!token) { openAuth(); return } if (cartDetailed.length) navigate('checkout') }
   const createPendingOrder = async () => {
     if (paymentMethod !== 'upi') return
-    try { const data = await api.placeOrder(token); setLastOrder(data); await Promise.all([loadCart(token), loadOrders(token)]); navigate('order-placed') } catch (error) { setAuthMessage(error.message) }
+    try { const data = await api.placeOrder(token); setLastOrder(data); await Promise.all([loadCart(token), loadOrders(token)]); navigate('order-placed') } catch (error) { setAuthMessage(friendlyApiError(error)) }
   }
   const onBrandBrowse = id => { setBrandFilter(id || ''); navigate('vouchers') }
 
@@ -181,8 +190,8 @@ export default function App() {
 
     <footer className="new-footer"><div><span className="footer-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><strong>TrustedCircle</strong><p>Gift vouchers with transparent savings and a simple digital shopping experience.</p></div><div className="footer-links"><button onClick={() => navigate('vouchers')}>Gift Vouchers</button><button onClick={() => navigate('brands')}>Brands</button>{user && <button onClick={() => navigate('orders')}>Orders</button>}<a href="#/erp">ERP Login</a></div></footer>
 
-    {authOpen && <div className="modal-layer"><div className="auth-page-modal"><button className="modal-x" onClick={() => setAuthOpen(false)}><X size={17}/></button><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span>{authStep === 'email' ? <><span className="eyebrow">ACCOUNT ACCESS</span><h2>Welcome to Trusted Circle</h2><p>Enter your email. Existing users sign in; new users are guided through profile creation after OTP verification.</p><form onSubmit={requestOtp}><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/><button className="btn-primary wide" type="submit">Continue <ArrowRight size={15}/></button></form></> : <><span className="eyebrow">VERIFY EMAIL</span><h2>Enter your OTP</h2><p>We sent a one-time code to <strong>{email}</strong>.</p><form onSubmit={verifyOtp}><input inputMode="numeric" maxLength="6" required value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="6-digit OTP"/><button className="btn-primary wide" type="submit">Verify & continue <ArrowRight size={15}/></button><button className="btn-quiet wide" type="button" onClick={() => setAuthStep('email')}>Use another email</button></form></>}{authMessage && <div className="form-message">{authMessage}</div>}</div></div>}
+    {authOpen && <div className="modal-layer"><div className="auth-page-modal"><button className="modal-x" onClick={() => setAuthOpen(false)} aria-label="Close login"><X size={17}/></button><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span>{authStep === 'email' ? <><span className="eyebrow">ACCOUNT ACCESS</span><h2>Welcome to Trusted Circle</h2><p>Enter your email. Existing users sign in; new users are guided through profile creation after OTP verification.</p><form onSubmit={requestOtp}><input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email"/><button className="btn-primary wide" type="submit">Continue <ArrowRight size={15}/></button></form></> : <><span className="eyebrow">VERIFY EMAIL</span><h2>Enter your OTP</h2><p>We sent a one-time code to <strong>{email}</strong>.</p><form onSubmit={verifyOtp}><input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength="6" required value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} placeholder="6-digit OTP"/><button className="btn-primary wide" type="submit">Verify & continue <ArrowRight size={15}/></button><button className="btn-quiet wide" type="button" onClick={() => setAuthStep('email')}>Use another email</button></form></>}{authMessage && <div className="form-message" role="alert">{authMessage}</div>}</div></div>}
 
-    {profileOpen && user && <div className="modal-layer"><div className="profile-complete-modal"><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span className="eyebrow">ONE LAST STEP</span><h2>Complete your account</h2><p>We couldn't find a name for this account. Add it now so your orders and profile are ready.</p><form onSubmit={saveProfile}><input required minLength={2} value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Your full name"/><button className="btn-primary wide" type="submit">Create my profile <ArrowRight size={15}/></button></form>{authMessage && <div className="form-message">{authMessage}</div>}</div></div>}
+    {profileOpen && user && <div className="modal-layer"><div className="profile-complete-modal"><span className="modal-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span className="eyebrow">ONE LAST STEP</span><h2>Complete your account</h2><p>We couldn't find a name for this account. Add it now so your orders and profile are ready.</p><form onSubmit={saveProfile}><input required minLength={2} value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Your full name" autoComplete="name"/><button className="btn-primary wide" type="submit">Create my profile <ArrowRight size={15}/></button></form>{authMessage && <div className="form-message" role="alert">{authMessage}</div>}</div></div>}
   </div>
 }
