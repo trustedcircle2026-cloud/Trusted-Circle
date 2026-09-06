@@ -13,18 +13,21 @@ function handleRequest_(e, isPost) {
     if (isPost) {
       const body = e && e.postData ? String(e.postData.contents || '') : '';
       const type = e && e.postData ? String(e.postData.type || '').toLowerCase() : '';
-      if (body && type.indexOf('application/json') >= 0) {
-        input = safeJsonParse_(body);
-      } else if (e && e.parameter) {
-        input = e.parameter;
-      } else {
-        input = body ? safeJsonParse_(body) : {};
+      const parameters = e && e.parameter ? e.parameter : {};
+      const hasParameters = Object.keys(parameters).length > 0;
+
+      if (type.indexOf('application/json') >= 0 && body) {
+        input = safeJsonParse_(body) || {};
+      } else if (hasParameters) {
+        input = parameters;
+      } else if (body) {
+        input = parseUrlEncoded_(body);
       }
     } else {
       input = e && e.parameter ? e.parameter : {};
     }
 
-    require_(input, 'Invalid request.');
+    require_(input && typeof input === 'object' && Object.keys(input).length > 0, 'Invalid request.');
     const action = cleanText_(input.action || 'health', 50);
     return jsonResponse_(success_(routeAction_(action, input)));
   } catch (err) {
@@ -33,10 +36,24 @@ function handleRequest_(e, isPost) {
   }
 }
 
+function parseUrlEncoded_(body) {
+  const result = {};
+  String(body || '').split('&').forEach(function(pair) {
+    if (!pair) return;
+    const index = pair.indexOf('=');
+    const rawKey = index >= 0 ? pair.substring(0, index) : pair;
+    const rawValue = index >= 0 ? pair.substring(index + 1) : '';
+    const key = decodeURIComponent(rawKey.replace(/\+/g, ' '));
+    const value = decodeURIComponent(rawValue.replace(/\+/g, ' '));
+    result[key] = value;
+  });
+  return result;
+}
+
 function routeAction_(action, input) {
   switch (action) {
     case 'health':
-      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.0' };
+      return { service: TC_CONFIG.APP_NAME + ' API', status: 'ok', version: '1.2.1' };
     case 'setupBackend':
       return setupBackend();
     case 'requestOtp':
