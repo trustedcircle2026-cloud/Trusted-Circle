@@ -6,6 +6,7 @@ import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './site.css'
 import './public-ui.css'
+import './erp-overrides.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
