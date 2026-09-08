@@ -34,6 +34,7 @@ After updating the Apps Script source files, create a new Web App deployment/ver
 - `adminSendVoucher`
 - `adminUpdateOrder`
 - `requestPaymentLink`
+- `createInvoicePdf`
 
 ### Payment-link workflow
 
@@ -44,5 +45,18 @@ After updating the Apps Script source files, create a new Web App deployment/ver
 5. Admin opens **Link Requests** and/or **Payment Links**, selects the request/order from dropdowns and can open the full-detail line popup.
 6. Admin enters the HTTPS payment link and saves it.
 7. The request is marked `LINK_SENT` and a separate shopper + operations email is sent with the payment link.
+
+### Completed-order invoice
+
+The `createInvoicePdf` API action is authenticated and server-side. It will **reject** invoice generation unless:
+
+- the authenticated shopper owns the order;
+- the order status is `DELIVERED`;
+- the latest payment is `VERIFIED` or `PAID`; and
+- at least one voucher for the order has status `DELIVERED`.
+
+The PDF is generated from a temporary Google Sheet in a Tally-style tabular A4 layout, includes the Trusted Circle logo, order/customer/payment details, line items, denomination, discounts, totals and delivered voucher details, then the temporary sheet is trashed. The PDF is returned to the authenticated browser for download and is not stored permanently by this flow.
+
+Because invoice generation uses temporary spreadsheet/Drive operations and authenticated PDF export, the Apps Script manifest now includes the Google Drive scope. **The first deployment after this change may ask the Apps Script owner to re-authorize the additional permission.**
 
 Never put the ERP password, payment credentials, API keys, or Google service credentials in this repository.
