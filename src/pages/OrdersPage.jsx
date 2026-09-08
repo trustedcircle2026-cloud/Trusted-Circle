@@ -1,11 +1,21 @@
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, Copy, Download, ExternalLink, FileText, PackageCheck, QrCode, Smartphone, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Download, ExternalLink, FileText, Landmark, Link2, PackageCheck, QrCode, Smartphone, WalletCards, CreditCard, X } from 'lucide-react'
 import { api } from '../api'
 import './orders-page.css'
 
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
-const UPI_URI = 'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified Paytm Account'
+const UPI_URI = 'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
+const UPI_LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg'
+const QR_URL = 'https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg'
 const invoiceReady = order => String(order.Status || '').toUpperCase() === 'DELIVERED' && ['VERIFIED', 'PAID'].includes(String(order.PaymentStatus || '').toUpperCase())
+const paymentMethods = [
+  { id: 'upiapps', label: 'UPI Apps', icon: Smartphone },
+  { id: 'qr', label: 'QR Code', icon: QrCode },
+  { id: 'cards', label: 'Cards', icon: CreditCard },
+  { id: 'netbanking', label: 'Netbanking', icon: Landmark },
+  { id: 'wallet', label: 'Wallet', icon: WalletCards },
+  { id: 'link', label: 'Payment Link', icon: Link2 },
+]
 
 function downloadBase64Pdf(base64, fileName) {
   const bytes = Uint8Array.from(atob(base64), character => character.charCodeAt(0))
@@ -23,19 +33,16 @@ function downloadBase64Pdf(base64, fileName) {
 export default function OrdersPage({ orders, onBack }) {
   const [open, setOpen] = useState(null)
   const [pay, setPay] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const [payMethod, setPayMethod] = useState('upiapps')
+  const [payQr, setPayQr] = useState(false)
+  const [paymentLinkRequesting, setPaymentLinkRequesting] = useState(false)
+  const [paymentLinkSent, setPaymentLinkSent] = useState(false)
   const [invoiceLoading, setInvoiceLoading] = useState('')
   const [invoiceError, setInvoiceError] = useState('')
+  const [cancelLoading, setCancelLoading] = useState('')
+  const [cancelled, setCancelled] = useState(() => new Set())
 
-  const pending = order => String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
-
-  const copy = async text => {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {}
-  }
+  const pending = order => !cancelled.has(order.OrderID) && String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
   const downloadInvoice = async order => {
     setInvoiceError('')
@@ -43,13 +50,48 @@ export default function OrdersPage({ orders, onBack }) {
     try {
       const token = localStorage.getItem('tc_session')
       const result = await api.createInvoicePdf(token, order.OrderID)
-      if (!result?.base64) throw new Error('Invoice PDF was not returned.')
+      if (!result?.base64) throw new Error('Invoice not available.')
       downloadBase64Pdf(result.base64, result.fileName)
     } catch (error) {
-      setInvoiceError(error.message || 'Unable to prepare invoice.')
+      setInvoiceError(error.message || 'Could not download invoice.')
     } finally {
       setInvoiceLoading('')
     }
+  }
+
+  const cancel = async order => {
+    const confirmed = window.confirm('Cancel this order?')
+    if (!confirmed) return
+    setCancelLoading(order.OrderID)
+    try {
+      await api.cancelOrder(localStorage.getItem('tc_session'), order.OrderID)
+      setCancelled(previous => new Set(previous).add(order.OrderID))
+      setPay(null)
+    } catch (error) {
+      setInvoiceError(error.message || 'Could not cancel the order.')
+    } finally {
+      setCancelLoading('')
+    }
+  }
+
+  const requestPaymentLink = async () => {
+    if (!pay) return
+    setPaymentLinkRequesting(true)
+    try {
+      await api.requestPaymentLink(localStorage.getItem('tc_session'), pay.OrderID)
+      setPaymentLinkSent(true)
+    } catch (error) {
+      setInvoiceError(error.message || 'Could not request payment link.')
+    } finally {
+      setPaymentLinkRequesting(false)
+    }
+  }
+
+  const openPayment = order => {
+    setPay(order)
+    setPayMethod('upiapps')
+    setPayQr(false)
+    setPaymentLinkSent(false)
   }
 
   return (
@@ -57,151 +99,78 @@ export default function OrdersPage({ orders, onBack }) {
       <div className="page-shell">
         <div className="page-banner compact">
           <span className="eyebrow">MY ORDERS</span>
-          <h1>Your voucher orders.</h1>
-          <p>Track payment, delivery and your completed-order invoices from one place.</p>
+          <h1>Your orders</h1>
+          <p>See your payment and voucher status here.</p>
         </div>
 
-        {invoiceError && (
-          <div className="invoice-error">
-            <FileText size={16} />
-            <span>{invoiceError}</span>
-            <button onClick={() => setInvoiceError('')}><X size={14} /></button>
-          </div>
-        )}
+        {invoiceError && <div className="invoice-error"><FileText size={16} /><span>{invoiceError}</span><button onClick={() => setInvoiceError('')}><X size={14} /></button></div>}
 
-        {orders.length ? (
-          <div className="orders-list">
-            {orders.map(order => {
-              const expanded = open === order.OrderID
-              const items = order.Items || []
-              const ready = invoiceReady(order)
-              const paymentPending = pending(order)
-              const stateLabel = paymentPending ? 'Payment Pending' : ready ? 'Completed & Delivered' : `Payment ${String(order.PaymentStatus || 'PAID')}`
-              const stateClass = paymentPending ? 'pending' : ready ? 'delivered' : 'paid'
+        {orders.length ? <div className="orders-list">
+          {orders.map(order => {
+            const expanded = open === order.OrderID
+            const items = order.Items || []
+            const ready = invoiceReady(order)
+            const paymentPending = pending(order)
+            const isCancelled = cancelled.has(order.OrderID) || String(order.Status || '').toUpperCase() === 'CANCELLED'
+            const stateLabel = isCancelled ? 'Cancelled' : paymentPending ? 'Payment Pending' : ready ? 'Delivered' : `Payment ${String(order.PaymentStatus || 'PAID')}`
+            const stateClass = isCancelled ? 'cancelled' : paymentPending ? 'pending' : ready ? 'delivered' : 'paid'
 
-              return (
-                <article className={`order-card order-card-rich ${expanded ? 'expanded' : ''}`} key={order.OrderID}>
-                  <button className="order-main" onClick={() => setOpen(expanded ? null : order.OrderID)}>
-                    <div className="order-icon"><PackageCheck size={20} /></div>
-                    <div className="order-copy">
-                      <span>{order.OrderNumber}</span>
-                      <h3>{String(order.Status || 'ORDER').replaceAll('_', ' ')}</h3>
-                      <small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small>
-                    </div>
-                    <div className="order-right">
-                      <strong>{money(order.Total)}</strong>
-                      <span className={`payment-state ${stateClass}`}>{stateLabel}</span>
-                    </div>
-                    <ChevronDown size={17} className="order-chevron" />
-                  </button>
+            return <article className={`order-card order-card-rich ${expanded ? 'expanded' : ''}`} key={order.OrderID}>
+              <button className="order-main" onClick={() => setOpen(expanded ? null : order.OrderID)}>
+                <div className="order-icon"><PackageCheck size={20} /></div>
+                <div className="order-copy"><span>{order.OrderNumber}</span><h3>{isCancelled ? 'Cancelled' : String(order.Status || 'ORDER').replaceAll('_', ' ')}</h3><small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small></div>
+                <div className="order-right"><strong>{money(order.Total)}</strong><span className={`payment-state ${stateClass}`}>{stateLabel}</span></div>
+                <ChevronDown size={17} className="order-chevron" />
+              </button>
 
-                  {expanded && (
-                    <div className="order-details">
-                      <div className="detail-head">
-                        <div>
-                          <span className="eyebrow">ORDER DETAILS</span>
-                          <h3>{order.OrderNumber}</h3>
-                        </div>
-                        <div className="order-detail-actions">
-                          {paymentPending && (
-                            <button className="make-payment-btn" onClick={() => setPay(order)}>
-                              <Smartphone size={15} /> Make Payment
-                            </button>
-                          )}
-                          {ready ? (
-                            <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(order)}>
-                              <Download size={15} />
-                              {invoiceLoading === order.OrderID ? 'Preparing PDF…' : 'Download Invoice PDF'}
-                            </button>
-                          ) : (
-                            <span className="invoice-locked"><FileText size={14} /> Invoice unlocks after payment & voucher delivery</span>
-                          )}
-                        </div>
-                      </div>
+              {expanded && <div className="order-details">
+                <div className="detail-head">
+                  <div><span className="eyebrow">ORDER</span><h3>{order.OrderNumber}</h3></div>
+                  <div className="order-detail-actions">
+                    {paymentPending && <button className="make-payment-btn" onClick={() => openPayment(order)}><Smartphone size={15} /> Pay now</button>}
+                    {paymentPending && <button className="cancel-order-btn" disabled={cancelLoading === order.OrderID} onClick={() => cancel(order)}><X size={15} /> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel order'}</button>}
+                    {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(order)}><Download size={15} /> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
+                  </div>
+                </div>
 
-                      <div className="detail-grid">
-                        <div><span>Order ID</span><b>{order.OrderID}</b></div>
-                        <div><span>Payment Status</span><b>{String(order.PaymentStatus || 'PENDING')}</b></div>
-                        <div><span>Order Status</span><b>{String(order.Status || '')}</b></div>
-                        <div><span>Subtotal</span><b>{money(order.Subtotal)}</b></div>
-                        <div><span>Discount</span><b>{money(order.Discount)}</b></div>
-                        <div><span>Total</span><b>{money(order.Total)}</b></div>
-                      </div>
+                <div className="detail-grid">
+                  <div><span>Status</span><b>{isCancelled ? 'Cancelled' : String(order.Status || '').replaceAll('_', ' ')}</b></div>
+                  <div><span>Payment</span><b>{String(order.PaymentStatus || 'PENDING').replaceAll('_', ' ')}</b></div>
+                  <div><span>Items</span><b>{items.length}</b></div>
+                  <div><span>Subtotal</span><b>{money(order.Subtotal)}</b></div>
+                  <div><span>Savings</span><b>{money(order.Discount)}</b></div>
+                  <div><span>Total</span><b>{money(order.Total)}</b></div>
+                </div>
 
-                      <div className="detail-items">
-                        <strong>Items</strong>
-                        {items.length ? (
-                          items.map((item, index) => (
-                            <div className="detail-item" key={item.OrderItemID || index}>
-                              <span>{item.ProductID}</span>
-                              <span>Denomination {money(item.Denomination || item.FaceValue)}</span>
-                              <span>× {item.Quantity}</span>
-                              <b>{money(item.Total)}</b>
-                            </div>
-                          ))
-                        ) : <p>Item details will appear here.</p>}
-                      </div>
+                <div className="detail-items"><strong>Items</strong>{items.length ? items.map((item, index) => <div className="detail-item" key={item.OrderItemID || index}><span>Gift voucher</span><span>{money(item.Denomination || item.FaceValue)}</span><span>× {item.Quantity}</span><b>{money(item.Total)}</b></div>) : <p>Item details will appear here.</p>}</div>
 
-                      {order.PaymentLink?.Link && (
-                        <div className="saved-payment-link">
-                          <div><span>PAYMENT LINK</span><b>{order.PaymentLink.Label || 'Secure payment link'}</b></div>
-                          <a href={order.PaymentLink.Link} target="_blank" rel="noreferrer">Open Payment Link <ExternalLink size={14} /></a>
-                        </div>
-                      )}
+                {order.PaymentLink?.Link && <div className="saved-payment-link"><div><span>PAYMENT LINK</span><b>{order.PaymentLink.Label || 'Pay online'}</b></div><a href={order.PaymentLink.Link} target="_blank" rel="noreferrer">Pay online <ExternalLink size={14} /></a></div>}
 
-                      {order.Payment?.Provider && (
-                        <div className="payment-record">
-                          <CheckCircle2 size={15} />
-                          <span>Latest payment method: <b>{order.Payment.Provider}</b>{order.Payment.ProviderPaymentID && <> · Reference <b>{order.Payment.ProviderPaymentID}</b></>}</span>
-                        </div>
-                      )}
+                {order.Payment?.Provider && <div className="payment-record"><CheckCircle2 size={15} /><span>Paid using <b>{order.Payment.Provider}</b></span></div>}
 
-                      {ready && (
-                        <div className="invoice-ready-banner">
-                          <FileText size={19} />
-                          <div>
-                            <strong>Invoice ready</strong>
-                            <span>Completed order with verified payment and delivered voucher. Your PDF contains the complete order, payment and voucher record.</span>
-                          </div>
-                          <button onClick={() => downloadInvoice(order)} disabled={invoiceLoading === order.OrderID}>
-                            {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </article>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="empty-panel">
-            <PackageCheck size={30} />
-            <h3>No orders yet</h3>
-            <p>Your checkout orders will appear here.</p>
-            <button className="btn-primary" onClick={onBack}>Browse vouchers</button>
-          </div>
-        )}
+                {ready && <div className="invoice-ready-banner"><FileText size={19} /><div><strong>Invoice ready</strong><span>Your PDF has your order and payment details.</span></div><button onClick={() => downloadInvoice(order)} disabled={invoiceLoading === order.OrderID}>{invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button></div>}
+              </div>}
+            </article>
+          })}
+        </div> : <div className="empty-panel"><PackageCheck size={30} /><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
       </div>
 
-      {pay && (
-        <div className="order-pay-overlay" onClick={() => setPay(null)}>
-          <div className="order-pay-modal" onClick={event => event.stopPropagation()}>
-            <button className="order-pay-close" onClick={() => setPay(null)}><X size={18} /></button>
-            <span className="eyebrow">MAKE PAYMENT</span>
-            <h2>{money(pay.Total)} payable</h2>
-            <p>Order <b>{pay.OrderNumber}</b> is still pending payment.</p>
-            <div className="pay-choice-grid">
-              <a className="pay-choice" href={UPI_URI}><Smartphone size={22} /><b>UPI Apps</b><small>Open your UPI app</small></a>
-              <button className="pay-choice" onClick={() => setPay({ ...pay, showQr: true })}><QrCode size={22} /><b>QR Code</b><small>Scan with any UPI app</small></button>
-            </div>
-            {pay.showQr && <div className="mini-qr"><img src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg" alt="UPI QR" /><span>Scan to pay {money(pay.Total)}</span></div>}
-            {pay.PaymentLink?.Link && <a className="payment-link-big" href={pay.PaymentLink.Link} target="_blank" rel="noreferrer"><ExternalLink size={17} /><span><b>{pay.PaymentLink.Label || 'Pay Online'}</b><small>Open payment link</small></span></a>}
-            <div className="upi-id-row"><span>UPI ID: <b>paytm.s2eunub@pty</b></span><button onClick={() => copy('paytm.s2eunub@pty')}><Copy size={14} />{copied ? 'Copied' : 'Copy'}</button></div>
-            <small className="pay-warning">Payment is marked successful only after verified gateway/payment confirmation.</small>
-          </div>
+      {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}>
+        <div className="order-pay-modal gateway-order-pay-modal" onClick={event => event.stopPropagation()}>
+          <button className="order-pay-close" onClick={() => setPay(null)}><X size={18} /></button>
+          <span className="eyebrow">PAYMENT</span><h2>{money(pay.Total)}</h2><p>Choose how you want to pay.</p>
+          <div className="order-pay-methods">{paymentMethods.map(method => { const Icon = method.icon; return <button key={method.id} className={payMethod === method.id ? 'selected' : ''} onClick={() => { setPayMethod(method.id); setPayQr(false) }}><Icon size={17}/><span>{method.label}</span></button> })}</div>
+
+          {payMethod === 'upiapps' && <div className="order-pay-panel"><img className="upi-logo-image" src={UPI_LOGO_URL} alt="UPI" /><strong>Pay with your UPI app</strong><span>Use any UPI app on your phone.</span><a className="order-pay-primary" href={UPI_URI}><Smartphone size={17}/> Pay with UPI Apps <ChevronRight size={16}/></a></div>}
+          {payMethod === 'qr' && <div className="order-pay-panel"><button className="order-qr-button" onClick={() => setPayQr(value => !value)}><QrCode size={18}/><span>{payQr ? 'Hide QR' : 'Show QR'}</span></button>{payQr && <div className="mini-qr"><img src={QR_URL} alt="UPI QR"/><span>Scan with your UPI app</span></div>}</div>}
+          {payMethod === 'cards' && <div className="order-pay-panel"><CreditCard size={25}/><strong>Card payment</strong><span>Card payment will use the secure gateway when it is enabled.</span><button className="gateway-disabled-btn" disabled>Continue with card</button></div>}
+          {payMethod === 'netbanking' && <div className="order-pay-panel"><Landmark size={25}/><strong>Netbanking</strong><span>Choose your bank in the secure payment gateway.</span><button className="gateway-disabled-btn" disabled>Continue with netbanking</button></div>}
+          {payMethod === 'wallet' && <div className="order-pay-panel"><WalletCards size={25}/><strong>Wallet</strong><span>Choose a supported wallet in the secure payment gateway.</span><button className="gateway-disabled-btn" disabled>Continue with wallet</button></div>}
+          {payMethod === 'link' && <div className="order-pay-panel"><Link2 size={25}/><strong>Payment link</strong><span>We will send you a secure payment link.</span>{paymentLinkSent ? <div className="payment-link-sent"><CheckCircle2 size={17}/> Request sent</div> : <button className="order-pay-primary" disabled={paymentLinkRequesting} onClick={requestPaymentLink}>{paymentLinkRequesting ? 'Sending…' : 'Request payment link'}</button>}</div>}
+
+          <div className="pay-warning">Payment is shown as paid only after it is verified.</div>
         </div>
-      )}
+      </div>}
     </main>
   )
 }
