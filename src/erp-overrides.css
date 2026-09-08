@@ -1,0 +1,39 @@
+.erp-main{background:linear-gradient(180deg,#f7faf8 0%,#eef3f0 100%)}
+.erp-topbar{height:86px;position:sticky;top:0;z-index:20;background:rgba(247,250,248,.92);backdrop-filter:blur(14px)}
+.erp-topbar h1{font-size:22px;font-weight:850}
+.erp-top-actions>button{transition:.18s ease}.erp-top-actions>button:hover{transform:translateY(-1px);border-color:#b9c9c1;background:#f8fffb}
+.erp-admin-chip{border-radius:999px;padding:0 13px;box-shadow:0 5px 18px rgba(18,38,28,.05)}
+.erp-alert{font-size:11px;min-height:42px;align-items:center;box-shadow:0 8px 24px rgba(162,63,56,.07)}
+.erp-workspace{display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr);gap:18px;padding-top:22px;align-items:start}
+.erp-form-card{background:rgba(255,255,255,.96);border:1px solid #dce6e0;border-radius:18px;padding:22px;box-shadow:0 12px 35px rgba(24,48,35,.06)}
+.erp-form-card form{display:grid;gap:2px}
+.erp-form-card label{display:grid;gap:7px;margin-top:13px;font-size:10px;font-weight:800;color:#55625b}
+.erp-form-card input,.erp-form-card select,.erp-form-card textarea{width:100%;box-sizing:border-box;border:1px solid #d7e1dc;border-radius:10px;background:#fbfdfc;padding:12px 13px;font:inherit;font-size:11px;color:#1e2a24;outline:none;transition:.18s ease}
+.erp-form-card textarea{min-height:82px;resize:vertical}
+.erp-form-card input:focus,.erp-form-card select:focus,.erp-form-card textarea:focus{border-color:#49a977;background:#fff;box-shadow:0 0 0 4px #eaf7ef}
+.erp-form-card .erp-primary{margin-top:17px;min-height:44px}
+.erp-form-card .erp-panel-head{margin-bottom:8px}
+.erp-form-card .erp-panel-head h3{font-size:17px}
+.erp-workspace>.erp-panel{min-width:0;box-shadow:0 12px 35px rgba(24,48,35,.05)}
+.erp-table-wrap{border-radius:15px;box-shadow:0 8px 25px rgba(24,48,35,.04)}
+.erp-table-wrap table{min-width:950px;font-size:9px}
+.erp-table-wrap th{font-size:8px;padding:12px;background:#f0f5f2;color:#56635c}
+.erp-table-wrap td{font-size:9px;padding:11px 12px}
+.erp-row-actions{display:flex;gap:6px;align-items:center}
+.erp-row-actions .erp-edit-btn{white-space:nowrap}
+.erp-status-grid button{min-height:48px;background:#fff;transition:.18s ease}
+.erp-status-grid button:hover:not(:disabled){transform:translateY(-1px);border-color:#9dcdb1;background:#f5fcf8;box-shadow:0 8px 18px rgba(24,121,77,.08)}
+.erp-modal-backdrop{position:fixed;inset:0;z-index:1200;background:rgba(9,14,12,.64);backdrop-filter:blur(7px);display:grid;place-items:center;padding:20px;animation:erpFade .18s ease}
+.erp-modal-close{position:absolute;right:14px;top:14px;width:34px;height:34px;border:1px solid #dce4df;background:#fff;border-radius:9px;display:grid;place-items:center;color:#59645e;cursor:pointer}
+.erp-detail-list{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}
+.erp-detail-list>div{padding:12px 13px;border:1px solid #e1e8e4;border-radius:10px;background:#f8faf9;display:grid;gap:5px;min-width:0}
+.erp-detail-list small{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#7a8780;font-weight:850}
+.erp-detail-list span{font-size:10px;color:#25312b;overflow-wrap:anywhere;white-space:pre-wrap}
+.erp-confirm-modal{width:min(650px,96vw)}
+.erp-confirm-modal .erp-form-card{box-shadow:none;padding:0;border:0;background:transparent}
+.erp-confirm-modal .erp-status-grid{margin-top:16px}
+.erp-confirm-modal .erp-status-grid button:disabled{opacity:.45;cursor:not-allowed}
+.erp-data-view{animation:erpFade .25s ease}
+.erp-workspace{animation:erpFade .25s ease}
+@media(max-width:1050px){.erp-workspace{grid-template-columns:1fr}.erp-form-card{max-width:none}.erp-workspace>.erp-panel{width:100%;box-sizing:border-box}}
+@media(max-width:700px){.erp-topbar{height:72px}.erp-main{padding:0 14px 28px}.erp-workspace{gap:12px;padding-top:14px}.erp-form-card,.erp-panel{border-radius:14px;padding:15px}.erp-detail-list{grid-template-columns:1fr}.erp-modal-backdrop{padding:12px}.erp-modal{width:calc(100vw - 24px);padding:22px 15px}.erp-status-grid{grid-template-columns:1fr}.erp-table-wrap{max-height:calc(100vh - 135px)}}
