@@ -1,5 +1,7 @@
 function now_(){return new Date();}
 function isoNow_(){return Utilities.formatDate(now_(),TC_CONFIG.TIMEZONE,"yyyy-MM-dd'T'HH:mm:ssXXX");}
+// Backward-compatible alias for any older deployed Apps Script code.
+function isoNow(){return isoNow_();}
 function normalizeEmail_(email){return String(email||'').trim().toLowerCase();}
 function isValidEmail_(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);}
 function newId_(prefix){return prefix+Utilities.getUuid().replace(/-/g,'').substring(0,20).toUpperCase();}
@@ -9,4 +11,4 @@ function constantTimeEquals_(a,b){a=String(a||'');b=String(b||'');if(a.length!==
 function safeJsonParse_(value){try{return JSON.parse(value);}catch(e){return null;}}
 function cleanText_(value,maxLength){return String(value==null?'':value).trim().substring(0,maxLength||500);}
 function require_(condition,message){if(!condition)throw new Error(message);}
-function escapeHtml_(value){return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function escapeHtml_(value){return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&#39;');}
