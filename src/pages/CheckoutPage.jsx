@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, CheckCircle2, ChevronRight, CreditCard, Landmark, Link2, LockKeyhole, Maximize2, Smartphone, WalletCards, ShieldCheck, X, QrCode } from 'lucide-react'
+import { api } from '../api'
 import './checkout-gateway.css'
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 const UPI_APPS_URL = 'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
@@ -15,10 +16,25 @@ export default function CheckoutPage({ user, items, total, savings, paymentMetho
   const [selected, setSelected] = useState(paymentMethod === 'upi' ? 'qr' : (paymentMethod || 'qr'))
   const [showMobileMethods, setShowMobileMethods] = useState(false)
   const [qrOpen, setQrOpen] = useState(false)
+  const [linkRequest, setLinkRequest] = useState(null)
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + Number(item.Quantity || 0), 0), [items])
   const active = methods.find(method => method.id === selected) || methods[0]
   const ActiveIcon = active.icon
   const chooseMethod = id => { setSelected(id); setPaymentMethod(id); setShowMobileMethods(false) }
+  const requestPaymentLink = async () => {
+    try {
+      const token = localStorage.getItem('tc_session')
+      if (!token) throw new Error('Please sign in before requesting a payment link.')
+      if (!items.length) throw new Error('Your cart is empty.')
+      const created = await api.placeOrder(token)
+      const orderId = created?.order?.OrderID || created?.OrderID
+      if (!orderId) throw new Error('Order could not be created.')
+      const requested = await api.requestPaymentLink(token, orderId)
+      setLinkRequest(requested?.request || { RequestID: 'submitted', OrderID: orderId })
+    } catch (error) {
+      setLinkRequest({ error: error.message || 'Unable to request a payment link.' })
+    }
+  }
   return <main className="checkout-gateway-page">
     <header className="gateway-topbar"><button className="gateway-back" onClick={onBack}><ArrowLeft size={17}/> Back</button><div className="gateway-title"><LockKeyhole size={15}/> Secure Checkout</div><div className="gateway-secure"><ShieldCheck size={15}/> Trusted Circle</div></header>
     <div className="gateway-shell"><aside className="gateway-summary"><div className="gateway-summary-brand"><div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle"/></div><div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div></div><div className="gateway-price-label">PRICE SUMMARY</div><div className="gateway-total">{money(total)}</div><div className="gateway-account-pill"><CheckCircle2 size={15}/><span>{user?.email || 'Signed-in account'}</span></div><div className="gateway-order-lines"><div><span>Items</span><b>{itemCount}</b></div><div><span>Savings</span><b className="gateway-green">− {money(savings)}</b></div><div><span>Subtotal</span><b>{money(Number(total || 0) + Number(savings || 0))}</b></div></div><div className="gateway-summary-footer"><ShieldCheck size={16}/><span>Payments are verified securely before an order is marked paid.</span></div></aside>
@@ -30,8 +46,9 @@ export default function CheckoutPage({ user, items, total, savings, paymentMetho
             {selected === 'cards' && <div className="gateway-form-panel"><label>Card number<input inputMode="numeric" autoComplete="cc-number" placeholder="1234  5678  9012  3456"/></label><div className="gateway-form-grid"><label>Expiry<input autoComplete="cc-exp" placeholder="MM / YY"/></label><label>CVV<input inputMode="numeric" autoComplete="cc-csc" placeholder="•••"/></label></div><label>Name on card<input autoComplete="cc-name" placeholder="Enter cardholder name"/></label><div className="gateway-note"><ShieldCheck size={14}/> Your card details are handled by the payment gateway.</div></div>}
             {selected === 'netbanking' && <div className="gateway-choice-panel"><span className="gateway-mini-label">SELECT YOUR BANK</span><button className="gateway-bank-choice">Choose a bank <ChevronRight size={17}/></button><div className="gateway-bank-grid"><span>HDFC Bank</span><span>ICICI Bank</span><span>Axis Bank</span><span>SBI</span></div></div>}
             {selected === 'wallet' && <div className="gateway-choice-panel"><span className="gateway-mini-label">SELECT WALLET</span><div className="gateway-wallet-grid"><button>Paytm</button><button>Mobikwik</button><button>Amazon Pay</button><button>Other Wallet</button></div></div>}
-            {selected === 'link' && <div className="gateway-link-panel"><Link2 size={28}/><div><strong>Secure payment link</strong><p>The payment-link option will be enabled when the gateway/ERP integration is connected.</p></div></div>}
-            <div className="gateway-amount-bar"><div><small>PAYABLE AMOUNT</small><strong>{money(total)}</strong></div><button className="gateway-pay-button" disabled={selected !== 'qr' && selected !== 'upiapps'} onClick={onCreateOrder}>{selected === 'qr' || selected === 'upiapps' ? `Create Order · ${money(total)}` : 'Coming soon'} <ChevronRight size={17}/></button></div><p className="gateway-disclaimer"><LockKeyhole size={12}/> Trusted Circle creates a pending order first. Successful payment status is confirmed only after verified gateway data.</p>
+            {selected === 'link' && <div className="gateway-link-panel"><Link2 size={28}/><div><strong>Request a secure payment link</strong><p>Trusted Circle will create a pending order and send the request to the ERP team. Once the admin adds the payment link, it will be emailed to you and shown in your order.</p></div></div>}
+            {linkRequest && <div className="gateway-note" style={{marginTop:16}}>{linkRequest.error ? linkRequest.error : <>Payment-link request submitted. <b>Request ID: {linkRequest.RequestID}</b></>}</div>}
+            <div className="gateway-amount-bar"><div><small>PAYABLE AMOUNT</small><strong>{money(total)}</strong></div><div style={{display:'flex',gap:10,flexWrap:'wrap',justifyContent:'flex-end'}}>{selected === 'link' && <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={Boolean(linkRequest && !linkRequest.error)}><Link2 size={17}/> {linkRequest && !linkRequest.error ? 'Payment Link Requested' : 'Request Payment Link'}</button>}<button className="gateway-pay-button" disabled={selected !== 'qr' && selected !== 'upiapps' || Boolean(linkRequest && !linkRequest.error)} onClick={onCreateOrder}>{selected === 'qr' || selected === 'upiapps' ? `Place Order · ${money(total)}` : 'Select a payment method'} <ChevronRight size={17}/></button></div></div><p className="gateway-disclaimer"><LockKeyhole size={12}/> Trusted Circle creates a pending order first. Successful payment status is confirmed only after verified gateway data.</p>
           </div>
         </div>
       </section>
