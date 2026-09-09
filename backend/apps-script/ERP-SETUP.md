@@ -9,8 +9,6 @@ In **Google Apps Script → Project Settings → Script Properties**, set:
 - `SPREADSHEET_ID` = operational spreadsheet ID
 - `EMAIL_FROM` = `trustedcircle2026@gmail.com` or a verified Gmail send-as alias
 - `PAYMENT_WEBHOOK_SECRET` = legacy/provider-independent webhook secret, if that route is used
-- `PAYTM_MID` = production Paytm Merchant ID
-- `PAYTM_MERCHANT_KEY` = production Paytm Merchant Key (keep secret; 16 characters)
 
 Run `setupBackend()` once. It creates/migrates the operational sheets, including:
 
@@ -32,45 +30,29 @@ Required columns are `PaymentLinkStockID`, `Denomination`, `Link`, `Label`, `Sta
 
 Use `AVAILABLE` for fresh stock. A checkout reserves one matching link as `RESERVED`. A verified payment changes it to `USED`. A cancelled pending order releases it back to `AVAILABLE`.
 
-`ProviderLinkID` is optional but important for Paytm links created outside Trusted Circle. Paytm sends its link identifier in `MERC_UNQ_REF`; storing that value lets the webhook map the payment to the reserved Trusted Circle order.
+`ProviderLinkID` is optional and can be retained for future provider integrations. The current Trusted Circle flow does not require Paytm MID, Merchant Key, API credentials, or a Paytm webhook.
 
-## Paytm Payment Link automation
+## Paytm for Business payment links
 
-Trusted Circle now has a Paytm-specific S2S webhook adapter in `PaytmWebhookService.gs`.
+Trusted Circle currently uses **manually-created Paytm for Business payment links** as payment-link stock. These links are assigned to the customer order by denomination.
 
-Paytm's Link Payment Status webhook sends fields including `ORDERID`, `TXNAMOUNT`, `STATUS`, `TXNID`, `MERC_UNQ_REF` and `CHECKSUMHASH`. The backend verifies the Paytm checksum using the merchant key before changing any order state.
+The current setup is intentionally **not** a Paytm Payment Gateway/API integration. There is no Paytm MID, Merchant Key, checksum validation, or Paytm webhook code in Trusted Circle.
 
-Configure the **Link Payment Status** webhook for the Paytm MID to the Trusted Circle Apps Script Web App URL:
+When a customer pays, the payment must be verified in the Paytm for Business dashboard/app before the order is treated as paid. Trusted Circle must never mark an order paid merely because the customer returns from Paytm/UPI in the browser, or based on a screenshot.
 
-`https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec`
+Full automatic server-side Paytm payment verification is not available in this manual-link model. It would require a supported Paytm API/webhook integration to be added later.
 
-No `action` parameter is required for Paytm. The backend detects a Paytm link-status payload automatically and routes it to `paytmLinkPaymentWebhook_()`.
+The operational flow is therefore:
 
-For API-created Paytm links, the recommended production model is to create the link with Trusted Circle's order number as Paytm's `linkOrderId`. Paytm then returns that order reference in the webhook, allowing deterministic order mapping.
+`Paytm for Business payment link → Customer pays → Admin verifies payment in Paytm Business → Trusted Circle voucher delivery`
 
-For existing manually-created Paytm links, a short URL alone is **not** sufficient for deterministic server-side mapping because the Paytm webhook does not send the short URL. In that case, store the Paytm `MERC_UNQ_REF` / link ID in `ProviderLinkID` when the link is stocked. Do not mark a payment paid based only on a browser return or screenshot.
-
-A successful Paytm webhook (`STATUS=TXN_SUCCESS`) then:
-
-1. verifies the Paytm checksum;
-2. verifies the configured Paytm MID when `PAYTM_MID` is present;
-3. maps the transaction to the Trusted Circle order;
-4. verifies the exact payment amount against the order total;
-5. records the Paytm transaction ID;
-6. changes the order to `PAID`;
-7. credits the calculated cashback to the shopper wallet;
-8. marks the reserved payment-link stock as `USED`;
-9. leaves the admin with only the voucher-delivery job.
-
-Duplicate Paytm notifications are handled idempotently by `TXNID`.
-
-Paytm's Link Payment Status webhook is the authoritative payment event; the frontend never marks an order paid by itself.
+The admin's operational responsibility remains limited to voucher delivery after payment has been independently verified.
 
 ## Automated payment verification
 
 The customer pays the full voucher value. The backend does **not** mark an order paid because the browser returned from a UPI app.
 
-The existing generic `paymentWebhook` route remains available for non-Paytm providers. Paytm payment links use the Paytm-specific route above.
+The existing generic `paymentWebhook` route remains available for non-Paytm providers that supply a supported server-to-server webhook. Paytm for Business manually-created links do not use that route automatically.
 
 ## Cashback wallet
 
@@ -98,9 +80,5 @@ Payment-link and voucher emails use the shopper's name and brand/voucher names i
 ## Deployment
 
 After changing Apps Script files, create a **new Web App deployment/version** so the live URL uses the latest code. The first deployment after invoice/wallet changes may request additional Google permissions.
-
-After configuring Paytm's Link Payment Status webhook, run a real low-value test and verify this chain in the spreadsheet:
-
-`Paytm success → Payments VERIFIED → Orders PAID → Cashback credited → PaymentLinkStock USED → Admin voucher queue`
 
 Never put ERP passwords, payment credentials, webhook secrets, API keys, or Google service credentials in this repository.
