@@ -1,7 +1,7 @@
 import { AlertCircle, BarChart3, CheckCircle2, ClipboardList, Clock3, Database, FileWarning, Layers3, ListTodo, TrendingUp, WalletCards, Link2 } from 'lucide-react'
 import './erp-insights.css'
 
-const money=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})`
+const money=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`
 const cleanStatus=v=>String(v||'').replaceAll('_',' ')
 const statusClass=v=>String(v||'').toLowerCase().replaceAll('_','-')
 const labelFor={Users:'Shoppers',Orders:'Orders',Payments:'Payments',PaymentLinkRequests:'Link Requests',PaymentLinkStock:'Payment Link Stock',Vouchers:'Vouchers',Products:'Products',Brands:'Brands',Cart:'Cart',Notifications:'Notifications',OTP:'OTP Logs',UserSessions:'Sessions',AuditLogs:'Audit Logs',OrderItems:'Order Items',PaymentLinks:'Payment Links',CashbackWallet:'Cashback Wallet',CashbackTransactions:'Cashback Transactions',WalletRedemptions:'Wallet Redemptions'}
