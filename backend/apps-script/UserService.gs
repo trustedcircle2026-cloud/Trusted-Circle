@@ -36,6 +36,8 @@ function publicUser_(user) {
     email: String(user.Email),
     name: String(user.Name || ''),
     role: String(user.Role || 'SHOPPING_USER'),
-    status: String(user.Status || 'ACTIVE')
+    status: String(user.Status || 'ACTIVE'),
+    createdAt: String(user.CreatedAt || ''),
+    lastLoginAt: String(user.LastLoginAt || '')
   };
 }
