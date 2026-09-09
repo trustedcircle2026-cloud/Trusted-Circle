@@ -15,6 +15,16 @@ export const BRAND_ASSETS = {
   Myntra: { domain: 'myntra.com', logo: googleFavicon('myntra.com') },
   Amazon: { domain: 'amazon.in', logo: googleFavicon('amazon.in') },
   Flipkart: { domain: 'flipkart.com', logo: googleFavicon('flipkart.com') },
+  Nykaa: { domain: 'nykaa.com', logo: googleFavicon('nykaa.com') },
+  "Domino's": { domain: 'dominos.co.in', logo: googleFavicon('dominos.co.in') },
+  'PVR INOX': { domain: 'pvrcinemas.com', logo: googleFavicon('pvrcinemas.com') },
+  'Reliance Digital': { domain: 'reliancedigital.in', logo: googleFavicon('reliancedigital.in') },
+  Tanishq: { domain: 'tanishq.co.in', logo: googleFavicon('tanishq.co.in') },
+  Starbucks: { domain: 'starbucks.in', logo: googleFavicon('starbucks.in') },
+  BookMyShow: { domain: 'bookmyshow.com', logo: googleFavicon('bookmyshow.com') },
+  Lifestyle: { domain: 'lifestylestores.com', logo: googleFavicon('lifestylestores.com') },
+  'Shoppers Stop': { domain: 'shoppersstop.com', logo: googleFavicon('shoppersstop.com') },
+  'Tata CLiQ': { domain: 'tatacliq.com', logo: googleFavicon('tatacliq.com') },
 }
 
 export function getBrandAsset(name) {
