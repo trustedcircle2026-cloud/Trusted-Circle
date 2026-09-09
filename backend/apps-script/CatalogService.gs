@@ -13,7 +13,17 @@ var DEFAULT_CATALOG = [
   ['Kalyan Jewellers','KALYAN','Kalyan Jewellers E-Gift Card',3.5],
   ['Myntra','MYNTRA','Myntra E-Gift Card',3],
   ['Amazon','AMAZON','Amazon Shopping Voucher',2],
-  ['Flipkart','FLIPKART','Flipkart E-Gift Voucher',1.5]
+  ['Flipkart','FLIPKART','Flipkart E-Gift Voucher',1.5],
+  ['Nykaa','NYKAA','Nykaa E-Gift Card',3],
+  ["Domino's",'DOMINOS','Domino\'s E-Gift Card',3],
+  ['PVR INOX','PVRINOX','PVR INOX E-Gift Card',3],
+  ['Reliance Digital','RELIANCEDIGITAL','Reliance Digital E-Gift Card',2.5],
+  ['Tanishq','TANISHQ','Tanishq E-Gift Card',2],
+  ['Starbucks','STARBUCKS','Starbucks E-Gift Card',2],
+  ['BookMyShow','BOOKMYSHOW','BookMyShow E-Gift Card',3],
+  ['Lifestyle','LIFESTYLE','Lifestyle E-Gift Card',3],
+  ['Shoppers Stop','SHOPPERSSTOP','Shoppers Stop E-Gift Card',3],
+  ['Tata CLiQ','TATACLIQ','Tata CLiQ E-Gift Card',2.5]
 ];
 
 function seedDefaultCatalog_() {
