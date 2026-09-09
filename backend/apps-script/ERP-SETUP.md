@@ -1,62 +1,81 @@
-# Trusted Circle ERP setup
+# Trusted Circle Backend setup
 
-The ERP password is intentionally **not stored in GitHub**.
+The ERP password and payment webhook secret stay in **Apps Script Script Properties** and are never stored in GitHub.
 
-In the Google Apps Script project **Trusted Circle Backend**, open:
-**Project Settings → Script Properties → Add script property**
+In **Google Apps Script → Project Settings → Script Properties**, set:
 
-Set:
+- `ADMIN_EMAIL` = configured administrator email
+- `ADMIN_PASSWORD` = administrator ERP password
+- `SPREADSHEET_ID` = operational spreadsheet ID
+- `EMAIL_FROM` = `trustedcircle2026@gmail.com` or a verified Gmail send-as alias
+- `PAYMENT_WEBHOOK_SECRET` = a long random secret shared only with the payment gateway webhook
 
-- `ADMIN_EMAIL` = the configured administrator email
-- `ADMIN_PASSWORD` = the administrator ERP password
-- `SPREADSHEET_ID` = the operational spreadsheet ID
-- `EMAIL_FROM` = `trustedcircle2026@gmail.com` (or a verified Gmail send-as alias)
+Run `setupBackend()` once. It creates/migrates the operational sheets, including:
 
-The transactional email service sends **two separate emails** for supported events:
+- `PaymentLinkStock`
+- `CashbackWallet`
+- `CashbackTransactions`
+- `WalletRedemptions`
 
-1. Shopper email — sent to the shopper's registered email.
-2. Operations email — sent separately to `info@trustedcircle.in`.
+## Payment-link stock
 
-The current transactional events include order received/placed, payment/order status changes, payment-link requests, payment-link delivery, and voucher delivery.
+Use `PaymentLinkStock` for reusable payment links. Keep five available links for each value:
 
-For `EMAIL_FROM=trustedcircle2026@gmail.com`, the Apps Script Gmail account must be able to send from that address. If `info@trustedcircle.in` is intended to be used as a **From** address rather than the operations recipient, it must first be configured and verified as a Gmail send-as alias.
+- ₹500 — 5 links
+- ₹1,000 — 5 links
+- ₹1,500 — 5 links
+- ₹2,000 — 5 links
 
-Then run `setupBackend()` once. This creates/migrates the `PaymentLinks` and `PaymentLinkRequests` sheets.
+Required columns are `PaymentLinkStockID`, `Denomination`, `Link`, `Label`, `Status`, `OrderID`, `PaymentLinkID`, `CreatedAt`, `UpdatedAt`.
 
-After updating the Apps Script source files, create a new Web App deployment/version so the deployed URL uses the latest actions:
+Use `AVAILABLE` for fresh stock. A checkout reserves one matching link as `RESERVED`. A verified payment changes it to `PAID`. A cancelled pending order releases it back to `AVAILABLE`.
 
-- `adminLogin`
-- `adminDashboard`
-- `adminUpdateRow`
-- `adminCreatePaymentLink`
-- `adminPaymentLinkRequest`
-- `adminConfirmPayment`
-- `adminSendVoucher`
-- `adminUpdateOrder`
-- `requestPaymentLink`
-- `createInvoicePdf`
+## Automated payment verification
 
-### Payment-link workflow
+The customer pays the full voucher value. The backend does **not** mark an order paid because the browser returned from a UPI app.
 
-1. Shopper selects **Payment Link** at checkout.
-2. Shopper clicks **Request Payment Link**.
-3. A pending order is created and a `PaymentLinkRequests` record is created.
-4. Separate shopper + operations emails confirm that the request was received.
-5. Admin opens **Link Requests** and/or **Payment Links**, selects the request/order from dropdowns and can open the full-detail line popup.
-6. Admin enters the HTTPS payment link and saves it.
-7. The request is marked `LINK_SENT` and a separate shopper + operations email is sent with the payment link.
+The payment gateway must call the Apps Script Web App with:
 
-### Completed-order invoice
+`action=paymentWebhook`
 
-The `createInvoicePdf` API action is authenticated and server-side. It will **reject** invoice generation unless:
+and provide `webhookSecret`, `orderNumber` (or `orderId`), `amount`, `status`, `paymentId`, and `provider`.
 
-- the authenticated shopper owns the order;
-- the order status is `DELIVERED`;
-- the latest payment is `VERIFIED` or `PAID`; and
-- at least one voucher for the order has status `DELIVERED`.
+Only successful gateway statuses (`SUCCESS`, `PAID`, `CAPTURED`, `COMPLETED`) are accepted, and the gateway amount must exactly match the order total. A successful webhook then:
 
-The PDF is generated from a temporary Google Sheet in a Tally-style tabular A4 layout, includes the Trusted Circle logo, order/customer/payment details, line items, denomination, discounts, totals and delivered voucher details, then the temporary sheet is trashed. The PDF is returned to the authenticated browser for download and is not stored permanently by this flow.
+1. verifies the payment;
+2. changes the order to `PAID`;
+3. credits the calculated cashback to the shopper wallet;
+4. marks a reserved payment-link stock item as `PAID`.
 
-Because invoice generation uses temporary spreadsheet/Drive operations and authenticated PDF export, the Apps Script manifest now includes the Google Drive scope. **The first deployment after this change may ask the Apps Script owner to re-authorize the additional permission.**
+The admin does **not** need to confirm payment manually. The only per-order fulfilment action left for admin is sending the voucher.
 
-Never put the ERP password, payment credentials, API keys, or Google service credentials in this repository.
+The gateway provider still needs its webhook configuration mapped to the `paymentWebhook` payload above. Until that gateway callback is configured, payment verification cannot be fully automatic.
+
+## Cashback wallet
+
+Checkout collects the **full voucher value**. The product discount is stored as cashback instead of reducing the payment amount.
+
+Cashback is credited only after verified payment. The shopper sees the balance in the header and can open the wallet to view transaction history or request a redemption to:
+
+- UPI ID
+- Bank account + IFSC
+
+Wallet redemption creates a `WalletRedemptions` request. Actual money transfer requires the payout/transfer process or provider integration used by the business.
+
+## Customer emails
+
+Customer-facing transactional emails are limited to:
+
+1. OTP
+2. Payment link received
+3. Voucher receipt
+
+Each supported event sends one separate shopper email and one separate operations copy to `info@trustedcircle.in`. Order-created and generic payment-status emails are not sent.
+
+Payment-link and voucher emails use the shopper's name and brand/voucher names instead of internal item codes.
+
+## Deployment
+
+After changing Apps Script files, create a **new Web App deployment/version** so the live URL uses the latest code. The first deployment after invoice/wallet changes may request additional Google permissions.
+
+Never put ERP passwords, payment credentials, webhook secrets, API keys, or Google service credentials in this repository.
