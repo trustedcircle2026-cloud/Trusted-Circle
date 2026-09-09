@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, ChevronDown, ChevronRight, Download, FileText, Landmark, Link2, PackageCheck, QrCode, Smartphone, WalletCards, CreditCard, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, Download, ExternalLink, FileText, Landmark, Link2, PackageCheck, QrCode, Smartphone, WalletCards, CreditCard, X } from 'lucide-react'
 import { api } from '../api'
 import './orders-page.css'
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
