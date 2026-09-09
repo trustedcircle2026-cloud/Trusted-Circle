@@ -1,5 +1,4 @@
 import BrandLogo from '../components/BrandLogo'
-
-export default function BrandsPage({ brands, onBrowse }) {
-  return <main className="page-shell"><div className="page-banner"><span className="eyebrow">ALL BRANDS</span><h1>Find your favourite brand.</h1><p>Choose a brand to see its available gift vouchers and current discount.</p></div><div className="all-brand-grid">{brands.map(b => <button className="all-brand-card" key={b.BrandID} onClick={() => onBrowse(String(b.BrandID))}><BrandLogo name={b.Name} size="xl"/><div><strong>{b.Name}</strong><span>Gift vouchers</span></div></button>)}</div></main>
-}
+const priority=['Amazon Pay','Flipkart','MakeMyTrip','Myntra','Swiggy','Zomato','Croma','AJIO','Nykaa','BookMyShow']
+const rank=name=>{const i=priority.findIndex(x=>x.toLowerCase()===String(name||'').toLowerCase());return i<0?999:i}
+export default function BrandsPage({brands,onBrowse}){const ordered=[...brands].sort((a,b)=>rank(a.Name)-rank(b.Name)||String(a.Name||'').localeCompare(String(b.Name||'')));return <main className="page-shell"><div className="page-banner"><span className="eyebrow">ALL BRANDS</span><h1>Choose your brand.</h1><p>Browse all available brands.</p></div><div className="all-brand-grid">{ordered.map(b=><button className="all-brand-card" key={b.BrandID} onClick={()=>onBrowse(String(b.BrandID))}><BrandLogo name={b.Name} size="xl"/><strong>{b.Name}</strong></button>)}</div></main>}
