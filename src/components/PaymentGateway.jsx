@@ -123,12 +123,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
   return (
     <div className={`payment-gateway payment-gateway-${mode}`}>
-      <header className="gateway-topbar">
-        <button className="gateway-back" onClick={onBack}><ChevronRight size={17} style={{ transform: 'rotate(180deg)' }} /> Back</button>
-        <div className="gateway-title"><LockKeyhole size={15} /> Secure Checkout</div>
-        <div className="gateway-secure"><ShieldCheck size={15} /> Trusted Circle</div>
-      </header>
-
       <div className="gateway-shell">
         {mode === 'checkout' && <aside className="gateway-summary">
           <div className="gateway-summary-brand"><div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div><div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div></div>
