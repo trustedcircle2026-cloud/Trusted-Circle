@@ -1,7 +1,21 @@
 /** Product and brand read APIs. */
+var CATALOG_CACHE_TTL_SECONDS = 60;
+
+function getCatalogRowsCached_(sheetName) {
+  var cache = CacheService.getScriptCache();
+  var key = 'tc_catalog_' + sheetName;
+  var cached = cache.get(key);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+  var rows = getRows_(sheetName);
+  try { cache.put(key, JSON.stringify(rows), CATALOG_CACHE_TTL_SECONDS); } catch (e) {}
+  return rows;
+}
+
 var ProductService = {
   listBrands: function(data) {
-    var rows = getRows_(TC_CONFIG.SHEETS.BRANDS);
+    var rows = getCatalogRowsCached_(TC_CONFIG.SHEETS.BRANDS);
     var seen = {};
     var items = rows.filter(function(r) {
       if (String(r.Active).toUpperCase() === 'FALSE') return false;
@@ -18,7 +32,7 @@ var ProductService = {
   },
 
   listProducts: function(data) {
-    var rows = getRows_(TC_CONFIG.SHEETS.PRODUCTS);
+    var rows = getCatalogRowsCached_(TC_CONFIG.SHEETS.PRODUCTS);
     var q = cleanText_(data.q || '', 100).toLowerCase();
     var brand = cleanText_(data.brand || '', 100).toLowerCase();
 
@@ -53,7 +67,9 @@ var ProductService = {
     var id = cleanText_(data.productId || '', 80);
     require_(id, 'productId is required.');
 
-    var row = findOne_(TC_CONFIG.SHEETS.PRODUCTS, 'ProductID', id);
+    var row = getCatalogRowsCached_(TC_CONFIG.SHEETS.PRODUCTS).find(function(p) {
+      return String(p.ProductID) === id;
+    });
     if (!row || String(row.Active).toUpperCase() === 'FALSE') {
       throw new Error('Product not found.');
     }
