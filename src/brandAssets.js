@@ -1,6 +1,7 @@
 const googleFavicon = domain => `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
 
 export const BRAND_ASSETS = {
+  'Amazon Pay': { domain: 'amazon.in', logo: googleFavicon('amazon.in') },
   Goibibo: { domain: 'goibibo.com', logo: googleFavicon('goibibo.com') },
   MakeMyTrip: { domain: 'makemytrip.com', logo: googleFavicon('makemytrip.com') },
   AJIO: { domain: 'ajio.com', logo: googleFavicon('ajio.com') },
