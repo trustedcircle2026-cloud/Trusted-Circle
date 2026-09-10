@@ -69,24 +69,18 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       }
       const link = extractPaymentLink(result)
       const resolvedOrderId = result?.order?.OrderID || result?.OrderID || orderId
-      if (!link && mode === 'checkout' && resolvedOrderId) {
-        const followUp = await api.requestPaymentLink(token, resolvedOrderId)
-        const followUpLink = extractPaymentLink(followUp)
-        if (followUpLink) {
-          const expiresAt = followUp?.expiresAt || followUp?.paymentLink?.ExpiresAt || ''
-          const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
-          setLinkRequest({ link: followUpLink, expiresAt })
-          setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
-          setLinkWaitSeconds(0)
-          return
-        }
-      }
-      if (!link) throw new Error('Payment link was not returned within 30 seconds. Please try again.')
+      if (!link) throw new Error('Payment link was not returned. Please try again.')
       const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || result?.order?.ExpiresAt || ''
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
+
+      // The link is already created by placeOrder(). Send the transactional email
+      // in the background so Gmail latency never blocks the customer's payment UI.
+      if (mode === 'checkout' && resolvedOrderId) {
+        void api.requestPaymentLink(token, resolvedOrderId).catch(() => {})
+      }
     } catch (error) {
       setLinkRequest({ error: error.message || 'Could not request payment link.' })
       setLinkWaitSeconds(0)
