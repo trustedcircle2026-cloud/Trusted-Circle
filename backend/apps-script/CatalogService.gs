@@ -1,9 +1,9 @@
 var DEFAULT_CATALOG = [
+  ['Amazon Pay','AMAZONPAY','Amazon Pay Gift Voucher',3],
   ['Goibibo','GOIBIBO','Goibibo Hotel E-Gift Card',16],
   ['MakeMyTrip','MAKEMYTRIP','MakeMyTrip Hotel E-Gift Card',14],
   ['AJIO','AJIO','AJIO E-Gift Card',8],
   ['Cleartrip','CLEARTRIP','Cleartrip Hotel E-Gift Card',8],
-  ['MakeMyTrip','MAKEMYTRIP','MakeMyTrip E-Gift Card',7.5],
   ['Swiggy','SWIGGY','Swiggy Money E-Gift Card',7],
   ['Zomato','ZOMATO','Zomato E-Gift Card',7],
   ['Max Fashion','MAXFASHION','Max Fashion E-Gift Card',7],
@@ -65,5 +65,12 @@ function seedDefaultCatalog_() {
       appendRowObject_(TC_CONFIG.SHEETS.PRODUCTS, Object.assign({ ProductID: newId_('TCPRD'), CreatedAt: now }, data));
     }
   });
+
+  // Keep only one visible MakeMyTrip voucher. The higher-cashback hotel voucher is retained.
+  var makeMyTripRows = products.filter(function(p){ return String(p.BrandID)==='TCBRDMAKEMYTRIP' && String(p.Active).toUpperCase()!=='FALSE'; });
+  if (makeMyTripRows.length > 1) {
+    makeMyTripRows.slice(1).forEach(function(row){ updateRowById_(TC_CONFIG.SHEETS.PRODUCTS,'ProductID',row.ProductID,{Active:false,UpdatedAt:now}); });
+  }
+
   return { seeded: DEFAULT_CATALOG.length, denomination: 1000, note: 'Demo denomination only; configure live voucher denominations and fulfilment before production.' };
 }
