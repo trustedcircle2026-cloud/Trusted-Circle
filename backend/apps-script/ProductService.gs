@@ -2,8 +2,17 @@
 var ProductService = {
   listBrands: function(data) {
     var rows = getRows_(TC_CONFIG.SHEETS.BRANDS);
+    var seen = {};
     var items = rows.filter(function(r) {
-      return String(r.Active).toUpperCase() !== 'FALSE';
+      if (String(r.Active).toUpperCase() === 'FALSE') return false;
+      var key = String(r.Name || r.BrandID || '').trim().toLowerCase();
+      if (!key || seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+    items.sort(function(a,b){
+      var aAmazon=String(a.Name||'').toLowerCase()==='amazon pay',bAmazon=String(b.Name||'').toLowerCase()==='amazon pay';
+      if(aAmazon&&!bAmazon)return -1;if(!aAmazon&&bAmazon)return 1;return 0;
     });
     return { items: items };
   },
@@ -33,6 +42,17 @@ var ProductService = {
       });
     }
 
+    var seenBrands = {};
+    active = active.filter(function(r){
+      var key=String(r.BrandID||'').trim().toLowerCase();
+      if(!key||seenBrands[key])return false;
+      seenBrands[key]=true;
+      return true;
+    });
+    active.sort(function(a,b){
+      var aAmazon=String(a.BrandID||'').toUpperCase()==='TCBRDAMAZONPAY',bAmazon=String(b.BrandID||'').toUpperCase()==='TCBRDAMAZONPAY';
+      if(aAmazon&&!bAmazon)return -1;if(!aAmazon&&bAmazon)return 1;return 0;
+    });
     return { items: active };
   },
 
