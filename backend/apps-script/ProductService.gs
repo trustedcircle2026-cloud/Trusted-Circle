@@ -42,13 +42,6 @@ var ProductService = {
       });
     }
 
-    var seenBrands = {};
-    active = active.filter(function(r){
-      var key=String(r.BrandID||'').trim().toLowerCase();
-      if(!key||seenBrands[key])return false;
-      seenBrands[key]=true;
-      return true;
-    });
     active.sort(function(a,b){
       var aAmazon=String(a.BrandID||'').toUpperCase()==='TCBRDAMAZONPAY',bAmazon=String(b.BrandID||'').toUpperCase()==='TCBRDAMAZONPAY';
       if(aAmazon&&!bAmazon)return -1;if(!aAmazon&&bAmazon)return 1;return 0;
