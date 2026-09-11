@@ -2,6 +2,7 @@ import { useEffect,useMemo,useState } from 'react'
 import { Activity,AlertTriangle,BarChart3,CheckCircle2,ChevronDown,ChevronRight,CircleDollarSign,ClipboardList,Database,Edit3,Filter,KeyRound,LayoutDashboard,Link2,LogOut,Menu,PackageCheck,Plus,RefreshCw,Search,ShieldCheck,ShoppingBag,Users,WalletCards,X } from 'lucide-react'
 import { api } from './api'
 import './admin-workspace.css'
+import './admin-upgrade.css'
 
 const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const MONEY=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`
