@@ -2,6 +2,7 @@ import React,{useEffect,useState} from 'react'
 import ReactDOM from 'react-dom/client'
 import AdminWorkspaceV2 from './AdminWorkspaceV2'
 import AdminRemoveUser from './AdminRemoveUser'
+import AdminSummaryEnhancer from './AdminSummaryEnhancer'
 import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './admin-entry.css'
@@ -18,6 +19,7 @@ function AdminApp(){
  const remove=routeName==='remove-user'||routeName==='erp-remove-user'
  return <>
   <GlobalLoading/>
+  {!remove&&<AdminSummaryEnhancer/>}
   {remove
    ? <AdminRemoveUser token={localStorage.getItem('tc_erp_session')||''} onBack={()=>{window.location.hash='';setRouteName('')}}/>
    : <AdminWorkspaceV2/>
