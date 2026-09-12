@@ -98,6 +98,23 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     }
   }
 
+  const openPaymentPopup = url => {
+    if (!url) return
+    const screenWidth = window.screen?.availWidth || window.innerWidth || 520
+    const screenHeight = window.screen?.availHeight || window.innerHeight || 820
+    const width = Math.min(520, Math.max(380, screenWidth - 24))
+    const height = Math.min(860, Math.max(680, screenHeight - 60))
+    const left = Math.max(0, Math.round((screenWidth - width) / 2))
+    const top = Math.max(0, Math.round((screenHeight - height) / 2))
+    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener=yes,noreferrer=yes`
+    const popup = window.open(url, 'trustedcircle-paytm-payment', features)
+    if (!popup) {
+      window.alert('Payment window was blocked by your browser. Please allow pop-ups for Trusted Circle and click Pay again.')
+      return
+    }
+    popup.focus?.()
+  }
+
   const startUpiPayment = async event => {
     event?.preventDefault?.()
     if (overLimit) return
@@ -188,7 +205,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
                 <div className="gateway-link-methods"><span><CheckCircle2 size={14} /> UPI Apps</span><span><CheckCircle2 size={14} /> QR</span><span><CheckCircle2 size={14} /> Debit &amp; Credit Cards</span></div>
                 <div className={`gateway-link-status ${activeLink ? 'active' : ''} ${linkLoading ? 'loading' : ''}`}>
                   <div><strong>{linkLoading ? 'Getting your payment link' : activeLink ? 'Payment link ready' : 'Get payment link'}</strong><span>{paymentLinkMessage}</span></div>
-                  {activeLink ? <a className="gateway-pay-button gateway-pay-link" href={linkRequest.link} target="_blank" rel="noreferrer"><Link2 size={17} /> Open secure payment link <ChevronRight size={17} /></a> : <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={overLimit || linkLoading}>{linkLoading ? `Getting link… ${linkWaitSeconds}s` : overLimit ? 'Limit ₹2,000' : 'Get payment link'}</button>}
+                  {activeLink ? <button className="gateway-pay-button gateway-pay-link" type="button" onClick={() => openPaymentPopup(linkRequest.link)}><Link2 size={17} /> Pay with payment link <ChevronRight size={17} /></button> : <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={overLimit || linkLoading}>{linkLoading ? `Getting link… ${linkWaitSeconds}s` : overLimit ? 'Limit ₹2,000' : 'Get payment link'}</button>}
                 </div>
                 <p className="gateway-link-footnote">The payment provider page handles the actual UPI, QR and card checkout. Trusted Circle does not collect separate card details. The assigned payment link and its order reservation are valid for 3 hours.</p>
               </div>}
