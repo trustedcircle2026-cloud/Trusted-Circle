@@ -1,0 +1,16 @@
+.trusted-circle-admin .tc-admin-header.tc-clean-admin-header{position:sticky;top:0;z-index:100;min-height:64px;padding:0!important;display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid #e2e8f0;box-shadow:0 4px 18px rgba(15,23,42,.06)}
+.trusted-circle-admin .tc-clean-admin-header>div:not(.tc-clean-menu-button):not(.tc-clean-home-button),.trusted-circle-admin .tc-clean-admin-header .tc-admin-head-actions{display:none!important}
+.trusted-circle-admin .tc-clean-menu-button,.trusted-circle-admin .tc-clean-home-button{position:absolute;top:50%;transform:translateY(-50%);z-index:3;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.trusted-circle-admin .tc-clean-menu-button{left:14px;width:42px;height:42px;flex-direction:column;gap:5px;border-radius:10px}
+.trusted-circle-admin .tc-clean-menu-button:hover{background:#f1f5f9}
+.trusted-circle-admin .tc-clean-menu-button span{display:block;width:22px;height:2px;border-radius:2px;background:#172033;transition:transform .18s ease,opacity .18s ease}
+.trusted-circle-admin .tc-clean-home-button{right:14px;width:46px;height:46px;border-radius:12px;padding:3px}
+.trusted-circle-admin .tc-clean-home-button:hover{background:#f1f5f9}
+.trusted-circle-admin .tc-clean-home-button img{display:block;width:38px;height:38px;object-fit:cover;border-radius:50%}
+.trusted-circle-admin .tc-clean-admin-header:has(.tc-clean-menu-button) .tc-admin-mobile{display:none!important}
+.trusted-circle-admin .tc-admin-shell.sidebar-closed .tc-admin-sidebar{transform:translateX(-100%)}
+.trusted-circle-admin .tc-admin-sidebar{transition:transform .2s ease}
+.trusted-circle-admin .tc-admin-shell.sidebar-open .tc-admin-sidebar{transform:translateX(0)}
+.trusted-circle-admin .tc-admin-menu-open{overflow:hidden}
+@media(min-width:901px){.trusted-circle-admin .tc-admin-sidebar{transform:translateX(-100%)}.trusted-circle-admin .tc-admin-shell.sidebar-open .tc-admin-sidebar{transform:translateX(0)}.trusted-circle-admin .tc-admin-main{margin-left:0!important;width:100%!important}}
+@media(max-width:600px){.trusted-circle-admin .tc-admin-header.tc-clean-admin-header{min-height:58px}.trusted-circle-admin .tc-clean-menu-button{left:8px}.trusted-circle-admin .tc-clean-home-button{right:8px}.trusted-circle-admin .tc-clean-home-button img{width:36px;height:36px}}
