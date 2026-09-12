@@ -1,0 +1,93 @@
+/* Compact ERP navigation + stronger readability */
+.tc-admin-shell{background:#f5f7fb!important}
+.tc-admin-sidebar{position:fixed!important;left:-320px!important;top:0!important;bottom:0!important;z-index:3000!important;width:300px!important;max-width:88vw!important;height:100vh!important;box-shadow:18px 0 50px rgba(15,23,42,.24)!important;transition:left .22s ease!important}
+.tc-admin-sidebar.open{left:0!important}
+.tc-admin-menu-backdrop{display:none;position:fixed;inset:0;z-index:2999;border:0;background:rgba(15,23,42,.42);backdrop-filter:blur(3px);cursor:pointer}
+body.tc-admin-menu-open .tc-admin-menu-backdrop{display:block}
+.tc-admin-main{width:100%!important}
+.tc-admin-header{height:78px!important;padding:0 28px!important;gap:18px!important;position:sticky!important;top:0!important;z-index:200!important;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+.tc-menu-trigger{height:50px!important;min-width:188px!important;border:1px solid #dbe3ec!important;background:#fff!important;border-radius:12px!important;padding:5px 9px!important;display:flex!important;align-items:center!important;gap:9px!important;cursor:pointer!important;color:#172033!important;box-shadow:0 3px 12px rgba(15,23,42,.06)!important}
+.tc-menu-trigger:hover{border-color:#a9b8ca!important;transform:translateY(-1px)}
+.tc-menu-trigger img{width:38px;height:38px;border-radius:10px;object-fit:cover;flex:0 0 38px}
+.tc-menu-trigger span{display:grid;gap:1px;text-align:left;flex:1}
+.tc-menu-trigger b{font-size:13px;line-height:1.1}
+.tc-menu-trigger small{font-size:8px;letter-spacing:.13em;color:#718096;font-weight:900}
+.tc-menu-trigger i{font-style:normal;font-size:18px;color:#475569}
+.tc-admin-header h1{font-size:23px!important;font-weight:850!important}
+.tc-admin-header small{font-size:9px!important}
+.tc-admin-head-actions span{font-size:13px!important}
+.tc-admin-head-actions>button{width:38px;height:38px!important}
+.tc-admin-page{padding:28px 34px!important;max-width:1600px!important}
+.tc-admin-hero h2,.tc-data-head h2{font-size:31px!important}
+.tc-admin-hero p,.tc-data-head span{font-size:13px!important}
+.tc-admin-label{font-size:10px!important;padding-top:16px!important}
+.tc-admin-nav button{font-size:14px!important;padding:12px 12px!important;min-height:43px}
+.tc-admin-nav button svg{width:18px;height:18px}
+.tc-admin-brand b{font-size:15px!important}
+.tc-admin-brand small{font-size:9px!important}
+.tc-kpi small{font-size:11px!important}
+.tc-kpi strong{font-size:23px!important}
+.tc-kpi{padding:17px!important}
+.tc-quick-card b{font-size:11px!important}
+.tc-quick-card small{font-size:10px!important}
+.tc-priority strong{font-size:13px!important}
+.tc-priority span{font-size:11px!important}
+.tc-work-copy h3{font-size:16px!important}
+.tc-work-copy strong{font-size:13px!important}
+.tc-work-copy small{font-size:10px!important}
+.tc-work-actions button,.tc-action-grid button,.tc-more,.tc-modal-actions button{font-size:11px!important}
+.tc-data-table,.tc-table-wrap table{font-size:13px!important}
+.tc-table-wrap th{font-size:11px!important}
+.tc-table-wrap td{font-size:12px!important;padding:13px!important}
+.tc-search input{font-size:12px!important}
+.tc-filter-panel label{font-size:12px!important}
+.tc-filter-panel select{font-size:12px!important}
+.tc-modal label{font-size:12px!important}
+.tc-modal input,.tc-modal select,.tc-modal textarea{font-size:12px!important}
+.tc-modal h3{font-size:23px!important}
+.tc-modal p{font-size:13px!important}
+.tc-data-cards b{font-size:12px!important}
+.tc-data-cards span,.tc-data-card-wide span{font-size:10px!important}
+.tc-admin-foot{font-size:12px!important}
+.tc-admin-foot button{font-size:11px!important}
+
+/* Dashboard readability */
+.tc-command-dashboard{padding-top:24px!important}
+.tc-dash-top h2{font-size:30px!important}
+.tc-dash-top p{font-size:13px!important}
+.tc-dash-top small,.tc-dash-section-head small,.tc-dash-panel-head small{font-size:10px!important}
+.tc-dash-top-actions button{font-size:12px!important;padding:10px 13px!important}
+.tc-dash-kpi{padding:14px!important;min-height:74px}
+.tc-dash-kpi small{font-size:10px!important}
+.tc-dash-kpi strong{font-size:19px!important}
+.tc-dash-kpi em{font-size:9px!important}
+.tc-dash-kpi-link{font-size:12px!important}
+.tc-dash-action{padding:12px!important;min-height:58px}
+.tc-dash-action b{font-size:11px!important}
+.tc-dash-action small{font-size:9px!important}
+.tc-dash-panel-head h3{font-size:15px!important}
+.tc-dash-panel-head button{font-size:10px!important}
+.tc-dash-finance small{font-size:9px!important}
+.tc-dash-finance strong{font-size:16px!important}
+.tc-dash-finance span{font-size:8px!important}
+.tc-dash-ops button{padding:9px!important;min-height:46px}
+.tc-dash-ops b{font-size:10px!important}
+.tc-dash-ops small{font-size:9px!important}
+.tc-dash-system b{font-size:17px!important}
+.tc-dash-system span{font-size:10px!important}
+.tc-dash-system small{font-size:8px!important}
+.tc-live-summary-card{padding:16px!important}
+.tc-live-summary-card small{font-size:11px!important}
+.tc-live-summary-card strong{font-size:22px!important}
+.tc-live-summary-card em{font-size:10px!important}
+
+@media(max-width:760px){
+ .tc-admin-header{height:68px!important;padding:0 12px!important}
+ .tc-menu-trigger{min-width:52px!important;width:52px!important;padding:5px!important;justify-content:center}
+ .tc-menu-trigger span{display:none}
+ .tc-menu-trigger i{font-size:17px}
+ .tc-admin-header h1{font-size:18px!important}
+ .tc-admin-header small{font-size:8px!important}
+ .tc-admin-page{padding:20px 15px!important}
+ .tc-admin-hero h2,.tc-data-head h2{font-size:26px!important}
+}
