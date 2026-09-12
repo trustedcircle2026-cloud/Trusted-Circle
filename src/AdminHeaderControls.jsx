@@ -6,12 +6,24 @@ const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Ci
 export default function AdminHeaderControls(){
  useEffect(()=>{
   let timer
+  let observer
+  const get=sel=>document.querySelector(sel)
+  const close=()=>{
+   const nativeClose=get('.tc-admin-sidebar .tc-sidebar-close')
+   if(nativeClose) nativeClose.click()
+   else{
+    get('.tc-admin-sidebar')?.classList.remove('open')
+    get('.tc-admin-shell')?.classList.remove('sidebar-open')
+    get('.tc-admin-shell')?.classList.add('sidebar-closed')
+   }
+   document.body.classList.remove('tc-admin-menu-open')
+  }
   const install=()=>{
-   const header=document.querySelector('.tc-admin-header')
-   const sidebar=document.querySelector('.tc-admin-sidebar')
-   if(!header||!sidebar)return false
-
+   const header=get('.tc-admin-header'),sidebar=get('.tc-admin-sidebar'),shell=get('.tc-admin-shell')
+   if(!header||!sidebar||!shell)return false
    header.classList.add('tc-clean-admin-header')
+   const nativeMenu=header.querySelector('.tc-admin-mobile')
+   nativeMenu?.setAttribute('aria-hidden','true')
 
    let menu=header.querySelector('.tc-clean-menu-button')
    if(!menu){
@@ -22,7 +34,6 @@ export default function AdminHeaderControls(){
     menu.innerHTML='<span></span><span></span><span></span>'
     header.appendChild(menu)
    }
-
    let home=header.querySelector('.tc-clean-home-button')
    if(!home){
     home=document.createElement('button')
@@ -33,20 +44,16 @@ export default function AdminHeaderControls(){
     header.appendChild(home)
    }
 
-   const close=()=>{
-    sidebar.classList.remove('open')
-    document.body.classList.remove('tc-admin-menu-open')
+   menu.onclick=()=>{
+    // Use the real React-controlled menu button so sidebarOpen/mobile state stays in sync.
+    if(nativeMenu){nativeMenu.click();return}
+    const isOpen=shell.classList.contains('sidebar-open')||sidebar.classList.contains('open')
+    shell.classList.toggle('sidebar-open',!isOpen)
+    shell.classList.toggle('sidebar-closed',isOpen)
+    sidebar.classList.toggle('open',!isOpen)
+    document.body.classList.toggle('tc-admin-menu-open',!isOpen)
    }
-   const toggle=()=>{
-    const open=!sidebar.classList.contains('open')
-    sidebar.classList.toggle('open',open)
-    document.body.classList.toggle('tc-admin-menu-open',open)
-   }
-   menu.onclick=toggle
-   home.onclick=()=>{
-    close()
-    window.location.href='/'
-   }
+   home.onclick=()=>{close();window.location.href='/' }
 
    if(!sidebar.dataset.tcCleanCloseBound){
     sidebar.addEventListener('click',event=>{
@@ -56,13 +63,13 @@ export default function AdminHeaderControls(){
    }
    return true
   }
-  const onKey=e=>{if(e.key==='Escape'){const sidebar=document.querySelector('.tc-admin-sidebar');sidebar?.classList.remove('open');document.body.classList.remove('tc-admin-menu-open')}}
+  const onKey=e=>{if(e.key==='Escape')close()}
   const tick=()=>{if(!install())timer=window.setTimeout(tick,100)}
   tick()
-  const observer=new MutationObserver(()=>install())
+  observer=new MutationObserver(()=>install())
   observer.observe(document.body,{subtree:true,childList:true})
   window.addEventListener('keydown',onKey)
-  return()=>{clearTimeout(timer);observer.disconnect();window.removeEventListener('keydown',onKey)}
+  return()=>{clearTimeout(timer);observer?.disconnect();window.removeEventListener('keydown',onKey)}
  },[])
  return null
 }
