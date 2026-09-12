@@ -1,0 +1,3 @@
+/* Keep the public shopping shell completely isolated from the private ERP on the legacy #/erp route. */
+body:has(.tc-admin-shell) .app-root,body:has(.admin-login) .app-root{display:none!important}
+body:has(.tc-admin-shell),body:has(.admin-login){background:#f5f7fb!important}
