@@ -30,7 +30,10 @@ export default function AdminNavigationEnhancer(){
    const toggle=()=>{const open=!sidebar.classList.contains('open');sidebar.classList.toggle('open',open);document.body.classList.toggle('tc-admin-menu-open',open)}
    trigger.onclick=toggle
    backdrop.onclick=close
-   sidebar.querySelectorAll('.tc-admin-nav button').forEach(button=>{button.onclick=(()=>{const original=button.onclick;return function(e){if(original&&original!==arguments.callee)original.call(this,e);close()}})()})
+   if(!sidebar.dataset.tcCloseBound){
+    sidebar.addEventListener('click',event=>{if(event.target.closest('.tc-admin-nav button'))window.setTimeout(close,80)})
+    sidebar.dataset.tcCloseBound='1'
+   }
    return true
   }
   const tick=()=>{if(!install())timer=window.setTimeout(tick,120)}
