@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import AdminWorkspaceV2 from './AdminWorkspaceV2'
 import AdminRemoveUser from './AdminRemoveUser'
 import AdminKpiAllPages from './AdminKpiAllPages'
-import AdminNavigationEnhancer from './AdminNavigationEnhancer'
+import AdminHeaderControls from './AdminHeaderControls'
 import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './admin-entry.css'
@@ -21,7 +21,7 @@ function AdminApp(){
  return <>
   <GlobalLoading/>
   {!remove&&<AdminKpiAllPages/>}
-  {!remove&&<AdminNavigationEnhancer/>}
+  {!remove&&<AdminHeaderControls/>}
   {remove
    ? <AdminRemoveUser token={localStorage.getItem('tc_erp_session')||''} onBack={()=>{window.location.hash='';setRouteName('')}}/>
    : <AdminWorkspaceV2/>
