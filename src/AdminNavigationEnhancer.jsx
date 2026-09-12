@@ -37,11 +37,13 @@ export default function AdminNavigationEnhancer(){
    }
    return true
   }
+  const onKey=event=>{if(event.key==='Escape')document.querySelector('.tc-admin-menu-backdrop')?.click()}
   const tick=()=>{if(!install())timer=window.setTimeout(tick,120)}
   tick()
+  window.addEventListener('keydown',onKey)
   const observer=new MutationObserver(()=>install())
   observer.observe(document.body,{childList:true,subtree:true})
-  return()=>{window.clearTimeout(timer);observer.disconnect();document.body.classList.remove('tc-admin-menu-open');document.querySelector('.tc-admin-menu-backdrop')?.remove()}
+  return()=>{window.clearTimeout(timer);window.removeEventListener('keydown',onKey);observer.disconnect();document.body.classList.remove('tc-admin-menu-open');document.querySelector('.tc-admin-menu-backdrop')?.remove()}
  },[])
  return null
 }
