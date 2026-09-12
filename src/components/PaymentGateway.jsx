@@ -5,6 +5,11 @@ import './PaymentGateway.css'
 
 const UPI_URI = 'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
 const UPI_LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg'
+const GOOGLE_PAY_LOGO_URL = 'https://cdn.simpleicons.org/googlepay'
+const PAYTM_LOGO_URL = 'https://cdn.simpleicons.org/paytm'
+const VISA_LOGO_URL = 'https://cdn.simpleicons.org/visa'
+const MASTERCARD_LOGO_URL = 'https://cdn.simpleicons.org/mastercard'
+const RUPAY_LOGO_URL = 'https://cdn.simpleicons.org/rupay'
 const LINK_WAIT_SECONDS = 30
 const LINK_VALIDITY_SECONDS = 3 * 60 * 60
 const methods = [
@@ -29,7 +34,10 @@ const extractPaymentLink = value => {
 }
 
 export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, qrUrl, onBack, onCreateOrder, orderId = '' }) {
-  const [selected, setSelected] = useState('upiapps')
+  // Regular checkout intentionally uses only the stocked Payment Link.
+  // The Orders-page payment gateway keeps the full UPI/QR/Payment Link selector.
+  const availableMethods = mode === 'checkout' ? methods.filter(method => method.id === 'link') : methods
+  const [selected, setSelected] = useState(mode === 'checkout' ? 'link' : 'upiapps')
   const [qrOpen, setQrOpen] = useState(false)
   const [linkRequest, setLinkRequest] = useState(null)
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
@@ -37,7 +45,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [linkLoading, setLinkLoading] = useState(false)
   const overLimit = Number(total) > 2000
   const itemCount = useMemo(() => items.reduce((sum, item) => sum + Number(item.Quantity || 0), 0), [items])
-  const active = methods.find(method => method.id === selected) || methods[1]
+  const active = availableMethods.find(method => method.id === selected) || availableMethods[0]
   const ActiveIcon = active.icon
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
 
@@ -126,7 +134,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       <div className="gateway-shell">
         {mode === 'checkout' && <aside className="gateway-summary">
           <div className="gateway-summary-brand"><div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div><div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div></div>
-          <div className="gateway-stepper"><span className="done">1</span><div><b>Cart</b><small>{itemCount} item{itemCount === 1 ? '' : 's'}</small></div><span className="active">2</span><div><b>Payment</b><small>Choose a method</small></div></div>
+          <div className="gateway-stepper"><span className="done">1</span><div><b>Cart</b><small>{itemCount} item{itemCount === 1 ? '' : 's'}</small></div><span className="active">2</span><div><b>Payment</b><small>Secure payment link</small></div></div>
           <div className="gateway-price-label">PAY NOW</div><div className="gateway-total">{money(total)}</div>
           <div className="gateway-account-pill"><CheckCircle2 size={15} /><span>{user?.email || 'Signed in'}</span></div>
           <div className="gateway-order-lines"><div><span>Voucher value</span><b>{money(total)}</b></div><div><span>Cashback</span><b className="gateway-green">+ {money(cashback)}</b></div></div>
@@ -135,23 +143,23 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         </aside>}
 
         <section className="gateway-payment">
-          <div className="gateway-payment-head"><div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Choose how to pay' : 'Complete payment'}</h1><p>{mode === 'checkout' ? 'Pay the full voucher value.' : 'Pay the pending order amount to continue.'}</p></div><button className="gateway-close" onClick={onBack} aria-label="Close checkout"><X size={16} /></button></div>
-          <div className="gateway-mobile-method-trigger" role="button" tabIndex={0} onClick={event => event.currentTarget.nextElementSibling?.querySelector('.gateway-methods')?.classList.toggle('mobile-open')}><ActiveIcon size={18} /><div><small>Payment method</small><strong>{active.label}</strong></div><ChevronRight size={17} /></div>
+          <div className="gateway-payment-head"><div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Pay securely' : 'Complete payment'}</h1><p>{mode === 'checkout' ? 'Use the secure payment link to choose UPI, QR or card payment.' : 'Pay the pending order amount to continue.'}</p></div><button className="gateway-close" onClick={onBack} aria-label="Close checkout"><X size={16} /></button></div>
+          {mode !== 'checkout' && <div className="gateway-mobile-method-trigger" role="button" tabIndex={0} onClick={event => event.currentTarget.nextElementSibling?.querySelector('.gateway-methods')?.classList.toggle('mobile-open')}><ActiveIcon size={18} /><div><small>Payment method</small><strong>{active.label}</strong></div><ChevronRight size={17} /></div>}
 
           <div className="gateway-body">
-            <nav className="gateway-methods" aria-label="Payment methods">
+            {mode !== 'checkout' && <nav className="gateway-methods" aria-label="Payment methods">
               <div className="gateway-method-heading">PAYMENT METHODS</div>
-              {methods.map(method => { const Icon = method.icon; return <button key={method.id} className={`gateway-method ${selected === method.id ? 'selected' : ''}`} onClick={() => chooseMethod(method.id)}><Icon size={18} /><span>{method.label}</span>{selected === method.id && <ChevronRight size={14} className="method-arrow" />}</button> })}
-            </nav>
+              {availableMethods.map(method => { const Icon = method.icon; return <button key={method.id} className={`gateway-method ${selected === method.id ? 'selected' : ''}`} onClick={() => chooseMethod(method.id)}><Icon size={18} /><span>{method.label}</span>{selected === method.id && <ChevronRight size={14} className="method-arrow" />}</button> })}
+            </nav>}
 
-            <div className="gateway-content">
-              <div className="gateway-content-title"><div><ActiveIcon size={17} /><strong>{active.label}</strong></div><span className="gateway-session"><ShieldCheck size={12} /> Secure</span></div>
+            <div className="gateway-content gateway-content-link-only">
+              {selected === 'upiapps' && <div className="gateway-content-title"><div><ActiveIcon size={17} /><strong>{active.label}</strong></div><span className="gateway-session"><ShieldCheck size={12} /> Secure</span></div>}
 
               {selected === 'upiapps' && <div className="gateway-upi-apps-panel gateway-upi-primary">
                 <div className="gateway-upi-brand-row"><img className="upi-logo-image checkout-upi-logo" src={UPI_LOGO_URL} alt="UPI" /><span className="gateway-session"><ShieldCheck size={12} /> UPI secure</span></div>
                 <div className="gateway-upi-apps-intro"><span className="gateway-mini-label">UPI</span><h2>{money(total)}</h2><p>Pay instantly with any UPI app.</p></div>
                 <a className="gateway-pay-button gateway-pay-link gateway-primary-action" href={mode === 'order' ? UPI_URI : '#'} onClick={startUpiPayment} aria-disabled={overLimit}><Smartphone size={17} /> Pay with UPI Apps <ChevronRight size={17} /></a>
-                <div className="gateway-return-card"><CheckCircle2 size={17} /><div><strong>After payment</strong><span>{mode === 'checkout' ? 'Your order will open after the payment handoff.' : 'Return here to see the updated order status.'}</span></div></div>
+                <div className="gateway-return-card"><CheckCircle2 size={17} /><div><strong>After payment</strong><span>Return here to see the updated order status.</span></div></div>
                 <div className="gateway-note"><ShieldCheck size={14} /> Cashback is added after verified payment.</div>
               </div>}
 
@@ -161,13 +169,28 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
               </div>}
 
               {selected === 'link' && <div className="gateway-link-area">
-                <div className="gateway-link-panel"><div className="gateway-link-icon"><Link2 size={22} /></div><div><span className="gateway-mini-label">SECURE PAYMENT LINK</span><strong>Pay through the assigned link</strong><p>One stocked link is reserved for this order for 3 hours. Once the link is received, it remains valid for the full 3-hour reservation period.</p></div></div>
-                <div className="gateway-link-methods"><span><CheckCircle2 size={14} /> UPI</span><span><CheckCircle2 size={14} /> Cards*</span><span><CheckCircle2 size={14} /> Other provider methods</span></div>
+                <div className="gateway-link-panel"><div className="gateway-link-icon"><Link2 size={22} /></div><div><span className="gateway-mini-label">SECURE PAYMENT LINK</span><strong>All payment options in one secure link</strong><p>Open the assigned payment link and choose the payment method you prefer. The link is reserved for this order for 3 hours.</p></div></div>
+
+                <div className="gateway-link-option-groups">
+                  <div className="gateway-link-option-group"><span className="gateway-link-option-title">UPI &amp; QR</span><div className="gateway-brand-row">
+                    <span className="gateway-brand-logo gateway-brand-upi"><img src={UPI_LOGO_URL} alt="UPI" /></span>
+                    <span className="gateway-brand-logo"><img src={GOOGLE_PAY_LOGO_URL} alt="Google Pay" /></span>
+                    <span className="gateway-brand-logo"><img src={PAYTM_LOGO_URL} alt="Paytm" /></span>
+                    <span className="gateway-brand-word">QR</span>
+                  </div></div>
+                  <div className="gateway-link-option-group"><span className="gateway-link-option-title">DEBIT &amp; CREDIT CARDS</span><div className="gateway-brand-row">
+                    <span className="gateway-brand-logo"><img src={VISA_LOGO_URL} alt="Visa" /></span>
+                    <span className="gateway-brand-logo"><img src={MASTERCARD_LOGO_URL} alt="Mastercard" /></span>
+                    <span className="gateway-brand-logo"><img src={RUPAY_LOGO_URL} alt="RuPay" /></span>
+                  </div></div>
+                </div>
+
+                <div className="gateway-link-methods"><span><CheckCircle2 size={14} /> UPI Apps</span><span><CheckCircle2 size={14} /> QR</span><span><CheckCircle2 size={14} /> Debit &amp; Credit Cards</span></div>
                 <div className={`gateway-link-status ${activeLink ? 'active' : ''} ${linkLoading ? 'loading' : ''}`}>
                   <div><strong>{linkLoading ? 'Getting your payment link' : activeLink ? 'Payment link ready' : 'Get payment link'}</strong><span>{paymentLinkMessage}</span></div>
-                  {activeLink ? <a className="gateway-pay-button gateway-pay-link" href={linkRequest.link} target="_blank" rel="noreferrer"><Link2 size={17} /> Pay with linked payment <ChevronRight size={17} /></a> : <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={overLimit || linkLoading}>{linkLoading ? `Getting link… ${linkWaitSeconds}s` : overLimit ? 'Limit ₹2,000' : 'Get payment link'}</button>}
+                  {activeLink ? <a className="gateway-pay-button gateway-pay-link" href={linkRequest.link} target="_blank" rel="noreferrer"><Link2 size={17} /> Open secure payment link <ChevronRight size={17} /></a> : <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={overLimit || linkLoading}>{linkLoading ? `Getting link… ${linkWaitSeconds}s` : overLimit ? 'Limit ₹2,000' : 'Get payment link'}</button>}
                 </div>
-                <p className="gateway-link-footnote">* Card availability is controlled by the payment-link provider. Trusted Circle does not collect separate card details. The assigned payment link and its order reservation are valid for 3 hours.</p>
+                <p className="gateway-link-footnote">The payment provider page handles the actual UPI, QR and card checkout. Trusted Circle does not collect separate card details. The assigned payment link and its order reservation are valid for 3 hours.</p>
               </div>}
 
               <div className="gateway-amount-bar"><div><small>PAY NOW</small><strong>{money(total)}</strong></div>{selected === 'upiapps' && <a className="gateway-pay-button gateway-pay-link" href={mode === 'order' ? UPI_URI : '#'} onClick={startUpiPayment} aria-disabled={overLimit}><Smartphone size={17} /> Pay with UPI Apps <ChevronRight size={17} /></a>}</div>
