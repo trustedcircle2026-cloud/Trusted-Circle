@@ -16,7 +16,7 @@ export default function AdminNavigationEnhancer(){
     trigger.type='button'
     trigger.className='tc-menu-trigger'
     trigger.setAttribute('aria-label','Open ERP menu')
-    trigger.innerHTML=`<img src="${LOGO}" alt="Trusted Circle"/><span><b>Trusted Circle</b><small>ERP MENU</small></span><i>☰</i>`
+    trigger.innerHTML=`<img src="${LOGO}" alt="Trusted Circle"/><span><b>Trusted Circle</b><small>ERP MENU · DASHBOARD</small></span><i>☰</i>`
     header.insertBefore(trigger,header.firstChild)
    }
    if(!backdrop){
@@ -27,8 +27,9 @@ export default function AdminNavigationEnhancer(){
     document.body.appendChild(backdrop)
    }
    const close=()=>{sidebar.classList.remove('open');document.body.classList.remove('tc-admin-menu-open')}
-   const toggle=()=>{const open=!sidebar.classList.contains('open');sidebar.classList.toggle('open',open);document.body.classList.toggle('tc-admin-menu-open',open)}
-   trigger.onclick=toggle
+   const openMenu=()=>{sidebar.classList.add('open');document.body.classList.add('tc-admin-menu-open')}
+   const goDashboard=()=>{const dashboard=[...sidebar.querySelectorAll('.tc-admin-nav button')].find(button=>/dashboard/i.test(button.textContent||''));if(dashboard)dashboard.click()}
+   trigger.onclick=()=>{goDashboard();openMenu()}
    backdrop.onclick=close
    if(!sidebar.dataset.tcCloseBound){
     sidebar.addEventListener('click',event=>{if(event.target.closest('.tc-admin-nav button'))window.setTimeout(close,80)})
