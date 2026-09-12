@@ -6,18 +6,11 @@ import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './admin-entry.css'
 
-function go(path){window.location.hash=path;window.location.reload()}
-
+function route(){return window.location.hash.replace(/^#\/?/,'')}
 function AdminApp(){
-  const [route,setRoute]=useState(window.location.hash.replace(/^#\/?/,''))
-  useEffect(()=>{const onHash=()=>setRoute(window.location.hash.replace(/^#\/?/,''));window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
-  const remove=route==='remove-user'||route==='erp-remove-user'
-  const back=()=>go('#/dashboard')
-  return <>
-    <GlobalLoading />
-    {!remove&&<div className="tc-admin-quickbar"><span>ERP</span><button onClick={()=>go('#/dashboard')}>Dashboard</button><button onClick={()=>go('#/remove-user')}>Remove User</button></div>}
-    {remove?<AdminRemoveUser token={localStorage.getItem('tc_erp_session')||''} onBack={back}/>:<AdminWorkspaceV2/>}
-  </>
+ const[routeName,setRouteName]=useState(route())
+ useEffect(()=>{const onHash=()=>setRouteName(route());window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
+ const remove=routeName==='remove-user'||routeName==='erp-remove-user'
+ return <><GlobalLoading/>{remove?<AdminRemoveUser token={localStorage.getItem('tc_erp_session')||''} onBack={()=>{window.location.hash='';setRouteName('')}}/>:<AdminWorkspaceV2/>}</>
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><AdminApp/></React.StrictMode>)
+ReactDOM.createRoot(document.getElementById('root')).render(<AdminApp/>)
