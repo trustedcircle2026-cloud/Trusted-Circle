@@ -1,40 +1,64 @@
 # Trusted Circle Books — dedicated Apps Script backend
 
-This backend is intentionally separate from the shopping/ERP Apps Script.
+This backend is intentionally separate from the shopping/ERP Apps Script and Google Sheet.
 
-## Connected spreadsheet
+## Connected Google Sheet
 
 Spreadsheet ID:
 `1Rw-KNxLaV4Juvhn2O1pDoXv13YgRAkScyuSLGVIJfW8`
 
-## Apps Script deployment
+The frontend is configured to use the dedicated Books Web App URL stored in `src/books-config.js`.
 
-Use the new Books Apps Script project and deploy it as a Web App. The frontend is already configured to call that Web App URL.
+## Apps Script files
 
-## Files
+- `Config.gs` — Books configuration, timezone and spreadsheet connection.
+- `Code.gs` — HTTP API, OTP authentication, sessions, organisation setup, Chart of Accounts, double-entry journal engine and FY reports.
+- `Setup.gs` — production Google Sheet formatting, dropdown validation and date-column setup.
 
-- `Config.gs` — Books configuration and spreadsheet connection
-- `Code.gs` — HTTP API, authentication, organisation setup, Chart of Accounts, double-entry journal engine and core FY reports
+## First-time Google Sheet setup
 
-## First deployment
+1. Open the **dedicated Books Google Sheet**.
+2. Open **Extensions → Apps Script**.
+3. Add `Config.gs`, `Code.gs` and `Setup.gs` from this folder.
+4. Save the Apps Script project.
+5. Run `booksSetupProduction_()` once from the Apps Script function selector.
+6. Grant the requested Google Sheets and Gmail/Mail permissions.
+7. Confirm the Sheets below exist and the header row is present.
+8. The setup also freezes header rows, creates filters, applies supported dropdown validation and seeds the basic accounting structure/tax rates.
 
-1. Open the new Apps Script project linked to the Trusted Circle Books spreadsheet.
-2. Replace the default script with the contents of `Config.gs` and `Code.gs` from this folder.
-3. Save the project.
-4. In Apps Script, run `booksSetup_()` once from the function selector. If the editor does not show private functions, temporarily run `booksSetup_` from the editor; authorization will be requested.
-5. Authorize Spreadsheet and Mail permissions.
-6. Deploy → New deployment → Web app.
-7. Execute as: **Me**.
-8. Who has access: **Anyone**.
-9. Deploy a new version whenever backend code changes.
+## Web App deployment
 
-## What setup creates
+After setup:
 
-The setup creates these dedicated Books tables:
+1. Apps Script → **Deploy → New deployment**.
+2. Select **Web app**.
+3. Execute as: **Me**.
+4. Who has access: **Anyone**.
+5. Deploy.
+6. Keep the resulting `/exec` URL in `src/books-config.js`.
+7. Whenever Apps Script code changes, create a **new deployment version** so the production Web App uses the latest code.
+
+## Google Sheet tables
 
 `Organisations`, `Users`, `Roles`, `Sessions`, `OTP`, `AuditLogs`, `AccountGroups`, `Accounts`, `JournalEntries`, `JournalLines`, `Customers`, `Vendors`, `Items`, `Invoices`, `InvoiceLines`, `Receipts`, `Bills`, `BillLines`, `Payments`, `Expenses`, `BankAccounts`, `BankTransactions`, `Reconciliations`, `TaxRates`, `TaxTransactions`, `Reports`, `Documents`, `Settings`.
 
-## API foundation
+## Initial accounting seed
+
+The backend setup creates the five primary account groups:
+
+- Assets
+- Liabilities
+- Equity
+- Income
+- Expenses
+
+It also creates a starter ledger structure including Cash, Bank Accounts, Accounts Receivable, Inventory, Accounts Payable, GST Payable, Owner Capital, Retained Earnings, Sales, Other Income, Cost of Goods Sold, Operating Expenses and Bank Charges.
+
+Starter GST rates are also created for 0%, 5%, 12%, 18% and 28%.
+
+These are a starting chart only; the organisation can extend the Chart of Accounts from the Books UI.
+
+## Current API foundation
 
 - `health`
 - `setupBackend`
@@ -51,11 +75,9 @@ The setup creates these dedicated Books tables:
 - `booksProfitLoss`
 - `booksBalanceSheet`
 
-## Accounting rule
+## Accounting rules
 
-Reports are derived from posted double-entry `JournalEntries` + `JournalLines`. A journal cannot be posted unless total debit equals total credit.
-
-Financial year calculations currently follow the Indian April–March FY convention.
+Financial reports are derived from posted double-entry `JournalEntries` + `JournalLines`. A journal is rejected unless total debit equals total credit. Financial years currently follow the Indian April–March convention.
 
 ## Security
 
@@ -63,9 +85,11 @@ Financial year calculations currently follow the Indian April–March FY convent
 - OTPs expire and have an attempt limit.
 - Session bearer tokens are never stored in plaintext; only hashes are stored.
 - Organisation and accounting actions require an authenticated Books session.
-- Account and journal posting permissions are role-controlled server-side.
+- Account and journal posting permissions are enforced server-side.
 - The browser never connects directly to the Google Sheet.
 
 ## Important
 
-Do not put Google service-account keys, payment secrets or other credentials in GitHub. The spreadsheet ID is an identifier, not a credential. Apps Script authorization remains server-side.
+The repository can prepare the Apps Script and spreadsheet setup code, but it cannot directly authorize your Google account or create/deploy a Google Apps Script Web App on your behalf. The one-time Apps Script authorization/deployment steps above must be performed in your Google account.
+
+Do not put Google service-account keys, payment secrets or other credentials in GitHub. The spreadsheet ID is an identifier, not a credential.
