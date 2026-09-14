@@ -1,8 +1,11 @@
 /** Trusted Circle Books - final non-recursive API dispatcher. Keep this file last in Apps Script project order. */
+function tcBooksFastRows_(sheetName,orgId){var sh=booksSpreadsheet_().getSheetByName(sheetName);if(!sh||sh.getLastRow()<2)return[];var values=sh.getDataRange().getValues(),headers=values.shift(),out=[];for(var i=0;i<values.length;i++){var row=values[i],obj={};for(var c=0;c<headers.length;c++)obj[headers[c]]=row[c];if(String(obj.OrganisationID||'')===String(orgId))out.push(obj);}return out;}
+function tcBooksFastDashboard_(input){var u=booksAuth_(input.token),org=String(u.OrganisationID||'');booksRequire_(org,'Organisation setup is required.');var invoices=tcBooksFastRows_('Invoices',org),bills=tcBooksFastRows_('Bills',org),receipts=tcBooksFastRows_('Receipts',org),payments=tcBooksFastRows_('Payments',org),expenses=tcBooksFastRows_('Expenses',org);var sum=function(rows,key){var n=0;for(var i=0;i<rows.length;i++)n+=Number(rows[i][key]||0);return n;};return{receivables:sum(invoices,'BalanceDue'),payables:sum(bills,'BalanceDue'),cashReceived:sum(receipts,'Amount'),cashPaid:sum(payments,'Amount'),expenses:sum(expenses,'Amount'),income:sum(invoices,'Total'),netProfit:null,invoiceCount:invoices.length,billCount:bills.length,fast:true};}
 function tcBooksDispatch_(action,input){
   action=String(action||'health');
   if(action==='health')return{service:BOOKS_CONFIG.APP_NAME,status:'ok',version:BOOKS_CONFIG.VERSION};
   if(action==='setupBackend')return booksSetup_();
+  if(action==='booksDashboard')return tcBooksFastDashboard_(input);
   switch(action){
     case'booksRequestOtp':return booksRequestOtp_(input);case'booksVerifyOtp':return tcBooksVerifyOtp_(input);case'booksMe':return tcBooksMe_(input);case'booksLogout':return booksLogout_(input);
     case'booksGetOrganisation':return booksGetOrganisation_(input);case'booksSaveOrganisation':return booksSaveOrganisation_(input);case'booksCreateOrganisation':return tcCreateOrganisation_(input);case'booksFindOrganisation':return tcFindOrganisation_(input);
