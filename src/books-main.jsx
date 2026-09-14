@@ -11,28 +11,28 @@ import './books-loading.css'
 
 const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const inflight=new Map()
-let loadingRequests=0
-let loadingTimer=null
-function loadingStart(action){loadingRequests++;if(loadingRequests===1){loadingTimer=setTimeout(()=>window.dispatchEvent(new CustomEvent('tc-books-loading-start',{detail:{message:loadingPurpose(action)}})),120)}}
-function loadingStop(){loadingRequests=Math.max(0,loadingRequests-1);if(loadingRequests===0){clearTimeout(loadingTimer);loadingTimer=null;window.dispatchEvent(new CustomEvent('tc-books-loading-stop'))}}
+let sequence=0
+const nextId=()=>`books-${++sequence}`
+function emitStart(id,action){window.dispatchEvent(new CustomEvent('tc-books-loading-start',{detail:{id,message:loadingPurpose(action)}}))}
+function emitStop(id){window.dispatchEvent(new CustomEvent('tc-books-loading-stop',{detail:{id}}))}
 async function request(action,payload={}){
   if(!BOOKS_API_URL)throw Error('Trusted Circle Books backend URL is not configured.')
   const dedupe=action==='booksMe'||action==='booksGetOrganisation'
   const key=dedupe?action+':'+JSON.stringify(payload):''
   if(dedupe&&inflight.has(key))return inflight.get(key)
   const run=(async()=>{
-    loadingStart(action)
+    const id=nextId();const timer=setTimeout(()=>emitStart(id,action),120)
     try{
-      const controller=new AbortController()
-      const timeout=setTimeout(()=>controller.abort(),20000)
-      let r
-      try{r=await fetch(BOOKS_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload}),signal:controller.signal})}finally{clearTimeout(timeout)}
-      const text=await r.text();let data
+      const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),20000)
+      let response
+      try{response=await fetch(BOOKS_API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,...payload}),signal:controller.signal})}
+      finally{clearTimeout(timeout)}
+      const text=await response.text();let data
       try{data=JSON.parse(text)}catch(e){throw Error('Books backend returned an invalid response.')}
-      if(!r.ok||data.ok===false)throw Error(data.error?.message||data.message||'Books request failed.')
+      if(!response.ok||data.ok===false)throw Error(data.error?.message||data.message||'Books request failed.')
       return data.data??data
     }catch(e){if(e?.name==='AbortError')throw Error('Books request timed out. Please try again.');throw e}
-    finally{loadingStop()}
+    finally{clearTimeout(timer);emitStop(id)}
   })()
   if(dedupe)inflight.set(key,run)
   try{return await run}finally{if(dedupe)inflight.delete(key)}
