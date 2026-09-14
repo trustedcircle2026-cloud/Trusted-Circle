@@ -3,15 +3,15 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Both storefront and admin.html are served from the custom domain and
-  // may also be hosted under a GitHub Pages path. Relative asset URLs work
-  // correctly in both environments.
+  // Storefront, ERP and Trusted Circle Books are separate production entry pages.
+  // Relative asset URLs keep all three working on custom domains and GitHub Pages.
   base: './',
   build: {
     rollupOptions: {
       input: {
         main: 'index.html',
-        admin: 'admin.html'
+        admin: 'admin.html',
+        books: 'books.html'
       }
     }
   }
