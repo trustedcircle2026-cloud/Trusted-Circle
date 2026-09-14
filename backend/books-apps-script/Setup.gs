@@ -1,6 +1,6 @@
 /**
  * Trusted Circle Books - production Google Sheet setup.
- * Run booksSetupProduction_() once after Config.gs + Code.gs are installed.
+ * Run runBooksProductionSetup() once after Config.gs + Code.gs are installed.
  */
 function booksSetupProduction_() {
   var result = booksSetup_();
@@ -46,6 +46,14 @@ function booksSetupProduction_() {
   SpreadsheetApp.flush();
 
   return {ok:true,message:'Trusted Circle Books production spreadsheet setup completed.',spreadsheetId:ss.getId(),sheets:result.sheets};
+}
+
+/**
+ * Public runner for the Apps Script editor Run menu.
+ * The actual setup function remains private (underscore suffix).
+ */
+function runBooksProductionSetup(){
+  return booksSetupProduction_();
 }
 
 function booksSetupDropdown_(ss,sheetName,columnName,values){
