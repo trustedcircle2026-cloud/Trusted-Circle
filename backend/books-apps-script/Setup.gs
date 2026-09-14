@@ -6,10 +6,24 @@ function booksSetupProduction_() {
   var result = booksSetup_();
   var ss = booksSpreadsheet_();
 
-  booksSetupDropdown_(ss,'Users','Role',['OWNER','ADMIN','ACCOUNTANT','VIEWER']);
+  tcEnsureBooksOrgSheets_();
+
+  booksSetupDropdown_(ss,'Users','Role',['OWNER','ADMIN','ACCOUNTANT','SALES','PURCHASE','INVENTORY','EMPLOYEE','VIEWER']);
   booksSetupDropdown_(ss,'Users','Status',['ACTIVE','INACTIVE']);
+  booksSetupDropdown_(ss,'OrganisationMembers','Role',['OWNER','ADMIN','ACCOUNTANT','SALES','PURCHASE','INVENTORY','EMPLOYEE','VIEWER']);
+  booksSetupDropdown_(ss,'OrganisationMembers','Status',['PENDING','ACTIVE','INACTIVE','REJECTED']);
+  booksSetupDropdown_(ss,'JoinRequests','Status',['PENDING','APPROVED','REJECTED','CANCELLED']);
+  booksSetupDropdown_(ss,'Employees','Status',['ACTIVE','INACTIVE']);
+  booksSetupDropdown_(ss,'Employees','EmploymentType',['FULL_TIME','PART_TIME','CONTRACT','INTERN','CONSULTANT']);
+  booksSetupDropdown_(ss,'Employees','PFApplicable',['YES','NO']);
+  booksSetupDropdown_(ss,'Employees','ESIApplicable',['YES','NO']);
+  booksSetupDropdown_(ss,'Employees','ProfessionalTaxApplicable',['YES','NO']);
+
   booksSetupDropdown_(ss,'Organisations','BaseCurrency',['INR','USD','EUR','GBP']);
   booksSetupDropdown_(ss,'Organisations','FinancialYearStartMonth',['4','1']);
+  booksSetupDropdown_(ss,'Organisations','GSTRegistered',['YES','NO']);
+  booksSetupDropdown_(ss,'Organisations','GSTRegistrationType',['REGULAR','COMPOSITION','SEZ','CASUAL']);
+  booksSetupDropdown_(ss,'Organisations','AccountingMethod',['ACCRUAL','CASH']);
 
   booksSetupDropdown_(ss,'Accounts','Type',['ASSET','LIABILITY','EQUITY','INCOME','EXPENSE']);
   booksSetupDropdown_(ss,'Accounts','NormalBalance',['DEBIT','CREDIT']);
@@ -34,6 +48,9 @@ function booksSetupProduction_() {
   booksSetupDateColumns_(ss,'Receipts',['ReceiptDate','CreatedAt']);
   booksSetupDateColumns_(ss,'Payments',['PaymentDate','CreatedAt']);
   booksSetupDateColumns_(ss,'Expenses',['ExpenseDate','CreatedAt']);
+  booksSetupDateColumns_(ss,'OrganisationMembers',['JoinedAt','ApprovedAt','RejectedAt','CreatedAt','UpdatedAt']);
+  booksSetupDateColumns_(ss,'JoinRequests',['RequestedAt','ReviewedAt']);
+  booksSetupDateColumns_(ss,'Employees',['DateOfBirth','JoiningDate','CreatedAt','UpdatedAt']);
 
   booksSetupNumberColumns_(ss,'Accounts',['OpeningBalance']);
   booksSetupNumberColumns_(ss,'Invoices',['Subtotal','TaxAmount','Discount','Total','PaidAmount','BalanceDue']);
@@ -48,10 +65,6 @@ function booksSetupProduction_() {
   return {ok:true,message:'Trusted Circle Books production spreadsheet setup completed.',spreadsheetId:ss.getId(),sheets:result.sheets};
 }
 
-/**
- * Public runner for the Apps Script editor Run menu.
- * The actual setup function remains private (underscore suffix).
- */
 function runBooksProductionSetup(){
   return booksSetupProduction_();
 }
