@@ -26,24 +26,21 @@ const PURPOSES={
 export const loadingPurpose=action=>PURPOSES[action]||'Processing your Books request…'
 
 export default function BooksLoading(){
-  const[active,setActive]=useState(null)
+  const[requests,setRequests]=useState(new Map())
   useEffect(()=>{
-    const start=e=>setActive(e.detail||{message:'Processing your Books request…'})
-    const stop=()=>setActive(null)
+    const start=e=>{const d=e.detail||{};const id=d.id||String(Date.now()+Math.random());setRequests(prev=>new Map(prev).set(id,d.message||'Processing your Books request…'))}
+    const stop=e=>{const id=e.detail?.id;if(!id){setRequests(new Map());return}setRequests(prev=>{const next=new Map(prev);next.delete(id);return next})}
     window.addEventListener('tc-books-loading-start',start)
     window.addEventListener('tc-books-loading-stop',stop)
-    return()=>{
-      window.removeEventListener('tc-books-loading-start',start)
-      window.removeEventListener('tc-books-loading-stop',stop)
-    }
+    return()=>{window.removeEventListener('tc-books-loading-start',start);window.removeEventListener('tc-books-loading-stop',stop)}
   },[])
-  if(!active)return null
-  return <div className="tc-books-loading" role="status" aria-live="polite" aria-label={active.message}>
+  const message=[...requests.values()][requests.size-1]||'Processing your Books request…'
+  if(!requests.size)return null
+  return <div className="tc-books-loading" role="status" aria-live="polite" aria-label={message}>
     <div className="tc-books-loading-card">
       <div className="tc-books-loading-logo"><img src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"/></div>
-      <div className="tc-books-spinner" aria-hidden="true"/>
       <strong>Trusted Circle Books</strong>
-      <span>{active.message}</span>
+      <span>{message}</span>
     </div>
   </div>
 }
