@@ -8,6 +8,7 @@ import './public-ui.css'
 import './erp-overrides.css'
 import './shopping-upgrade.css'
 import './erp-polish.css'
+import './books-footer.css'
 import './footer-books-link.js'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
