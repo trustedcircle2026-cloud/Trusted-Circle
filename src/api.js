@@ -2,7 +2,7 @@ const API_BASE='https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73
 const LOADING_MESSAGES={health:'Connecting…',brands:'Loading…',products:'Loading…',product:'Loading…',cart:'Loading…',cartAdd:'Adding…',cartUpdate:'Updating…',cartDenomination:'Updating…',cartRemove:'Removing…',requestOtp:'Sending OTP…',verifyOtp:'Verifying…',profileUpdate:'Saving…',orders:'Loading orders…',orderDetails:'Loading order…',wallet:'Loading…',redeemWallet:'Processing…',placeOrder:'Preparing…',createInvoicePdf:'Preparing…',requestPaymentLink:'Preparing…',cancelOrder:'Cancelling…',logout:'Signing out…',adminLogin:'Authenticating…',adminDashboard:'Loading dashboard…',adminTable:'Loading page…',adminUpdateRow:'Saving…',adminEditAnyRow:'Updating record…',adminWorklist:'Loading work queue…',adminWorklistAction:'Applying action…',adminAddPaymentLinkStock:'Stocking link…',adminAddPaymentLinkStockBulk:'Adding stock…',adminCreatePaymentLink:'Creating…',adminPaymentLinkRequest:'Updating…',adminConfirmPayment:'Confirming…',adminVerifyPayment:'Verifying payment…',adminSendVoucher:'Sending voucher…',adminUpdateOrder:'Updating…',adminFindUserForRemoval:'Finding shopper…',adminRemoveUser:'Removing shopper…'}
 const GET_CACHE_TTL=5*60*1000
 const CACHEABLE_GETS=new Set(['brands','products','product'])
-const SHOW_LOADING_ACTIONS=new Set(Object.keys(LOADING_MESSAGES).filter(action=>!['brands','products','product'].includes(action)))
+const SHOW_LOADING_ACTIONS=new Set(Object.keys(LOADING_MESSAGES))
 const PERSISTENT_CACHE_TTL=2*60*1000
 const getCache=new Map(),pendingGets=new Map()
 const persistentCachePrefix='tc_catalog_cache:'
