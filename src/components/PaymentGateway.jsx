@@ -76,7 +76,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         result = await api.requestPaymentLink(token, orderId)
       }
       const link = extractPaymentLink(result)
-      const resolvedOrderId = result?.order?.OrderID || result?.OrderID || orderId
       if (!link) throw new Error('Payment link was not returned. Please try again.')
       const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || result?.order?.ExpiresAt || ''
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
