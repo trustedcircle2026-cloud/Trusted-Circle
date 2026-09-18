@@ -1,5 +1,23 @@
 function authorizeTrustedCircleEmail(){var quota=MailApp.getRemainingDailyQuota();return{authorized:true,remainingDailyQuota:quota};}
 
+function testTrustedCircleEmail(){
+  var recipient=normalizeEmail_(getScriptProperties_().getProperty('TEST_EMAIL')||TC_CONFIG.PRIMARY_EMAIL||TC_CONFIG.ADMIN_EMAIL);
+  require_(isValidEmail_(recipient),'Set TEST_EMAIL in Script Properties to a valid email address.');
+  var quotaBefore=MailApp.getRemainingDailyQuota();
+  var subject='Trusted Circle · Email delivery test';
+  var body='This is a Trusted Circle email delivery test. If you received this message, Apps Script email authorization and delivery are working.';
+  var started=isoNow_();
+  try{
+    MailApp.sendEmail({to:recipient,subject:subject,body:body,htmlBody:'<div style="font-family:Arial,sans-serif"><h2>Trusted Circle</h2><p>Email delivery test successful.</p><p>Started: '+started+'</p></div>',name:'Trusted Circle',replyTo:TC_EMAIL.INFO});
+    var quotaAfter=MailApp.getRemainingDailyQuota();
+    console.log(JSON.stringify({ok:true,to:recipient,quotaBefore:quotaBefore,quotaAfter:quotaAfter,started:started,completedAt:isoNow_()}));
+    return {ok:true,to:recipient,quotaBefore:quotaBefore,quotaAfter:quotaAfter,started:started,completedAt:isoNow_()};
+  }catch(error){
+    console.error(JSON.stringify({ok:false,to:recipient,quotaBefore:quotaBefore,error:String(error&&error.message||error),stack:String(error&&error.stack||'')}));
+    throw new Error('Trusted Circle email test failed: '+String(error&&error.message||error));
+  }
+}
+
 function doGet(e){return handleRequest_(e,false);}
 function doPost(e){return handleRequest_(e,true);}
 function handleRequest_(e,isPost){try{let input={};if(isPost){const body=e&&e.postData?String(e.postData.contents||''):'';const type=e&&e.postData?String(e.postData.type||'').toLowerCase():'';const parameters=e&&e.parameter?e.parameter:{};const hasParameters=Object.keys(parameters).length>0;if(body&&(type.indexOf('application/json')>=0||looksLikeJson_(body)))input=safeJsonParse_(body)||{};else if(hasParameters)input=parameters;else if(body)input=parseUrlEncoded_(body);}else input=e&&e.parameter?e.parameter:{};const action=cleanText_(input.action||'health',50);if(action!=='health')require_(input&&typeof input==='object'&&Object.keys(input).length>0,'Invalid request.');const result=routeAction_(action,input);if(typeof appendRequestActivity_==='function')appendRequestActivity_(input,action,true,'');return jsonResponse_(success_(result));}catch(err){try{if(typeof appendRequestActivity_==='function')appendRequestActivity_(typeof input==='object'?input:{},typeof action==='string'?action:'unknown',false,err.message||'Request failed.');}catch(ignore){}console.error(err&&err.stack?err.stack:err);return jsonResponse_(failure_('REQUEST_FAILED',err.message||'Request failed.'));}}
