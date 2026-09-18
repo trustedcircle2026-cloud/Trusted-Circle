@@ -49,11 +49,14 @@ var OrderService={
   var rows=getRows_(TC_CONFIG.SHEETS.ORDERS).filter(function(r){return String(r.UserID)===String(user.UserID);});
   rows.sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();});
   return{items:rows.slice(0,50).map(function(order){
-   var items=getRows_(TC_CONFIG.SHEETS.ORDER_ITEMS).filter(function(r){return String(r.OrderID)===String(order.OrderID);}),payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===String(order.OrderID);}),links=[];
-   try{links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){return String(r.OrderID)===String(order.OrderID)&&String(r.Status||'ACTIVE').toUpperCase()!=='DISABLED'&&String(r.Status||'ACTIVE').toUpperCase()!=='EXPIRED';});}catch(ignore){}
-   var payment=payments.length?payments[payments.length-1]:null;
-   return Object.assign({},order,{Items:items,Payment:payment,PaymentStatus:payment?String(payment.Status||'PENDING').toUpperCase():'PENDING',PaymentLink:links.length?links[links.length-1]:null});
+   var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===String(order.OrderID);}),payment=payments.length?payments[payments.length-1]:null;
+   return Object.assign({},order,{PaymentStatus:payment?String(payment.Status||'PENDING').toUpperCase():'PENDING'});
   })};
+ },
+ getOrderDetails:function(data){
+  var user=authenticate_(data.token),orderId=cleanText_(data.orderId,100);
+  require_(orderId,'Order ID is required.');
+  return getOrder_(user.UserID,orderId);
  },
  cancelOrder:function(data){
   var user=authenticate_(data.token),orderId=cleanText_(data.orderId,100),order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);
