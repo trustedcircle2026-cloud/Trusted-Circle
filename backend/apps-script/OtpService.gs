@@ -10,8 +10,7 @@ function requestOtp_(payload){
  cache.put(cooldownKey,'1',TC_CONFIG.OTP_RESEND_COOLDOWN_SECONDS);
  const html='<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure account verification</div></div><div style="padding:28px 24px"><p style="font-size:17px">Your verification code</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 0">'+otp+'</div><p style="color:#65716a">This code is valid for 10 minutes. If you did not request it, you can ignore this email.</p></div><div style="padding:16px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
  const text='Your Trusted Circle verification code is '+otp+'. It expires in 10 minutes.';
- if(typeof enqueueOtpEmail_==='function')enqueueOtpEmail_(otpId,email,'Trusted Circle · Your verification code',html,text);
- else{sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text);sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);}
+ sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text);sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);
  return{message:'OTP sent successfully.',expiresInSeconds:TC_CONFIG.OTP_TTL_SECONDS};
 }
 function verifyOtp_(payload){
