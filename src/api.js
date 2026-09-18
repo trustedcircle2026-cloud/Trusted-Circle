@@ -3,7 +3,7 @@ const LOADING_MESSAGES={health:'Connecting…',catalog:'Loading catalog…',bran
 const GET_CACHE_TTL=5*60*1000
 const CACHEABLE_GETS=new Set(['catalog','brands','products','product'])
 const SHOW_LOADING_ACTIONS=new Set(Object.keys(LOADING_MESSAGES))
-const IMMEDIATE_LOADING_ACTIONS=new Set(['adminLogin'])
+const IMMEDIATE_LOADING_ACTIONS=new Set(['adminLogin','placeOrder','requestPaymentLink'])
 const PERSISTENT_CACHE_TTL=2*60*1000
 const getCache=new Map(),pendingGets=new Map()
 const persistentCachePrefix='tc_catalog_cache:'
