@@ -20,7 +20,7 @@ function downloadBase64Pdf(base64, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export default function OrdersPage({ orders, onBack }) {
+export default function OrdersPage({ orders, loading = false, onBack }) {
   const [open, setOpen] = useState(null), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelled, setCancelled] = useState(() => new Set())
   const pending = order => !cancelled.has(order.OrderID) && String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
@@ -51,7 +51,7 @@ export default function OrdersPage({ orders, onBack }) {
     <div className="page-shell">
       <div className="page-banner compact"><span className="eyebrow">MY ORDERS</span><h1>Your orders</h1><p>See your orders and payment status.</p></div>
       {invoiceError && <div className="invoice-error"><FileText size={16}/><span>{invoiceError}</span><button onClick={() => setInvoiceError('')}><X size={14}/></button></div>}
-      {orders.length ? <div className="orders-list">{orders.map(order => {
+      {loading ? <div className="empty-panel"><PackageCheck size={30}/><h3>Loading your orders…</h3><p>Your order details are being loaded only when you open My Orders.</p></div> : orders.length ? <div className="orders-list">{orders.map(order => {
         const expanded = open === order.OrderID, items = order.Items || [], ready = invoiceReady(order), paymentPending = pending(order), isCancelled = cancelled.has(order.OrderID) || String(order.Status || '').toUpperCase() === 'CANCELLED'
         const stateLabel = isCancelled ? 'Cancelled' : paymentPending ? 'Payment Pending' : ready ? 'Delivered' : `Payment ${String(order.PaymentStatus || 'PAID')}`
         const stateClass = isCancelled ? 'cancelled' : paymentPending ? 'pending' : ready ? 'delivered' : 'paid'
