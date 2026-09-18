@@ -74,3 +74,14 @@ function seedDefaultCatalog_() {
 
   return { seeded: DEFAULT_CATALOG.length, denomination: 1000, note: 'Demo denomination only; configure live voucher denominations and fulfilment before production.' };
 }
+
+
+function catalogFast_() {
+  var cache=CacheService.getScriptCache();
+  var key='tc_catalog_bundle_v1';
+  var cached=cache.get(key);
+  if(cached){try{return JSON.parse(cached);}catch(e){}}
+  var result={brands:ProductService.listBrands({}).items,products:ProductService.listProducts({q:'',brand:''}).items};
+  try{cache.put(key,JSON.stringify(result),120);}catch(e){}
+  return result;
+}
