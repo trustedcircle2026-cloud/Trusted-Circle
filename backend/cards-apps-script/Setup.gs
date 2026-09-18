@@ -4,3 +4,6 @@ function cardsRows_(sheet){var sh=cardsSpreadsheet_().getSheetByName(sheet);card
 function cardsAppend_(sheet,obj){var sh=cardsSpreadsheet_().getSheetByName(sheet);cardsRequire_(sh,'Cards sheet not initialized: '+sheet);var h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];sh.appendRow(h.map(function(k){return obj[k]===undefined?'':obj[k]}));}
 function cardsFind_(sheet,field,value){var rows=cardsRows_(sheet);for(var i=0;i<rows.length;i++)if(field==='Email'?cardsEmail_(rows[i][field])===cardsEmail_(value):String(rows[i][field])===String(value))return rows[i];return null;}
 function cardsUpdate_(sheet,idField,id,patch){var tab=cardsSpreadsheet_().getSheetByName(sheet);cardsRequire_(tab,'Cards sheet not initialized: '+sheet);var data=tab.getDataRange().getValues(),h=data[0],idc=h.indexOf(idField);for(var r=1;r<data.length;r++)if(String(data[r][idc])===String(id)){Object.keys(patch).forEach(function(k){var c=h.indexOf(k);if(c>=0)tab.getRange(r+1,c+1).setValue(patch[k])});return true}return false;}
+
+function runCardsSetup(){return cardsSetup_();}
+function testCardsSetup(){var ss=cardsSpreadsheet_();return{ok:true,spreadsheetId:ss.getId(),adminEmail:cardsAdminEmail_(),sheets:Object.keys(CARDS_HEADERS)};}
