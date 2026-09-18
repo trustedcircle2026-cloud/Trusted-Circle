@@ -20,6 +20,61 @@ function downloadBase64Pdf(base64, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancelled, ready, invoiceLoading, cancelLoading, downloadInvoice, setPay, cancel }) {
+  if (detailsLoading === order.OrderID && !detail) {
+    return <div className="empty-panel"><PackageCheck size={24}/><h3>Loading order details…</h3><p>Only this order is being loaded.</p></div>
+  }
+  if (!detail) return null
+
+  const detailedOrder = detail.order || order
+  const items = detail.items || []
+
+  return (
+    <div className="order-detail-content">
+      <div className="detail-head">
+        <div><span className="eyebrow">ORDER</span><h3>{detailedOrder.OrderNumber}</h3></div>
+        <div className="order-detail-actions">
+          {paymentPending && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}
+          {paymentPending && <button className="cancel-order-btn" disabled={cancelLoading === order.OrderID} onClick={() => cancel(order)}><X size={15}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel order'}</button>}
+          {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(detailedOrder)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
+        </div>
+      </div>
+      <div className="detail-grid">
+        <div><span>Status</span><b>{isCancelled ? 'Cancelled' : String(detailedOrder.Status || '').replaceAll('_', ' ')}</b></div>
+        <div><span>Payment</span><b>{String(detailedOrder.PaymentStatus || 'PENDING').replaceAll('_', ' ')}</b></div>
+        <div><span>Items</span><b>{items.length}</b></div>
+        <div><span>Subtotal</span><b>{money(order.Subtotal)}</b></div>
+        <div><span>Cashback</span><b>{money(order.Discount)}</b></div>
+        <div><span>Total</span><b>{money(order.Total)}</b></div>
+      </div>
+      <div className="detail-items">
+        <strong>Items</strong>
+        {items.length ? items.map((item, index) => (
+          <div className="detail-item" key={item.OrderItemID || index}>
+            <span>{item.BrandName || item.Brand || 'Gift voucher'}</span>
+            <span>{money(item.Denomination || item.FaceValue)}</span>
+            <span>× {item.Quantity}</span>
+            <b>{money(item.Total)}</b>
+          </div>
+        )) : <p>Item details will appear here.</p>}
+      </div>
+      {detail.paymentLink?.Link && (
+        <div className="saved-payment-link">
+          <div><span>PAYMENT LINK</span><b>{detail.paymentLink.Label || 'Pay online'}</b></div>
+          <a href={detail.paymentLink.Link} target="_blank" rel="noreferrer">Pay online <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/></a>
+        </div>
+      )}
+      {ready && (
+        <div className="invoice-ready-banner">
+          <FileText size={19}/>
+          <div><strong>Invoice ready</strong><span>Your PDF is ready.</span></div>
+          <button onClick={() => downloadInvoice(detailedOrder)} disabled={invoiceLoading === order.OrderID}>{invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OrdersPage({ orders, loading = false, onBack }) {
   const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelled, setCancelled] = useState(() => new Set())
   const pending = order => !cancelled.has(order.OrderID) && String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
@@ -69,13 +124,21 @@ export default function OrdersPage({ orders, loading = false, onBack }) {
         const stateClass = isCancelled ? 'cancelled' : paymentPending ? 'pending' : ready ? 'delivered' : 'paid'
         return <article className={`order-card order-card-rich ${expanded ? 'expanded' : ''}`} key={order.OrderID}>
           <button className="order-main" onClick={() => viewOrder(order)}><div className="order-icon"><PackageCheck size={20}/></div><div className="order-copy"><span>{order.OrderNumber}</span><h3>{isCancelled ? 'Cancelled' : String(order.Status || 'ORDER').replaceAll('_', ' ')}</h3><small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small></div><div className="order-right"><strong>{money(order.Total)}</strong><span className={`payment-state ${stateClass}`}>{stateLabel}</span></div><ChevronDown size={17} className="order-chevron"/></button>
-          {expanded && <div className="order-details">{detailsLoading === order.OrderID && !detail ? <div className="empty-panel"><PackageCheck size={24}/><h3>Loading order details…</h3><p>Only this order is being loaded.</p></div> : detail ? <div className="order-detail-content">
-            <div className="detail-head"><div><span className="eyebrow">ORDER</span><h3>{detailedOrder.OrderNumber}</h3></div><div className="order-detail-actions">{paymentPending && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}{paymentPending && <button className="cancel-order-btn" disabled={cancelLoading === order.OrderID} onClick={() => cancel(order)}><X size={15}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel order'}</button>}{ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(order)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}</div></div>
-            <div className="detail-grid"><div><span>Status</span><b>{isCancelled ? 'Cancelled' : String(detailedOrder.Status || '').replaceAll('_', ' ')}</b></div><div><span>Payment</span><b>{String(detailedOrder.PaymentStatus || 'PENDING').replaceAll('_', ' ')}</b></div><div><span>Items</span><b>{items.length}</b></div><div><span>Subtotal</span><b>{money(order.Subtotal)}</b></div><div><span>Cashback</span><b>{money(order.Discount)}</b></div><div><span>Total</span><b>{money(order.Total)}</b></div></div>
-            <div className="detail-items"><strong>Items</strong>{items.length ? items.map((item, index) => <div className="detail-item" key={item.OrderItemID || index}><span>{item.BrandName || item.Brand || 'Gift voucher'}</span><span>{money(item.Denomination || item.FaceValue)}</span><span>× {item.Quantity}</span><b>{money(item.Total)}</b></div>) : <p>Item details will appear here.</p>}</div>
-            {detail.paymentLink?.Link && <div className="saved-payment-link"><div><span>PAYMENT LINK</span><b>{detail.paymentLink.Label || 'Pay online'}</b></div><a href={detail.paymentLink.Link} target="_blank" rel="noreferrer">Pay online <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/></a></div>}
-            {ready && <div className="invoice-ready-banner"><FileText size={19}/><div><strong>Invoice ready</strong><span>Your PDF is ready.</span></div><button onClick={() => downloadInvoice(detailedOrder)} disabled={invoiceLoading === order.OrderID}>{invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button></div>}
-          </div> : null}</div>
+          {expanded && <div className="order-details">
+            <OrderDetails
+              order={order}
+              detail={detail}
+              detailsLoading={detailsLoading}
+              paymentPending={paymentPending}
+              isCancelled={isCancelled}
+              ready={ready}
+              invoiceLoading={invoiceLoading}
+              cancelLoading={cancelLoading}
+              downloadInvoice={downloadInvoice}
+              setPay={setPay}
+              cancel={cancel}
+            />
+          </div>}
         </article>
       })}</div> : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
     </div>
