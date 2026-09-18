@@ -66,7 +66,12 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
-      window.location.assign(link)
+      const width=Math.min(520,Math.max(420,Math.round(window.screen.availWidth*0.42)))
+      const height=Math.min(820,Math.max(680,Math.round(window.screen.availHeight*0.88)))
+      const left=Math.max(0,Math.round((window.screen.availWidth-width)/2))
+      const top=Math.max(0,Math.round((window.screen.availHeight-height)/2))
+      const popup=window.open(link,'TrustedCirclePayment',`popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`)
+      if(popup&&!popup.closed){popup.focus()}else{window.location.assign(link)}
     } catch (error) {
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
@@ -128,15 +133,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         </section>
       </div>
 
-      {linkLoading && <div className="payment-link-loading-overlay" role="status" aria-live="polite">
-        <div className="payment-link-loading-card">
-          <div className="payment-link-logo-wrap"><img src={logoUrl} alt="Trusted Circle" /></div>
-          <strong>Preparing your payment</strong>
-          <span>Getting your secure payment link…</span>
-          <div className="payment-link-loading-track"><i style={{ width: `${((LINK_WAIT_SECONDS - linkWaitSeconds) / LINK_WAIT_SECONDS) * 100}%` }} /></div>
-          <small>Maximum wait time: 30 seconds</small><b>{linkWaitSeconds}s</b>
-        </div>
-      </div>}
+
     </div>
   )
 }
