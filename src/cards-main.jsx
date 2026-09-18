@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react'
 import ReactDOM from 'react-dom/client'
-import {ArrowRight,Building2,CreditCard,Gift,Landmark,LockKeyhole,Mail,Percent,Plus,RefreshCw,ShieldCheck,TrendingUp,WalletCards,X} from 'lucide-react'
+import {ArrowRight,Building2,CheckCircle2,CreditCard,Gift,Landmark,LockKeyhole,Mail,Percent,Plus,RefreshCw,ShieldCheck,TrendingUp,WalletCards,X} from 'lucide-react'
 import {CARDS_API_URL,CARDS_SESSION_KEY} from './cards-config'
 import './cards.css'
 const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
