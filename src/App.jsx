@@ -90,7 +90,7 @@ export default function App(){
  const currentProduct=useMemo(()=>allProducts.find(p=>String(p.ProductID)===String(route.id)),[allProducts,route.id])
  const toggleLike=id=>setLiked(current=>{const next=current.includes(id)?current.filter(x=>x!==id):[...current,id];localStorage.setItem('tc_liked',JSON.stringify(next));return next})
  const openAuth=()=>{setAuthStep('email');setOtp('');setAuthMessage('');setAuthOpen(true)}
- const requestOtp=async event=>{event.preventDefault();setAuthMessage('');try{await api.requestOtp(email);setAuthStep('otp');setAuthMessage(`Code sent to ${email}.`)}catch(error){setAuthMessage(friendlyApiError(error))}}
+ const requestOtp=async event=>{event.preventDefault();setOtp('');setAuthStep('otp');setAuthMessage('Sending code…');try{await api.requestOtp(email);setAuthMessage(`Code sent to ${email}.`)}catch(error){setAuthMessage(friendlyApiError(error))}}
  const verifyOtp=async event=>{event.preventDefault();setAuthMessage('');try{const data=await api.verifyOtp(email,otp,'');localStorage.setItem('tc_session',data.session.token);setToken(data.session.token);setUser(data.user);setProfileName(data.user.name||'');setAuthOpen(false);if(!data.user.name)setProfileOpen(true);navigate('home');loadCart(data.session.token).catch(()=>{})}catch(error){setAuthMessage(friendlyApiError(error))}}
  const saveProfile=async event=>{event.preventDefault();setAuthMessage('');try{const data=await api.profileUpdate(token,profileName);setUser(data);setProfileOpen(false);navigate('home')}catch(error){setAuthMessage(friendlyApiError(error))}}
  const logout=async()=>{try{if(token)await api.logout(token)}catch{}localStorage.removeItem('tc_session');setToken('');setUser(null);setCart([]);setOrders([]);setProfileOpen(false);navigate('home')}
