@@ -84,11 +84,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
 
-      // The link is already created by placeOrder(). Send the transactional email
-      // in the background so Gmail latency never blocks the customer's payment UI.
-      if (mode === 'checkout' && resolvedOrderId) {
-        void api.requestPaymentLink(token, resolvedOrderId).catch(() => {})
-      }
     } catch (error) {
       setLinkRequest({ error: error.message || 'Could not request payment link.' })
       setLinkWaitSeconds(0)
