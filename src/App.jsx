@@ -46,39 +46,46 @@ export default function App(){
   document.addEventListener('visibilitychange',onVisible)
   window.addEventListener('pageshow',checkSession)
   return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('pageshow',checkSession)}
- },[token])
+ },[])
  const brandName=useCallback(id=>brands.find(b=>String(b.BrandID)===String(id))?.Name||'Gift Voucher',[brands])
  const loadCatalog=useCallback(async(q=query,brand=brandFilter)=>{const data=await api.products(q.trim(),brand);setProducts(data?.items||[])},[query,brandFilter])
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
  const loadCart=useCallback(async currentToken=>{if(!currentToken){setCart([]);return}const data=await api.cart(currentToken);setCart(data?.items||[])},[])
  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}setOrdersLoading(true);try{const data=await api.orders(currentToken);setOrders(data?.items||[])}catch(error){setAuthMessage(friendlyApiError(error))}finally{setOrdersLoading(false)}},[])
- useEffect(()=>{let active=true;(async()=>{
-  try{
-    const[catalogData,meResult]=await Promise.all([
-      api.catalog(),
-      token?api.me(token):Promise.resolve(null)
-    ])
+ useEffect(()=>{
+  let active=true
+  const start=async()=>{
+   try{
+    // Render the storefront as soon as the catalog is ready. Account data is secondary
+    // and must never hold the public shop behind a slow Apps Script session lookup.
+    const catalogData=await api.catalog()
     if(!active)return
     setBrands(catalogData?.brands||[])
     setProducts(catalogData?.products||[])
     setAllProducts(catalogData?.products||[])
-    if(token&&meResult){
+    if(!token)return
+    try{
+      const meResult=await api.me(token)
+      if(!active)return
       setUser(meResult)
       setProfileName(meResult.name||'')
       if(!meResult.name)setProfileOpen(true)
-      await Promise.all([loadCart(token),loadOrders(token)])
-    }
-  }catch(error){
-    if(token){
+      // Load private data in parallel without blocking the already-rendered storefront.
+      Promise.all([loadCart(token),loadOrders(token)]).catch(()=>{})
+    }catch(error){
       localStorage.removeItem('tc_session')
       setToken('')
       setUser(null)
       setCart([])
       setOrders([])
     }
+   }catch(error){
     console.warn('Trusted Circle startup:',error.message)
+   }
   }
-})();return()=>{active=false}},[])
+  start()
+  return()=>{active=false}
+ },[])
  useEffect(()=>{if(!['vouchers'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},180);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
  const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);return{...item,product,denomination,unitPrice:denomination}}).filter(Boolean),[cart,allProducts])
  const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])
