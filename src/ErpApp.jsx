@@ -4,7 +4,7 @@ import './admin-entry.css'
 export default function ErpApp(){
  useEffect(()=>{
   if(!window.location.hash.replace(/^#\/?/,'').startsWith('erp'))return
-  const target=window.location.origin+'/admin.html'
+  const target=new URL('admin.html',window.location.href).href
   if(window.location.pathname.endsWith('/admin.html'))return
   window.location.replace(target)
  },[])
