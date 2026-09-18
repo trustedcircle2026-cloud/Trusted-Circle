@@ -58,7 +58,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
   const requestPayment = async () => {
     if (overLimit || linkLoading) return
-    const popup = openPaymentWindow()
     setLinkLoading(true)
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
@@ -81,6 +80,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
+      const popup = openPaymentWindow()
       if (popup && !popup.closed) {
         popup.location.href = link
         popup.focus?.()
@@ -88,7 +88,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         setLinkRequest({ link, expiresAt, popupBlocked: true })
       }
     } catch (error) {
-      if (popup && !popup.closed) popup.close()
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
@@ -122,7 +121,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
         <section className="gateway-payment">
           <div className="gateway-payment-head">
-            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Complete your payment' : 'Pay pending order'}</h1><p>Click once. We prepare your payment link and open it automatically.</p></div>
+            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Complete your payment' : 'Pay pending order'}</h1><p>Click once. We will wait for the secure payment link to be fully assigned before opening the payment page.</p></div>
             <button className="gateway-close" onClick={onBack} aria-label="Close payment"><X size={16} /></button>
           </div>
 
