@@ -48,8 +48,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     // IMPORTANT: reserve the popup synchronously inside the user's click.
     // Opening it only after the async Apps Script request completes can be
     // treated as an unsolicited popup and blocked by the browser.
-    const popupWidth = 500
-    const popupHeight = 620
+    const isMobileViewport = window.matchMedia('(max-width: 760px)').matches
+    const popupWidth = isMobileViewport ? Math.min(500, Math.max(320, window.innerWidth - 24)) : 500
+    const popupHeight = isMobileViewport ? Math.min(720, Math.max(520, window.innerHeight - 24)) : 620
     const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
     const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
     const popup = window.open(
@@ -64,8 +65,13 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     if (popup && !popup.closed) {
       try {
         popup.document.title = 'Trusted Circle — Preparing Payment'
+        const viewport = popup.document.createElement('meta')
+        viewport.name = 'viewport'
+        viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover'
+        popup.document.head.appendChild(viewport)
+        popup.document.body.style.cssText = 'margin:0;width:100%;min-width:0;overflow:hidden;background:#f7faf8;'
         popup.document.body.innerHTML = `
-          <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0;padding:28px;box-sizing:border-box;background:#f7faf8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#17352a;text-align:center;">
+          <div style="width:100%;min-height:100svh;display:flex;align-items:center;justify-content:center;margin:0;padding:24px;box-sizing:border-box;background:#f7faf8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#17352a;text-align:center;">
             <div style="max-width:360px;">
               <div style="width:58px;height:58px;margin:0 auto 22px;border-radius:18px;background:#e6f5ed;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(18,90,61,.10);">
                 <div style="width:24px;height:24px;border:3px solid #b8ddca;border-top-color:#138a5b;border-radius:50%;animation:tcSpin .85s linear infinite;"></div>
