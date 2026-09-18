@@ -3,7 +3,7 @@ import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, ShieldCheck, X 
 import { api } from '../api'
 import './PaymentGateway.css'
 
-const LINK_WAIT_SECONDS = 30
+const LINK_WAIT_SECONDS = 50
 const LINK_VALIDITY_SECONDS = 3 * 60 * 60
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 const formatDuration = seconds => {
@@ -28,6 +28,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
   const [linkLoading, setLinkLoading] = useState(false)
+  const [paymentPopup, setPaymentPopup] = useState(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
 
@@ -66,12 +67,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
-      const width=Math.min(520,Math.max(420,Math.round(window.screen.availWidth*0.42)))
-      const height=Math.min(820,Math.max(680,Math.round(window.screen.availHeight*0.88)))
-      const left=Math.max(0,Math.round((window.screen.availWidth-width)/2))
-      const top=Math.max(0,Math.round((window.screen.availHeight-height)/2))
-      const popup=window.open(link,'TrustedCirclePayment',`popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`)
-      if(popup&&!popup.closed){popup.focus()}else{window.location.assign(link)}
+      setPaymentPopup({ link })
     } catch (error) {
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
@@ -115,9 +111,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <span className="gateway-mini-label">SECURE PAYMENT</span>
             <h2>{money(total)}</h2>
             <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
-            <p>{linkLoading ? `Getting your payment link… ${linkWaitSeconds}s` : activeLink ? `Link valid for ${formatDuration(linkValidSeconds)}.` : 'Click Make Payment once. Your assigned secure payment page will open automatically.'}</p>
+            {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : <p>{activeLink ? `Link valid for ${formatDuration(linkValidSeconds)}.` : 'Click Make Payment once. Your assigned secure payment page will open automatically.'}</p>}
             <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
-              {linkLoading ? `Getting payment link… ${linkWaitSeconds}s` : activeLink ? 'Make Payment Again' : 'Make Payment'}
+              {linkLoading ? 'Preparing secure payment…' : activeLink ? 'Make Payment Again' : 'Make Payment'}
               <ChevronRight size={17} />
             </button>
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
@@ -132,7 +128,17 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           <p className="gateway-disclaimer"><LockKeyhole size={12} /> Payment is handled on the provider page. Never share your OTP, card number, CVV or UPI PIN.</p>
         </section>
       </div>
-
+          {paymentPopup?.link && <div className="tc-payment-link-modal" role="dialog" aria-modal="true" aria-label="Secure payment">
+            <div className="tc-payment-link-modal-panel">
+              <div className="tc-payment-link-modal-head">
+                <div><span>SECURE PAYMENT</span><strong>Complete your payment</strong></div>
+                <button className="tc-payment-link-modal-close" type="button" onClick={()=>setPaymentPopup(null)} aria-label="Close payment"><X size={18}/></button>
+              </div>
+              <div className="tc-payment-link-frame-wrap">
+                <iframe className="tc-payment-link-frame" src={paymentPopup.link} title="Secure Paytm payment" allow="payment *; clipboard-write *" referrerPolicy="strict-origin-when-cross-origin" />
+              </div>
+            </div>
+          </div>}
 
     </div>
   )
