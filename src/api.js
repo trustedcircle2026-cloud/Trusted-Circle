@@ -2,14 +2,45 @@ const API_BASE='https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73
 const LOADING_MESSAGES={health:'Connecting…',brands:'Loading…',products:'Loading…',product:'Loading…',cart:'Loading…',cartAdd:'Adding…',cartUpdate:'Updating…',cartDenomination:'Updating…',cartRemove:'Removing…',requestOtp:'Sending OTP…',verifyOtp:'Verifying…',profileUpdate:'Saving…',orders:'Loading…',wallet:'Loading…',redeemWallet:'Processing…',placeOrder:'Preparing…',createInvoicePdf:'Preparing…',requestPaymentLink:'Preparing…',cancelOrder:'Cancelling…',logout:'Signing out…',adminLogin:'Authenticating…',adminDashboard:'Loading dashboard…',adminTable:'Loading page…',adminUpdateRow:'Saving…',adminEditAnyRow:'Updating record…',adminWorklist:'Loading work queue…',adminWorklistAction:'Applying action…',adminAddPaymentLinkStock:'Stocking link…',adminAddPaymentLinkStockBulk:'Adding stock…',adminCreatePaymentLink:'Creating…',adminPaymentLinkRequest:'Updating…',adminConfirmPayment:'Confirming…',adminVerifyPayment:'Verifying payment…',adminSendVoucher:'Sending voucher…',adminUpdateOrder:'Updating…',adminFindUserForRemoval:'Finding shopper…',adminRemoveUser:'Removing shopper…'}
 const GET_CACHE_TTL=5*60*1000
 const CACHEABLE_GETS=new Set(['brands','products','product'])
+const PERSISTENT_CACHE_TTL=2*60*1000
 const getCache=new Map(),pendingGets=new Map()
+const persistentCachePrefix='tc_catalog_cache:'
 function emitLoading(active,action){window.dispatchEvent(new CustomEvent('tc:loading',{detail:{active,action,message:LOADING_MESSAGES[action]||'Please wait…'}}))}
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 function cacheKey(action,params){return `${action}:${JSON.stringify(params||{})}`}
-function readCached(key){const entry=getCache.get(key);if(!entry||Date.now()-entry.time>GET_CACHE_TTL){if(entry)getCache.delete(key);return null}return entry.data}
-function writeCached(key,data){getCache.set(key,{time:Date.now(),data})}
+function readCached(key){
+  const memory=getCache.get(key)
+  if(memory&&Date.now()-memory.time<=GET_CACHE_TTL)return memory.data
+  if(memory)getCache.delete(key)
+  if(typeof localStorage==='undefined')return null
+  try{
+    const raw=localStorage.getItem(persistentCachePrefix+key)
+    if(!raw)return null
+    const entry=JSON.parse(raw)
+    if(!entry||Date.now()-Number(entry.time||0)>PERSISTENT_CACHE_TTL){localStorage.removeItem(persistentCachePrefix+key);return null}
+    getCache.set(key,entry)
+    return entry.data
+  }catch{return null}
+}
+function writeCached(key,data){
+  const entry={time:Date.now(),data}
+  getCache.set(key,entry)
+  if(typeof localStorage!=='undefined'){
+    try{localStorage.setItem(persistentCachePrefix+key,JSON.stringify(entry))}catch{}
+  }
+}
 async function request(action,params={},method='GET'){const payload={action,...params},isGet=method==='GET',canCache=isGet&&CACHEABLE_GETS.has(action),key=canCache?cacheKey(action,params):'';if(canCache){const cached=readCached(key);if(cached!==null)return cached;if(pendingGets.has(key))return pendingGets.get(key)}const run=async()=>{let response,loadingTimer,loadingShown=false;try{loadingTimer=setTimeout(()=>{loadingShown=true;emitLoading(true,action)},120);if(isGet){const url=new URL(API_BASE);Object.entries(payload).forEach(([key,value])=>{if(value!==undefined&&value!==null)url.searchParams.set(key,String(value))});response=await fetch(url.toString(),{method:'GET',credentials:'omit',cache:canCache?'default':'no-store'})}else{response=await fetch(API_BASE,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(payload),credentials:'omit',cache:'no-store'})}if(!response.ok)throw new Error(`API request failed (${response.status}).`);const json=await response.json();if(!json.ok)throw new Error(json.error?.message||'Request failed.');if(canCache)writeCached(key,json.data);return json.data}finally{clearTimeout(loadingTimer);if(loadingShown)emitLoading(false,action)}};const promise=run();if(canCache){pendingGets.set(key,promise);try{return await promise}finally{pendingGets.delete(key)}}return promise}
-async function requestWithRetry(action,params={},method='GET',attempts=2){let lastError;for(let attempt=1;attempt<=attempts;attempt+=1){try{return await request(action,params,method)}catch(error){lastError=error;if(attempt<attempts)await wait(250)}}throw lastError}
+async function requestWithRetry(action,params={},method='GET',attempts=2){
+  // GETs are safe to retry. Mutating POSTs are intentionally single-attempt
+  // so a lost response can never create a duplicate order/cart mutation.
+  const maxAttempts=method==='GET'?attempts:1
+  let lastError
+  for(let attempt=1;attempt<=maxAttempts;attempt+=1){
+    try{return await request(action,params,method)}
+    catch(error){lastError=error;if(attempt<maxAttempts)await wait(180)}
+  }
+  throw lastError
+}
 const fastAdmin=(action,params={},method='GET')=>request(action,params,method)
 const adminFallback=(fallback,fn)=>fn().catch(error=>{if(/API request failed \(404\)/i.test(String(error?.message||'')))return fallback;throw error})
 function closePaymentLinkPopup(){document.querySelector('.tc-payment-link-modal')?.remove();document.body.classList.remove('tc-payment-link-modal-open')}
