@@ -58,6 +58,31 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
     )
 
+    // Show a useful temporary state in the reserved popup instead of leaving
+    // the customer with a blank about:blank window while Apps Script generates
+    // the secure payment link.
+    if (popup && !popup.closed) {
+      try {
+        popup.document.title = 'Trusted Circle — Preparing Payment'
+        popup.document.body.innerHTML = `
+          <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0;padding:28px;box-sizing:border-box;background:#f7faf8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#17352a;text-align:center;">
+            <div style="max-width:360px;">
+              <div style="width:58px;height:58px;margin:0 auto 22px;border-radius:18px;background:#e6f5ed;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(18,90,61,.10);">
+                <div style="width:24px;height:24px;border:3px solid #b8ddca;border-top-color:#138a5b;border-radius:50%;animation:tcSpin .85s linear infinite;"></div>
+              </div>
+              <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Please wait…</div>
+              <div style="font-size:14px;line-height:1.6;color:#5c6d65;">Your secure payment link is being generated. This window will open the payment page automatically.</div>
+              <div style="margin-top:18px;font-size:12px;color:#819088;">Trusted Circle • Secure Payment</div>
+            </div>
+          </div>
+          <style>@keyframes tcSpin{to{transform:rotate(360deg)}}</style>
+        `
+      } catch (_) {
+        // The payment flow can continue even if the temporary document cannot
+        // be written in the newly opened window.
+      }
+    }
+
     setLinkLoading(true)
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
