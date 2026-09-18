@@ -75,7 +75,7 @@ export default function OrdersPage({ orders, loading = false, onBack }) {
             <div className="detail-items"><strong>Items</strong>{items.length ? items.map((item, index) => <div className="detail-item" key={item.OrderItemID || index}><span>{item.BrandName || item.Brand || 'Gift voucher'}</span><span>{money(item.Denomination || item.FaceValue)}</span><span>× {item.Quantity}</span><b>{money(item.Total)}</b></div>) : <p>Item details will appear here.</p>}</div>
             {detail.paymentLink?.Link && <div className="saved-payment-link"><div><span>PAYMENT LINK</span><b>{detail.paymentLink.Label || 'Pay online'}</b></div><a href={detail.paymentLink.Link} target="_blank" rel="noreferrer">Pay online <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/></a></div>}
             {ready && <div className="invoice-ready-banner"><FileText size={19}/><div><strong>Invoice ready</strong><span>Your PDF is ready.</span></div><button onClick={() => downloadInvoice(detailedOrder)} disabled={invoiceLoading === order.OrderID}>{invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button></div>}
-          </div></> : null}
+          </> : null}</div>
         </article>
       })}</div> : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
     </div>
