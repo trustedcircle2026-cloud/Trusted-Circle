@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useMemo,useState } from 'react'
-import { ArrowRight,Search,ShoppingBag,UserRound,X } from 'lucide-react'
+import { ArrowRight,History,Search,ShoppingBag,UserRound,X } from 'lucide-react'
 import { api } from './api'
 import GlobalLoading from './GlobalLoading'
 import WalletBadge from './components/WalletBadge'
@@ -26,6 +26,28 @@ export default function App(){
  const[route,setRoute]=useState(readRoute),[products,setProducts]=useState([]),[allProducts,setAllProducts]=useState([]),[brands,setBrands]=useState([]),[cart,setCart]=useState([]),[orders,setOrders]=useState([]),[user,setUser]=useState(null),[token,setToken]=useState(()=>localStorage.getItem('tc_session')||''),[query,setQuery]=useState(''),[brandFilter,setBrandFilter]=useState(''),[liked,setLiked]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_liked')||'[]')}catch{return[]}}),[authOpen,setAuthOpen]=useState(false),[authStep,setAuthStep]=useState('email'),[email,setEmail]=useState(''),[otp,setOtp]=useState(''),[authMessage,setAuthMessage]=useState(''),[profileOpen,setProfileOpen]=useState(false),[profileName,setProfileName]=useState(''),[paymentMethod,setPaymentMethod]=useState('upiapps'),[lastOrder,setLastOrder]=useState(null)
  const navigate=useCallback((path,id='')=>{const target=id?`#/${path}/${id}`:`#/${path}`;if(window.location.hash!==target)window.location.hash=target;else setRoute({path,id});window.scrollTo({top:0,behavior:'smooth'})},[])
  useEffect(()=>{const onHash=()=>setRoute(readRoute());window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
+ useEffect(()=>{
+  const checkSession=async()=>{
+   const currentToken=localStorage.getItem('tc_session')
+   if(!currentToken)return
+   try{
+    const me=await api.me(currentToken)
+    setUser(me)
+    setProfileName(me.name||'')
+   }catch{
+    localStorage.removeItem('tc_session')
+    setToken('')
+    setUser(null)
+    setCart([])
+    setOrders([])
+   }
+  }
+  const onVisible=()=>{if(document.visibilityState==='visible')checkSession()}
+  const timer=setInterval(checkSession,5*60*1000)
+  document.addEventListener('visibilitychange',onVisible)
+  window.addEventListener('pageshow',checkSession)
+  return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('pageshow',checkSession)}
+ },[token])
  const brandName=useCallback(id=>brands.find(b=>String(b.BrandID)===String(id))?.Name||'Gift Voucher',[brands])
  const loadCatalog=useCallback(async(q=query,brand=brandFilter)=>{const data=await api.products(q.trim(),brand);setProducts(data?.items||[])},[query,brandFilter])
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
@@ -82,7 +104,7 @@ export default function App(){
  const orderText=`Hello Trusted Circle,\n\nOrder Number: ${orderForContact.OrderNumber||'Pending'}\nCustomer: ${lastOrder?.snapshot?.user?.name||user?.name||''}\nEmail: ${lastOrder?.snapshot?.user?.email||user?.email||''}\n\n${contactItems.map(i=>`• ${i.brand} — ${i.title} × ${i.quantity} — ₹${i.total.toLocaleString('en-IN')}`).join('\n')}\n\nTotal: ₹${Number(lastOrder?.snapshot?.total||orderForContact.Total||0).toLocaleString('en-IN')}`
  const emailHref=`mailto:info@trustedcircle.in?subject=${encodeURIComponent(`Trusted Circle Order ${orderForContact.OrderNumber||''}`)}&body=${encodeURIComponent(orderText)}`
  const whatsappHref=`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(orderText)}`
- return <div className="app-root"><GlobalLoading/><header className="new-header"><button className="header-brand" onClick={()=>navigate('home')}><span className="header-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span>Trusted<span>Circle</span></span></button><nav className="desktop-nav"><button onClick={()=>navigate('home')}>Home</button><button onClick={()=>navigate('vouchers')}>Gift Vouchers</button><button onClick={()=>navigate('brands')}>Brands</button><button onClick={()=>navigate('info','how-it-works')}>How It Works</button><button onClick={()=>navigate('info','help')}>Help</button></nav><div className="header-actions"><button className="header-tool" onClick={()=>navigate('vouchers')} aria-label="Search vouchers"><Search size={19}/></button>{user&&<WalletBadge token={token} onOpen={()=>navigate('wallet')}/>}<button className="header-tool cart-tool" onClick={()=>navigate('cart')} aria-label="Cart"><ShoppingBag size={19}/><b>{cartCount}</b></button>{user?<button className="account-tool" onClick={()=>navigate('profile')}><UserRound size={16}/><span>{user.name||'Profile'}</span></button>:<button className="login-tool" onClick={openAuth}>Login <ArrowRight size={15}/></button>}</div></header>
+ return <div className="app-root"><GlobalLoading/><header className="new-header"><button className="header-brand" onClick={()=>navigate('home')}><span className="header-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span>Trusted<span>Circle</span></span></button><nav className="desktop-nav"><button onClick={()=>navigate('home')}>Home</button><button onClick={()=>navigate('vouchers')}>Gift Vouchers</button><button onClick={()=>navigate('brands')}>Brands</button><button onClick={()=>navigate('info','how-it-works')}>How It Works</button><button onClick={()=>navigate('info','help')}>Help</button></nav><div className="header-actions"><button className="header-tool" onClick={()=>navigate('vouchers')} aria-label="Search vouchers"><Search size={19}/></button>{user&&<WalletBadge token={token} onOpen={()=>navigate('wallet')}/>}<button className="header-tool orders-tool" onClick={()=>navigate('orders')} aria-label="My Orders" title="My Orders"><History size={19}/></button><button className="header-tool cart-tool" onClick={()=>navigate('cart')} aria-label="Cart"><ShoppingBag size={19}/><b>{cartCount}</b></button>{user?<button className="account-tool" onClick={()=>navigate('profile')}><UserRound size={16}/><span>{user.name||'Profile'}</span></button>:<button className="login-tool" onClick={openAuth}>Login <ArrowRight size={15}/></button>}</div></header>
  {route.path==='home'&&<HomePage brands={brands} products={products} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id=>navigate('voucher',id)} onBrowse={(page='vouchers',filter='')=>{if(filter)setBrandFilter(filter);navigate(page)}}/>}
  {route.path==='brands'&&<BrandsPage brands={brands} onBrowse={onBrandBrowse}/>}
  {route.path==='vouchers'&&<VouchersPage products={products} brands={brands} brandFilter={brandFilter} setBrandFilter={setBrandFilter} query={query} setQuery={setQuery} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id=>navigate('voucher',id)}/>}
