@@ -1,4 +1,4 @@
-import React from 'react'
+import React,{useEffect,useState} from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import ErpApp from './ErpApp'
@@ -15,9 +15,11 @@ import './footer-books-link.js'
 function isErpRoute(){return window.location.hash.replace(/^#\/?/,'').startsWith('erp')}
 
 function Root(){
+  const[erp,setErp]=useState(isErpRoute())
+  useEffect(()=>{const onHash=()=>setErp(isErpRoute());window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
   return <React.StrictMode>
     <GlobalLoading />
-    {isErpRoute()?<ErpApp/>:<App/>}
+    {erp?<ErpApp/>:<App/>}
   </React.StrictMode>
 }
 
