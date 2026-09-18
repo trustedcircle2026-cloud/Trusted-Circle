@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import ErpApp from './ErpApp'
 import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './site.css'
@@ -11,9 +12,13 @@ import './erp-polish.css'
 import './books-footer.css'
 import './footer-books-link.js'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+function isErpRoute(){return window.location.hash.replace(/^#\/?/,'').startsWith('erp')}
+
+function Root(){
+  return <React.StrictMode>
     <GlobalLoading />
-    <App />
+    {isErpRoute()?<ErpApp/>:<App/>}
   </React.StrictMode>
-)
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />)
