@@ -23,7 +23,7 @@ const extractPaymentLink = value => {
   return ''
 }
 
-export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, onBack, orderId = '' }) {
+export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, onBack, onCreateOrder, orderId = '' }) {
   const [linkRequest, setLinkRequest] = useState(null)
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
@@ -45,12 +45,24 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const requestPayment = async () => {
     if (overLimit || linkLoading) return
 
-    // Do not open any payment window while the secure link is being generated.
-    // The popup is created only after the API has returned a complete payment URL.
+    // IMPORTANT: reserve the popup synchronously inside the user's click.
+    // Opening it only after the async Apps Script request completes can be
+    // treated as an unsolicited popup and blocked by the browser.
+    const popupWidth = 500
+    const popupHeight = 620
+    const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
+    const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
+    const popup = window.open(
+      'about:blank',
+      'TrustedCirclePayment',
+      `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    )
+
     setLinkLoading(true)
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
     setLinkRequest(null)
+
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in first.')
@@ -62,6 +74,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         if (!orderId) throw new Error('Order could not be found.')
         result = await api.requestPaymentLink(token, orderId)
       }
+
       const link = extractPaymentLink(result)
       if (!link) throw new Error('Payment link was not returned. Please try again.')
       const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || ''
@@ -70,23 +83,26 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
 
-      // The secure link is now fully available. Only now create the
-      // separate browser popup and load the provider page into it.
-      const popupWidth = 500
-      const popupHeight = 620
-      const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
-      const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
-      const popup = window.open(
-        link,
-        'TrustedCirclePayment',
-        `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      )
       if (popup && !popup.closed) {
+        // The window was already created during the click, so navigating it
+        // now is not a new popup request and is not subject to the same
+        // async popup-blocker restriction.
+        popup.location.replace(link)
         popup.focus()
+
+        // Checkout creates the order before the provider page opens. Move the
+        // main Trusted Circle page to the success/order screen immediately,
+        // while the payment provider remains open in the separate window.
+        if (mode === 'checkout' && typeof onCreateOrder === 'function') {
+          onCreateOrder(result)
+        }
       } else {
-        throw new Error('Payment popup was blocked by the browser. Please allow popups for Trusted Circle and try again.')
+        // If the browser blocks all popups, keep the flow usable instead of
+        // failing the order. The UI will expose a normal payment link button.
+        setLinkRequest({ link, expiresAt, error: 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.' })
       }
     } catch (error) {
+      if (popup && !popup.closed) popup.close()
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
@@ -136,6 +152,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             </button>
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
             {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
+            {linkRequest?.link && linkRequest?.error && <a className="gateway-pay-button gateway-fallback-link" href={linkRequest.link} target="_blank" rel="noopener noreferrer"><Link2 size={17} /> Open payment page <ChevronRight size={17} /></a>}
             {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
           </div>
 
