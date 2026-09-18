@@ -9,3 +9,24 @@
 .tc-edit-grid select{min-height:40px;cursor:pointer;background:#fff}
 .tc-edit-grid input,.tc-edit-grid select,.tc-edit-grid textarea{font-size:12px}
 @media(max-width:650px){.tc-header-dashboard span{display:none}.tc-header-dashboard{padding:8px!important}}
+
+/* Advanced ERP command-center polish */
+.tc-hero-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc-hero-secondary{border:1px solid #dbe1ea!important;background:#fff!important;color:#172033!important}
+.tc-hero-secondary svg{color:#22c55e}
+.tc-kpi-button em{opacity:.78;transition:opacity .16s ease}
+.tc-kpi-button:hover em{opacity:1}
+.tc-quick{grid-template-columns:repeat(4,1fr)!important}
+.tc-quick-card{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.tc-quick-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(15,23,42,.08);border-color:#cbd5e1}
+.tc-edit-grid label{min-width:0}
+.tc-edit-grid select,.tc-edit-grid input,.tc-edit-grid textarea{transition:border-color .15s ease,box-shadow .15s ease}
+.tc-edit-grid select:focus,.tc-edit-grid input:focus,.tc-edit-grid textarea:focus{outline:none;border-color:#8ea5ff;box-shadow:0 0 0 3px rgba(99,102,241,.10)}
+.tc-edit-grid select{min-height:40px}
+.tc-table-wrap tbody tr{transition:background .12s ease}
+.tc-table-wrap tbody tr:hover{background:#f8fbff}
+.tc-admin-nav{scrollbar-width:thin}
+.tc-admin-page{animation:tcPageIn .18s ease-out}
+@keyframes tcPageIn{from{opacity:.6;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){.tc-quick{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:650px){.tc-quick{grid-template-columns:1fr!important}.tc-hero-actions{width:100%}.tc-hero-actions button{flex:1}.tc-edit-grid{grid-template-columns:1fr!important}}
