@@ -1,2 +1,45 @@
-function requestOtp_(payload){const email=normalizeEmail_(payload.email),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();require_(isValidEmail_(email),'Enter a valid email address.');require_(['SHOP_LOGIN','SHOP_REGISTER','INVESTOR_LOGIN','INVESTOR_REGISTER','ADMIN_LOGIN'].indexOf(purpose)>=0,'Invalid OTP purpose.');const cache=CacheService.getScriptCache(),cooldownKey='OTP_COOLDOWN_'+hash_(email+'|'+purpose).substring(0,32);require_(!cache.get(cooldownKey),'Please wait before requesting another OTP.');const otp=randomOtp_(),otpId=newId_('TCOTP'),expires=new Date(Date.now()+TC_CONFIG.OTP_TTL_SECONDS*1000);appendRowObject_(TC_CONFIG.SHEETS.OTP,{OtpID:otpId,Email:email,Purpose:purpose,OtpHash:hash_(otpId+':'+otp),ExpiresAt:expires.toISOString(),Attempts:0,MaxAttempts:TC_CONFIG.OTP_MAX_ATTEMPTS,CreatedAt:isoNow_(),UsedAt:'',Status:'ACTIVE'});const html='<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure account verification</div></div><div style="padding:28px 24px"><p style="font-size:17px">Your verification code</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 0">'+otp+'</div><p style="color:#65716a">This code is valid for 10 minutes. If you did not request it, you can ignore this email.</p></div><div style="padding:16px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>',text='Your Trusted Circle verification code is '+otp+'. It expires in 10 minutes.';sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text);sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);cache.put(cooldownKey,'1',TC_CONFIG.OTP_RESEND_COOLDOWN_SECONDS);return{message:'OTP sent successfully.',expiresInSeconds:TC_CONFIG.OTP_TTL_SECONDS};}
-function verifyOtp_(payload){const email=normalizeEmail_(payload.email),otp=String(payload.otp||'').trim(),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();require_(isValidEmail_(email),'Invalid email address.');require_(/^\d{6}$/.test(otp),'Enter the 6-digit OTP.');const rows=getRows_(TC_CONFIG.SHEETS.OTP).filter(function(row){return normalizeEmail_(row.Email)===email&&String(row.Purpose)===purpose&&String(row.Status)==='ACTIVE';});require_(rows.length>0,'OTP is invalid or expired.');rows.sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();});const record=rows[0];require_(new Date(record.ExpiresAt).getTime()>Date.now(),'OTP has expired.');require_(Number(record.Attempts||0)<Number(record.MaxAttempts||TC_CONFIG.OTP_MAX_ATTEMPTS),'Too many OTP attempts.');if(!constantTimeEquals_(String(record.OtpHash),hash_(String(record.OtpID)+':'+otp))){updateRowById_(TC_CONFIG.SHEETS.OTP,'OtpID',record.OtpID,{Attempts:Number(record.Attempts||0)+1});throw new Error('OTP is invalid.');}updateRowById_(TC_CONFIG.SHEETS.OTP,'OtpID',record.OtpID,{Status:'USED',UsedAt:isoNow_()});return true;}
+function requestOtp_(payload){
+ const email=normalizeEmail_(payload.email),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();
+ require_(isValidEmail_(email),'Enter a valid email address.');
+ require_(['SHOP_LOGIN','SHOP_REGISTER','INVESTOR_LOGIN','INVESTOR_REGISTER','ADMIN_LOGIN'].indexOf(purpose)>=0,'Invalid OTP purpose.');
+ const cache=CacheService.getScriptCache(),cooldownKey='OTP_COOLDOWN_'+hash_(email+'|'+purpose).substring(0,32);
+ require_(!cache.get(cooldownKey),'Please wait before requesting another OTP.');
+ const otp=randomOtp_(),otpId=newId_('TCOTP'),createdAt=isoNow_(),expiresAt=new Date(Date.now()+TC_CONFIG.OTP_TTL_SECONDS*1000).toISOString();
+ const record={otpId:otpId,email:email,purpose:purpose,otpHash:hash_(otpId+':'+otp),createdAt:createdAt,expiresAt:expiresAt,attempts:0,maxAttempts:TC_CONFIG.OTP_MAX_ATTEMPTS};
+ cache.put('OTP_ACTIVE_'+hash_(email+'|'+purpose).substring(0,32),JSON.stringify(record),TC_CONFIG.OTP_TTL_SECONDS);
+ cache.put(cooldownKey,'1',TC_CONFIG.OTP_RESEND_COOLDOWN_SECONDS);
+ const html='<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure account verification</div></div><div style="padding:28px 24px"><p style="font-size:17px">Your verification code</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 0">'+otp+'</div><p style="color:#65716a">This code is valid for 10 minutes. If you did not request it, you can ignore this email.</p></div><div style="padding:16px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
+ const text='Your Trusted Circle verification code is '+otp+'. It expires in 10 minutes.';
+ if(typeof enqueueOtpEmail_==='function')enqueueOtpEmail_(otpId,email,'Trusted Circle · Your verification code',html,text);
+ else{sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text);sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);}
+ return{message:'OTP sent successfully.',expiresInSeconds:TC_CONFIG.OTP_TTL_SECONDS};
+}
+function verifyOtp_(payload){
+ const email=normalizeEmail_(payload.email),otp=String(payload.otp||'').trim(),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();
+ require_(isValidEmail_(email),'Invalid email address.');
+ require_(/^\d{6}$/.test(otp),'Enter the 6-digit OTP.');
+ const cache=CacheService.getScriptCache(),activeKey='OTP_ACTIVE_'+hash_(email+'|'+purpose).substring(0,32);
+ var cached=null;
+ try{cached=JSON.parse(cache.get(activeKey)||'null');}catch(ignore){}
+ if(cached&&cached.email===email&&cached.purpose===purpose){
+  require_(new Date(cached.expiresAt).getTime()>Date.now(),'OTP has expired.');
+  require_(Number(cached.attempts||0)<Number(cached.maxAttempts||TC_CONFIG.OTP_MAX_ATTEMPTS),'Too many OTP attempts.');
+  if(!constantTimeEquals_(String(cached.otpHash),hash_(String(cached.otpId)+':'+otp))){
+   cached.attempts=Number(cached.attempts||0)+1;
+   cache.put(activeKey,JSON.stringify(cached),Math.max(1,Math.floor((new Date(cached.expiresAt).getTime()-Date.now())/1000)));
+   throw new Error('OTP is invalid.');
+  }
+  cache.remove(activeKey);
+  appendRowObject_(TC_CONFIG.SHEETS.OTP,{OtpID:cached.otpId,Email:cached.email,Purpose:cached.purpose,OtpHash:cached.otpHash,ExpiresAt:cached.expiresAt,Attempts:Number(cached.attempts||0),MaxAttempts:Number(cached.maxAttempts||TC_CONFIG.OTP_MAX_ATTEMPTS),CreatedAt:cached.createdAt,UsedAt:isoNow_(),Status:'USED'});
+  return true;
+ }
+ const rows=getRows_(TC_CONFIG.SHEETS.OTP).filter(function(row){return normalizeEmail_(row.Email)===email&&String(row.Purpose)===purpose&&String(row.Status)==='ACTIVE';});
+ require_(rows.length>0,'OTP is invalid or expired.');
+ rows.sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();});
+ const record=rows[0];
+ require_(new Date(record.ExpiresAt).getTime()>Date.now(),'OTP has expired.');
+ require_(Number(record.Attempts||0)<Number(record.MaxAttempts||TC_CONFIG.OTP_MAX_ATTEMPTS),'Too many OTP attempts.');
+ if(!constantTimeEquals_(String(record.OtpHash),hash_(String(record.OtpID)+':'+otp))){updateRowById_(TC_CONFIG.SHEETS.OTP,'OtpID',record.OtpID,{Attempts:Number(record.Attempts||0)+1});throw new Error('OTP is invalid.');}
+ updateRowById_(TC_CONFIG.SHEETS.OTP,'OtpID',record.OtpID,{Status:'USED',UsedAt:isoNow_()});
+ return true;
+}
