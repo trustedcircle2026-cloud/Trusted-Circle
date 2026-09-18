@@ -31,8 +31,35 @@ export default function App(){
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
  const loadCart=useCallback(async currentToken=>{if(!currentToken){setCart([]);return}const data=await api.cart(currentToken);setCart(data?.items||[])},[])
  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}const data=await api.orders(currentToken);setOrders(data?.items||[])},[])
- useEffect(()=>{let active=true;(async()=>{try{await api.health();const[brandData,productData]=await Promise.all([api.brands(),api.products('','')]);if(!active)return;setBrands(brandData?.items||[]);setProducts(productData?.items||[]);setAllProducts(productData?.items||[]);if(token){try{const me=await api.me(token);if(!active)return;setUser(me);setProfileName(me.name||'');if(!me.name)setProfileOpen(true);await Promise.all([loadCart(token),loadOrders(token)])}catch{localStorage.removeItem('tc_session');setToken('');setUser(null);setCart([])}}}catch(error){console.warn('Trusted Circle startup:',error.message)}})();return()=>{active=false}},[])
- useEffect(()=>{if(!['vouchers','home'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},250);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
+ useEffect(()=>{let active=true;(async()=>{
+  try{
+    const[brandData,productData,meResult]=await Promise.all([
+      api.brands(),
+      api.products('',''),
+      token?api.me(token):Promise.resolve(null)
+    ])
+    if(!active)return
+    setBrands(brandData?.items||[])
+    setProducts(productData?.items||[])
+    setAllProducts(productData?.items||[])
+    if(token&&meResult){
+      setUser(meResult)
+      setProfileName(meResult.name||'')
+      if(!meResult.name)setProfileOpen(true)
+      await Promise.all([loadCart(token),loadOrders(token)])
+    }
+  }catch(error){
+    if(token){
+      localStorage.removeItem('tc_session')
+      setToken('')
+      setUser(null)
+      setCart([])
+      setOrders([])
+    }
+    console.warn('Trusted Circle startup:',error.message)
+  }
+})();return()=>{active=false}},[])
+ useEffect(()=>{if(!['vouchers'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},180);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
  const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);return{...item,product,denomination,unitPrice:denomination}}).filter(Boolean),[cart,allProducts])
  const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])
  const subtotal=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+item.denomination*Number(item.Quantity||0),0),[cartDetailed])
