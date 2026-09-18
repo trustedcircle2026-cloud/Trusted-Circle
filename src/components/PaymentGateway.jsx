@@ -1,65 +1,64 @@
-import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronRight, Link2, LockKeyhole, Maximize2, QrCode, ShieldCheck, Smartphone, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
 
-const UPI_URI = 'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
-const UPI_LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg'
-const GOOGLE_PAY_LOGO_URL = 'https://cdn.simpleicons.org/googlepay'
-const PAYTM_LOGO_URL = 'https://cdn.simpleicons.org/paytm'
-const VISA_LOGO_URL = 'https://cdn.simpleicons.org/visa'
-const MASTERCARD_LOGO_URL = 'https://cdn.simpleicons.org/mastercard'
-const RUPAY_LOGO_URL = 'https://cdn.simpleicons.org/rupay'
 const LINK_WAIT_SECONDS = 30
 const LINK_VALIDITY_SECONDS = 3 * 60 * 60
-const methods = [
-  { id: 'qr', label: 'QR Code', icon: QrCode },
-  { id: 'upiapps', label: 'UPI Apps', icon: Smartphone },
-  { id: 'link', label: 'Payment Link', icon: Link2 },
-]
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 const formatDuration = seconds => {
   const value = Math.max(0, Number(seconds || 0))
   const hours = Math.floor(value / 3600)
   const minutes = Math.floor((value % 3600) / 60)
   const secs = value % 60
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-    : `${minutes}:${String(secs).padStart(2, '0')}`
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}` : `${minutes}:${String(secs).padStart(2, '0')}`
 }
 const extractPaymentLink = value => {
-  const candidates = [value, value?.Link, value?.link, value?.url, value?.URL, value?.paymentLink?.Link, value?.paymentLink?.link, value?.paymentLink?.url, value?.data?.paymentLink?.Link, value?.data?.paymentLink?.link, value?.order?.paymentLink?.Link, value?.order?.paymentLink?.link]
+  const candidates = [
+    value?.paymentLink?.Link, value?.paymentLink?.link, value?.paymentLink?.url,
+    value?.Link, value?.link, value?.url, value?.URL,
+    value?.order?.paymentLink?.Link, value?.order?.paymentLink?.link
+  ]
   for (const candidate of candidates) if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) return candidate
   return ''
 }
 
-export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, qrUrl, onBack, onCreateOrder, orderId = '' }) {
-  // Regular checkout intentionally uses only the stocked Payment Link.
-  // The Orders-page payment gateway keeps the full UPI/QR/Payment Link selector.
-  const availableMethods = mode === 'checkout' ? methods.filter(method => method.id === 'link') : methods
-  const [selected, setSelected] = useState(mode === 'checkout' ? 'link' : 'upiapps')
-  const [qrOpen, setQrOpen] = useState(false)
+export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, onBack, orderId = '' }) {
   const [linkRequest, setLinkRequest] = useState(null)
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
   const [linkLoading, setLinkLoading] = useState(false)
   const overLimit = Number(total) > 2000
-  const itemCount = useMemo(() => items.reduce((sum, item) => sum + Number(item.Quantity || 0), 0), [items])
-  const active = availableMethods.find(method => method.id === selected) || availableMethods[0]
-  const ActiveIcon = active.icon
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
 
   useEffect(() => {
-    if (!linkLoading && linkWaitSeconds <= 0 && linkValidSeconds <= 0) return undefined
+    if (!linkLoading && !linkRequest?.link) return undefined
     const timer = setInterval(() => {
-      setLinkWaitSeconds(value => linkLoading ? Math.max(0, value - 1) : value)
-      setLinkValidSeconds(value => linkRequest?.link ? Math.max(0, value - 1) : value)
+      if (linkLoading) setLinkWaitSeconds(value => Math.max(0, value - 1))
+      if (linkRequest?.link) setLinkValidSeconds(value => Math.max(0, value - 1))
     }, 1000)
     return () => clearInterval(timer)
-  }, [linkLoading, linkWaitSeconds, linkValidSeconds, linkRequest?.link])
+  }, [linkLoading, linkRequest?.link])
 
-  const requestPaymentLink = async () => {
+  const openPaymentWindow = () => {
+    const width = Math.min(560, Math.max(390, (window.screen?.availWidth || 600) - 30))
+    const height = Math.min(900, Math.max(700, (window.screen?.availHeight || 800) - 50))
+    const left = Math.max(0, Math.round(((window.screen?.availWidth || width) - width) / 2))
+    const top = Math.max(0, Math.round(((window.screen?.availHeight || height) - height) / 2))
+    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener=yes,noreferrer=yes`
+    const popup = window.open('about:blank', 'trustedcircle-payment', features)
+    if (!popup) return null
+    try {
+      popup.document.title = 'Trusted Circle — Payment'
+      popup.document.body.innerHTML = '<p style="font:600 15px system-ui;padding:32px">Preparing secure payment…</p>'
+    } catch {}
+    popup.focus?.()
+    return popup
+  }
+
+  const requestPayment = async () => {
     if (overLimit || linkLoading) return
+    const popup = openPaymentWindow()
     setLinkLoading(true)
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
@@ -77,14 +76,20 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       }
       const link = extractPaymentLink(result)
       if (!link) throw new Error('Payment link was not returned. Please try again.')
-      const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || result?.order?.ExpiresAt || ''
+      const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || ''
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
-
+      if (popup && !popup.closed) {
+        popup.location.href = link
+        popup.focus?.()
+      } else {
+        setLinkRequest({ link, expiresAt, popupBlocked: true })
+      }
     } catch (error) {
-      setLinkRequest({ error: error.message || 'Could not request payment link.' })
+      if (popup && !popup.closed) popup.close()
+      setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
     } finally {
@@ -92,128 +97,68 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     }
   }
 
-  const openPaymentPopup = url => {
-    if (!url) return
-    const screenWidth = window.screen?.availWidth || window.innerWidth || 520
-    const screenHeight = window.screen?.availHeight || window.innerHeight || 820
-    const width = Math.min(520, Math.max(380, screenWidth - 24))
-    const height = Math.min(860, Math.max(680, screenHeight - 60))
-    const left = Math.max(0, Math.round((screenWidth - width) / 2))
-    const top = Math.max(0, Math.round((screenHeight - height) / 2))
-    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener=yes,noreferrer=yes`
-    const popup = window.open(url, 'trustedcircle-paytm-payment', features)
-    if (!popup) {
-      window.alert('Payment window was blocked by your browser. Please allow pop-ups for Trusted Circle and click Pay again.')
-      return
-    }
-    popup.focus?.()
-  }
-
-  const startUpiPayment = async event => {
-    event?.preventDefault?.()
-    if (overLimit) return
-    if (mode === 'checkout') {
-      await onCreateOrder?.('upiapps')
-      return
-    }
-    window.location.href = UPI_URI
-  }
-
-  const chooseMethod = id => {
-    setSelected(id)
-    setQrOpen(false)
-    if (id !== 'link') {
-      setLinkRequest(null)
-      setLinkWaitSeconds(0)
-      setLinkValidSeconds(0)
-      setLinkLoading(false)
-    }
-  }
-
-  const paymentLinkMessage = linkRequest?.error
-    ? linkRequest.error
-    : linkLoading
-      ? `Wait, payment link is getting... ${linkWaitSeconds}s`
-      : activeLink
-        ? `Payment link ready. Valid for ${formatDuration(linkValidSeconds)}.`
-        : linkRequest?.link
-          ? 'The 3-hour payment-link validity has ended. Get a new link.'
-          : 'Get a stocked payment link for this order.'
-
   return (
     <div className={`payment-gateway payment-gateway-${mode}`}>
       <div className="gateway-shell">
         {mode === 'checkout' && <aside className="gateway-summary">
-          <div className="gateway-summary-brand"><div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div><div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div></div>
-          <div className="gateway-stepper"><span className="done">1</span><div><b>Cart</b><small>{itemCount} item{itemCount === 1 ? '' : 's'}</small></div><span className="active">2</span><div><b>Payment</b><small>Secure payment link</small></div></div>
-          <div className="gateway-price-label">PAY NOW</div><div className="gateway-total">{money(total)}</div>
+          <div className="gateway-summary-brand">
+            <div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div>
+            <div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div>
+          </div>
+          <div className="gateway-stepper">
+            <span className="done">1</span><div><b>Cart</b><small>{items.length} item{items.length === 1 ? '' : 's'}</small></div>
+            <span className="active">2</span><div><b>Payment</b><small>Secure payment</small></div>
+          </div>
+          <div className="gateway-price-label">PAY NOW</div>
+          <div className="gateway-total">{money(total)}</div>
           <div className="gateway-account-pill"><CheckCircle2 size={15} /><span>{user?.email || 'Signed in'}</span></div>
-          <div className="gateway-order-lines"><div><span>Voucher value</span><b>{money(total)}</b></div><div><span>Cashback</span><b className="gateway-green">+ {money(cashback)}</b></div></div>
+          <div className="gateway-order-lines">
+            <div><span>Voucher value</span><b>{money(total)}</b></div>
+            <div><span>Cashback</span><b className="gateway-green">+ {money(cashback)}</b></div>
+          </div>
           {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Order limit is ₹2,000. Remove items to continue.</div>}
           <div className="gateway-summary-footer"><ShieldCheck size={16} /><span>Cashback is added after payment verification.</span></div>
         </aside>}
 
         <section className="gateway-payment">
-          <div className="gateway-payment-head"><div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Pay securely' : 'Complete payment'}</h1><p>{mode === 'checkout' ? 'Use the secure payment link to choose UPI, QR or card payment.' : 'Pay the pending order amount to continue.'}</p></div><button className="gateway-close" onClick={onBack} aria-label="Close checkout"><X size={16} /></button></div>
-          {mode !== 'checkout' && <div className="gateway-mobile-method-trigger" role="button" tabIndex={0} onClick={event => event.currentTarget.nextElementSibling?.querySelector('.gateway-methods')?.classList.toggle('mobile-open')}><ActiveIcon size={18} /><div><small>Payment method</small><strong>{active.label}</strong></div><ChevronRight size={17} /></div>}
-
-          <div className="gateway-body">
-            {mode !== 'checkout' && <nav className="gateway-methods" aria-label="Payment methods">
-              <div className="gateway-method-heading">PAYMENT METHODS</div>
-              {availableMethods.map(method => { const Icon = method.icon; return <button key={method.id} className={`gateway-method ${selected === method.id ? 'selected' : ''}`} onClick={() => chooseMethod(method.id)}><Icon size={18} /><span>{method.label}</span>{selected === method.id && <ChevronRight size={14} className="method-arrow" />}</button> })}
-            </nav>}
-
-            <div className="gateway-content gateway-content-link-only">
-              {selected === 'upiapps' && <div className="gateway-content-title"><div><ActiveIcon size={17} /><strong>{active.label}</strong></div><span className="gateway-session"><ShieldCheck size={12} /> Secure</span></div>}
-
-              {selected === 'upiapps' && <div className="gateway-upi-apps-panel gateway-upi-primary">
-                <div className="gateway-upi-brand-row"><img className="upi-logo-image checkout-upi-logo" src={UPI_LOGO_URL} alt="UPI" /><span className="gateway-session"><ShieldCheck size={12} /> UPI secure</span></div>
-                <div className="gateway-upi-apps-intro"><span className="gateway-mini-label">UPI</span><h2>{money(total)}</h2><p>Pay instantly with any UPI app.</p></div>
-                <a className="gateway-pay-button gateway-pay-link gateway-primary-action" href={mode === 'order' ? UPI_URI : '#'} onClick={startUpiPayment} aria-disabled={overLimit}><Smartphone size={17} /> Pay with UPI Apps <ChevronRight size={17} /></a>
-                <div className="gateway-return-card"><CheckCircle2 size={17} /><div><strong>After payment</strong><span>Return here to see the updated order status.</span></div></div>
-                <div className="gateway-note"><ShieldCheck size={14} /> Cashback is added after verified payment.</div>
-              </div>}
-
-              {selected === 'qr' && <div className="gateway-upi-panel">
-                <button className="gateway-qr-card" onClick={() => setQrOpen(true)} aria-label="Enlarge UPI QR"><img src={qrUrl} alt="Trusted Circle UPI QR" /><span className="qr-expand-hint"><Maximize2 size={13} /> Tap to enlarge</span></button>
-                <div className="gateway-upi-copy"><img className="upi-logo-image checkout-upi-logo compact-logo" src={UPI_LOGO_URL} alt="UPI" /><span className="gateway-mini-label">SCAN &amp; PAY</span><h2>{money(total)}</h2><p>Scan with any UPI app. Then return to Trusted Circle.</p><div className="gateway-note"><ShieldCheck size={14} /> Cashback is added after verified payment.</div></div>
-              </div>}
-
-              {selected === 'link' && <div className="gateway-link-area">
-                <div className="gateway-link-panel"><div className="gateway-link-icon"><Link2 size={22} /></div><div><span className="gateway-mini-label">SECURE PAYMENT LINK</span><strong>All payment options in one secure link</strong><p>Open the assigned payment link and choose the payment method you prefer. The link is reserved for this order for 3 hours.</p></div></div>
-
-                <div className="gateway-link-option-groups">
-                  <div className="gateway-link-option-group"><span className="gateway-link-option-title">UPI &amp; QR</span><div className="gateway-brand-row">
-                    <span className="gateway-brand-logo gateway-brand-upi"><img src={UPI_LOGO_URL} alt="UPI" /></span>
-                    <span className="gateway-brand-logo"><img src={GOOGLE_PAY_LOGO_URL} alt="Google Pay" /></span>
-                    <span className="gateway-brand-logo"><img src={PAYTM_LOGO_URL} alt="Paytm" /></span>
-                    <span className="gateway-brand-word">QR</span>
-                  </div></div>
-                  <div className="gateway-link-option-group"><span className="gateway-link-option-title">DEBIT &amp; CREDIT CARDS</span><div className="gateway-brand-row">
-                    <span className="gateway-brand-logo"><img src={VISA_LOGO_URL} alt="Visa" /></span>
-                    <span className="gateway-brand-logo"><img src={MASTERCARD_LOGO_URL} alt="Mastercard" /></span>
-                    <span className="gateway-brand-logo"><img src={RUPAY_LOGO_URL} alt="RuPay" /></span>
-                  </div></div>
-                </div>
-
-                <div className="gateway-link-methods"><span><CheckCircle2 size={14} /> UPI Apps</span><span><CheckCircle2 size={14} /> QR</span><span><CheckCircle2 size={14} /> Debit &amp; Credit Cards</span></div>
-                <div className={`gateway-link-status ${activeLink ? 'active' : ''} ${linkLoading ? 'loading' : ''}`}>
-                  <div><strong>{linkLoading ? 'Getting your payment link' : activeLink ? 'Payment link ready' : 'Get payment link'}</strong><span>{paymentLinkMessage}</span></div>
-                  {activeLink ? <button className="gateway-pay-button gateway-pay-link" type="button" onClick={() => openPaymentPopup(linkRequest.link)}><Link2 size={17} /> Pay with payment link <ChevronRight size={17} /></button> : <button className="gateway-pay-button" type="button" onClick={requestPaymentLink} disabled={overLimit || linkLoading}>{linkLoading ? `Getting link… ${linkWaitSeconds}s` : overLimit ? 'Limit ₹2,000' : 'Get payment link'}</button>}
-                </div>
-                <p className="gateway-link-footnote">The payment provider page handles the actual UPI, QR and card checkout. Trusted Circle does not collect separate card details. The assigned payment link and its order reservation are valid for 3 hours.</p>
-              </div>}
-
-              <div className="gateway-amount-bar"><div><small>PAY NOW</small><strong>{money(total)}</strong></div>{selected === 'upiapps' && <a className="gateway-pay-button gateway-pay-link" href={mode === 'order' ? UPI_URI : '#'} onClick={startUpiPayment} aria-disabled={overLimit}><Smartphone size={17} /> Pay with UPI Apps <ChevronRight size={17} /></a>}</div>
-              <p className="gateway-disclaimer"><LockKeyhole size={12} /> Payment is checked before cashback is added.</p>
-            </div>
+          <div className="gateway-payment-head">
+            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Complete your payment' : 'Pay pending order'}</h1><p>Click once. We prepare your payment link and open it automatically.</p></div>
+            <button className="gateway-close" onClick={onBack} aria-label="Close payment"><X size={16} /></button>
           </div>
+
+          <div className="gateway-single-payment">
+            <div className="gateway-single-icon"><Link2 size={24} /></div>
+            <span className="gateway-mini-label">SECURE PAYMENT</span>
+            <h2>{money(total)}</h2>
+            <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
+            <p>{linkLoading ? `Getting your payment link… ${linkWaitSeconds}s` : activeLink ? `Link valid for ${formatDuration(linkValidSeconds)}.` : 'Click Make Payment once. Your assigned secure payment page will open automatically.'}</p>
+            <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
+              {linkLoading ? `Getting payment link… ${linkWaitSeconds}s` : activeLink ? 'Open payment again' : 'Make Payment'}
+              <ChevronRight size={17} />
+            </button>
+            {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
+            {linkRequest?.popupBlocked && activeLink && <button className="gateway-fallback-open" type="button" onClick={() => window.open(linkRequest.link, '_blank', 'noopener,noreferrer')}>Open payment page</button>}
+            {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
+            {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
+          </div>
+
+          <div className="gateway-amount-bar">
+            <div><small>PAY NOW</small><strong>{money(total)}</strong></div>
+            <span><ShieldCheck size={14} /> Secure payment link</span>
+          </div>
+          <p className="gateway-disclaimer"><LockKeyhole size={12} /> Payment is handled on the provider page. Never share your OTP, card number, CVV or UPI PIN.</p>
         </section>
       </div>
 
-      {linkLoading && <div className="payment-link-loading-overlay" role="status" aria-live="polite"><div className="payment-link-loading-card"><div className="payment-link-logo-wrap"><img src={logoUrl} alt="Trusted Circle" /></div><strong>Wait, payment link is getting...</strong><span>Your secure payment link is being prepared.</span><div className="payment-link-loading-track"><i style={{ width: `${((LINK_WAIT_SECONDS - linkWaitSeconds) / LINK_WAIT_SECONDS) * 100}%` }} /></div><small>Maximum wait time: 30 seconds</small><b>{linkWaitSeconds}s</b></div></div>}
-
-      {qrOpen && <div className="qr-lightbox" role="dialog" aria-modal="true" aria-label="UPI QR" onClick={() => setQrOpen(false)}><div className="qr-lightbox-card" onClick={event => event.stopPropagation()}><button className="qr-lightbox-close" onClick={() => setQrOpen(false)} aria-label="Close QR"><X size={18} /></button><img src={qrUrl} alt="Trusted Circle UPI QR" /><strong>Scan to pay {money(total)}</strong><span>Use any UPI app.</span></div></div>}
+      {linkLoading && <div className="payment-link-loading-overlay" role="status" aria-live="polite">
+        <div className="payment-link-loading-card">
+          <div className="payment-link-logo-wrap"><img src={logoUrl} alt="Trusted Circle" /></div>
+          <strong>Preparing your payment</strong>
+          <span>Getting your secure payment link…</span>
+          <div className="payment-link-loading-track"><i style={{ width: `${((LINK_WAIT_SECONDS - linkWaitSeconds) / LINK_WAIT_SECONDS) * 100}%` }} /></div>
+          <small>Maximum wait time: 30 seconds</small><b>{linkWaitSeconds}s</b>
+        </div>
+      </div>}
     </div>
   )
 }
