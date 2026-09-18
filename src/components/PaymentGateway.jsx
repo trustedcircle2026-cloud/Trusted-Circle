@@ -28,7 +28,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
   const [linkLoading, setLinkLoading] = useState(false)
-  const [paymentPopup, setPaymentPopup] = useState(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
 
@@ -45,6 +44,19 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
   const requestPayment = async () => {
     if (overLimit || linkLoading) return
+
+    // Open a real browser popup from the original click. This avoids Chrome's
+    // popup blocker rejecting window.open() after the async API request.
+    const popupWidth = 500
+    const popupHeight = 620
+    const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
+    const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
+    const popup = window.open(
+      'about:blank',
+      'TrustedCirclePayment',
+      `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    )
+
     setLinkLoading(true)
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
@@ -67,8 +79,17 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
-      setPaymentPopup({ link })
+
+      if (popup && !popup.closed) {
+        popup.location.replace(link)
+        popup.focus()
+      } else {
+        // Do not redirect the Trusted Circle page. If the browser blocks the
+        // popup, the user can retry after allowing popups for this site.
+        throw new Error('Payment popup was blocked by the browser. Please allow popups for Trusted Circle and try again.')
+      }
     } catch (error) {
+      if (popup && !popup.closed) popup.close()
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
@@ -128,17 +149,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           <p className="gateway-disclaimer"><LockKeyhole size={12} /> Payment is handled on the provider page. Never share your OTP, card number, CVV or UPI PIN.</p>
         </section>
       </div>
-          {paymentPopup?.link && <div className="tc-payment-link-modal" role="dialog" aria-modal="true" aria-label="Secure payment">
-            <div className="tc-payment-link-modal-panel">
-              <div className="tc-payment-link-modal-head">
-                <div><span>SECURE PAYMENT</span><strong>Complete your payment</strong></div>
-                <button className="tc-payment-link-modal-close" type="button" onClick={()=>setPaymentPopup(null)} aria-label="Close payment"><X size={18}/></button>
-              </div>
-              <div className="tc-payment-link-frame-wrap">
-                <iframe className="tc-payment-link-frame" src={paymentPopup.link} title="Secure Paytm payment" allow="payment *; clipboard-write *" referrerPolicy="strict-origin-when-cross-origin" />
-              </div>
-            </div>
-          </div>}
+
 
     </div>
   )
