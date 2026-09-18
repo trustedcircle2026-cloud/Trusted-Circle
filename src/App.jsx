@@ -54,15 +54,14 @@ export default function App(){
  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}setOrdersLoading(true);try{const data=await api.orders(currentToken);setOrders(data?.items||[])}catch(error){setAuthMessage(friendlyApiError(error))}finally{setOrdersLoading(false)}},[])
  useEffect(()=>{let active=true;(async()=>{
   try{
-    const[brandData,productData,meResult]=await Promise.all([
-      api.brands(),
-      api.products('',''),
+    const[catalogData,meResult]=await Promise.all([
+      api.catalog(),
       token?api.me(token):Promise.resolve(null)
     ])
     if(!active)return
-    setBrands(brandData?.items||[])
-    setProducts(productData?.items||[])
-    setAllProducts(productData?.items||[])
+    setBrands(catalogData?.brands||[])
+    setProducts(catalogData?.products||[])
+    setAllProducts(catalogData?.products||[])
     if(token&&meResult){
       setUser(meResult)
       setProfileName(meResult.name||'')
