@@ -40,21 +40,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     return () => clearInterval(timer)
   }, [linkLoading, linkRequest?.link])
 
-  const openPaymentWindow = () => {
-    const width = Math.min(560, Math.max(390, (window.screen?.availWidth || 600) - 30))
-    const height = Math.min(900, Math.max(700, (window.screen?.availHeight || 800) - 50))
-    const left = Math.max(0, Math.round(((window.screen?.availWidth || width) - width) / 2))
-    const top = Math.max(0, Math.round(((window.screen?.availHeight || height) - height) / 2))
-    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,noopener=yes,noreferrer=yes`
-    const popup = window.open('about:blank', 'trustedcircle-payment', features)
-    if (!popup) return null
-    try {
-      popup.document.title = 'Trusted Circle — Payment'
-      popup.document.body.innerHTML = '<p style="font:600 15px system-ui;padding:32px">Preparing secure payment…</p>'
-    } catch {}
-    popup.focus?.()
-    return popup
-  }
+  
 
   const requestPayment = async () => {
     if (overLimit || linkLoading) return
@@ -80,13 +66,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkRequest({ link, expiresAt })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
-      const popup = openPaymentWindow()
-      if (popup && !popup.closed) {
-        popup.location.href = link
-        popup.focus?.()
-      } else {
-        setLinkRequest({ link, expiresAt, popupBlocked: true })
-      }
+      window.location.assign(link)
     } catch (error) {
       setLinkRequest({ error: error.message || 'Could not prepare payment.' })
       setLinkWaitSeconds(0)
@@ -132,11 +112,10 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
             <p>{linkLoading ? `Getting your payment link… ${linkWaitSeconds}s` : activeLink ? `Link valid for ${formatDuration(linkValidSeconds)}.` : 'Click Make Payment once. Your assigned secure payment page will open automatically.'}</p>
             <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
-              {linkLoading ? `Getting payment link… ${linkWaitSeconds}s` : activeLink ? 'Open payment again' : 'Make Payment'}
+              {linkLoading ? `Getting payment link… ${linkWaitSeconds}s` : activeLink ? 'Make Payment Again' : 'Make Payment'}
               <ChevronRight size={17} />
             </button>
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
-            {linkRequest?.popupBlocked && activeLink && <button className="gateway-fallback-open" type="button" onClick={() => window.open(linkRequest.link, '_blank', 'noopener,noreferrer')}>Open payment page</button>}
             {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
             {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
           </div>
