@@ -2,15 +2,14 @@ function requestOtp_(payload){
  const email=normalizeEmail_(payload.email),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();
  require_(isValidEmail_(email),'Enter a valid email address.');
  require_(['SHOP_LOGIN','SHOP_REGISTER','INVESTOR_LOGIN','INVESTOR_REGISTER','ADMIN_LOGIN'].indexOf(purpose)>=0,'Invalid OTP purpose.');
- const cache=CacheService.getScriptCache(),cooldownKey='OTP_COOLDOWN_'+hash_(email+'|'+purpose).substring(0,32);
+ const cache=CacheService.getScriptCache(),cooldownKey='OTP_COOLDOWN_'+hash_(email+'|'+purpose).substring(0,32),activeKey='OTP_ACTIVE_'+hash_(email+'|'+purpose).substring(0,32);
  require_(!cache.get(cooldownKey),'Please wait before requesting another OTP.');
  const otp=randomOtp_(),otpId=newId_('TCOTP'),createdAt=isoNow_(),expiresAt=new Date(Date.now()+TC_CONFIG.OTP_TTL_SECONDS*1000).toISOString();
  const record={otpId:otpId,email:email,purpose:purpose,otpHash:hash_(otpId+':'+otp),createdAt:createdAt,expiresAt:expiresAt,attempts:0,maxAttempts:TC_CONFIG.OTP_MAX_ATTEMPTS};
- cache.put('OTP_ACTIVE_'+hash_(email+'|'+purpose).substring(0,32),JSON.stringify(record),TC_CONFIG.OTP_TTL_SECONDS);
- cache.put(cooldownKey,'1',TC_CONFIG.OTP_RESEND_COOLDOWN_SECONDS);
+
  const html='<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure account verification</div></div><div style="padding:28px 24px"><p style="font-size:17px">Your verification code</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 0">'+otp+'</div><p style="color:#65716a">This code is valid for 10 minutes. If you did not request it, you can ignore this email.</p></div><div style="padding:16px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
  const text='Your Trusted Circle verification code is '+otp+'. It expires in 10 minutes.';
- var userSent=sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text); try{sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);}catch(ignore){} require_(userSent,'OTP could not be sent. Please check the Apps Script email authorization and try again.');return{message:'OTP sent successfully.',expiresInSeconds:TC_CONFIG.OTP_TTL_SECONDS};
+ var userSent=sendTransactionalEmail_(email,'Trusted Circle · Your verification code',html,text); require_(userSent,'OTP could not be sent. Please authorize Trusted Circle email sending in the Apps Script project and try again.'); cache.put(activeKey,JSON.stringify(record),TC_CONFIG.OTP_TTL_SECONDS); cache.put(cooldownKey,'1',TC_CONFIG.OTP_RESEND_COOLDOWN_SECONDS); try{sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+email,html,text);}catch(ignore){} return{message:'OTP sent successfully.',expiresInSeconds:TC_CONFIG.OTP_TTL_SECONDS};
 }
 function verifyOtp_(payload){
  const email=normalizeEmail_(payload.email),otp=String(payload.otp||'').trim(),purpose=cleanText_(payload.purpose||'SHOP_LOGIN',40).toUpperCase();
