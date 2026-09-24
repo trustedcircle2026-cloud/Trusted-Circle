@@ -8,3 +8,101 @@
  .header-brand-group{gap:7px}
  .header-brand-group .wallet-badge{height:38px;padding:0 10px}
 }
+
+/* Order payment + delivery experience */
+.order-success-rich{width:min(100%,920px);max-width:920px;text-align:left;position:relative;overflow:hidden}
+.order-success-rich:before{content:"";position:absolute;inset:-120px -160px auto auto;width:300px;height:300px;background:radial-gradient(circle,rgba(39,165,107,.12),transparent 68%);pointer-events:none}
+.order-success-rich>.eyebrow,.order-success-rich>h1,.order-success-rich>.success-lead{display:block}
+.order-success-rich>h1{margin:10px 0 10px}
+.success-lead{max-width:700px}
+.success-ring.status-paid{background:#e9f9ef;box-shadow:0 0 0 10px rgba(39,165,107,.06)}
+.success-ring.status-checking{background:#eef8f4;animation:successPulse 1.8s ease-in-out infinite}
+.success-ring.status-pending{background:#f4f7f5}
+@keyframes successPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.success-order{grid-template-columns:1.15fr .7fr 1fr}
+.success-order .success-status.paid{background:#edf9f1}
+.success-order .success-status.checking{background:#f0faf6}
+.success-order .success-status.pending{background:#f7f9f8}
+.success-order .success-status strong{font-size:11px;letter-spacing:.04em}
+.order-confirmation-grid{grid-template-columns:minmax(0,1.35fr) minmax(240px,.65fr);margin-top:20px}
+.confirmation-item{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid #edf1ee}
+.confirmation-item .brand-logo-image{width:48px;height:48px;border-radius:13px}
+.confirmation-item>div{display:grid;gap:2px}
+.confirmation-item>div strong{font-size:12px}
+.confirmation-item>div span{font-size:12px;color:#53605b}
+.confirmation-item>div small{font-size:10px;color:#89928f}
+.confirmation-item>b{font-size:13px}
+.confirmation-card-head{display:flex;align-items:center;gap:10px}
+.confirmation-card-head>svg{color:var(--tc-green-dark)}
+.payment-action-panel{margin-top:18px;padding:22px;border:1px solid #d7e8de;border-radius:20px;background:linear-gradient(135deg,#f3fbf6,#fff);display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 14px 34px rgba(25,90,55,.06)}
+.payment-action-panel h2{font-size:22px;letter-spacing:-.03em;margin:6px 0}
+.payment-action-panel p{font-size:12px;color:var(--tc-muted);line-height:1.55;margin:0;max-width:520px}
+.payment-action-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;min-width:340px}
+.payment-done-btn,.payment-retry-btn{min-height:52px;border:0;border-radius:13px;padding:0 15px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:850;cursor:pointer;transition:.2s}
+.payment-done-btn{background:#16834f;color:#fff;box-shadow:0 10px 24px rgba(22,131,79,.2)}
+.payment-done-btn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(22,131,79,.25)}
+.payment-retry-btn{background:#fff;border:1px solid #dbe4df;color:#26312c}
+.payment-retry-btn:hover{border-color:#b8cfc3;background:#f8fbf9}
+.payment-done-btn:disabled,.payment-retry-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.payment-action-error{margin-top:10px;padding:10px 12px;border-radius:10px;background:#fff4f4;color:#a84545;font-size:11px}
+.verification-live{margin-top:14px;padding:14px 16px;border:1px solid #cfe7da;border-radius:15px;background:#f5fcf8;display:flex;align-items:center;gap:11px}
+.verification-live>div{display:grid;gap:3px;flex:1}
+.verification-live strong{font-size:12px}
+.verification-live small{font-size:10px;color:#6f7b75}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#20a966;box-shadow:0 0 0 5px rgba(32,169,102,.11);animation:liveBlink 1.2s infinite}
+.verification-spinner{width:18px;height:18px;border:2px solid #cce6d8;border-top-color:#16834f;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes liveBlink{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.delivery-modal-backdrop{position:fixed;inset:0;z-index:120;background:rgba(11,19,15,.56);backdrop-filter:blur(10px);display:grid;place-items:center;padding:18px;animation:modalFade .2s ease}
+.delivery-modal{width:min(100%,560px);background:#fff;border:1px solid #dce9e1;border-radius:28px;padding:30px;position:relative;box-shadow:0 35px 100px rgba(0,0,0,.24);text-align:center;animation:modalRise .28s cubic-bezier(.2,.8,.2,1)}
+.delivery-close{position:absolute;right:16px;top:16px;width:36px;height:36px;border:1px solid #e1e8e4;background:#fff;border-radius:11px;display:grid;place-items:center;cursor:pointer;color:#5e6964}
+.delivery-success-mark{width:64px;height:64px;margin:0 auto 15px;border-radius:20px;background:#eaf8f0;color:#16834f;display:grid;place-items:center;box-shadow:0 0 0 9px #f4fbf7}
+.delivery-modal h2{font-size:30px;letter-spacing:-.045em;margin:9px 0}
+.delivery-modal>p{font-size:12px;color:var(--tc-muted);line-height:1.6;max-width:430px;margin:0 auto 22px}
+.delivery-choice-grid{display:grid;gap:11px;text-align:left}
+.delivery-choice{width:100%;border:1px solid #dfe8e3;background:#fff;border-radius:16px;padding:14px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;cursor:pointer;transition:.2s}
+.delivery-choice:hover{transform:translateY(-2px);border-color:#a9ccb8;box-shadow:0 12px 28px rgba(20,80,50,.09)}
+.delivery-choice>span:nth-child(2){display:grid;gap:3px}
+.delivery-choice strong{font-size:13px}
+.delivery-choice small{font-size:10px;color:#7b8681}
+.delivery-icon{width:46px;height:46px;border-radius:14px;display:grid;place-items:center}
+.whatsapp-icon{background:#eaf9f0;color:#16834f}
+.gmail-icon{background:#fff0f0;color:#d94b45}
+.delivery-choice>svg{color:#93a09a}
+.delivery-note{margin-top:16px;padding:10px 12px;border-radius:11px;background:#f6f9f7;color:#68746e;font-size:10px;display:flex;align-items:center;justify-content:center;gap:6px}
+.delivery-note svg{color:#16834f}
+.order-sent-animation{min-height:360px;display:grid;place-items:center;align-content:center;gap:8px;position:relative;overflow:hidden}
+.order-sent-animation:before,.order-sent-animation:after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(39,165,107,.18);animation:sentRipple 1.8s ease-out infinite}
+.order-sent-animation:before{width:180px;height:180px}
+.order-sent-animation:after{width:270px;height:270px;animation-delay:.35s}
+.sent-orbit{position:absolute;width:310px;height:310px;border-radius:50%;border:1px dashed rgba(39,165,107,.18);animation:spin 7s linear infinite}
+.sent-orbit span{position:absolute;top:19px;left:50%;width:10px;height:10px;border-radius:50%;background:#20a966;box-shadow:0 0 0 7px rgba(32,169,102,.1)}
+.sent-check{width:88px;height:88px;border-radius:28px;background:#e9f9ef;color:#16834f;display:grid;place-items:center;position:relative;z-index:2;box-shadow:0 15px 35px rgba(22,131,79,.15);animation:sentPop .55s cubic-bezier(.2,.8,.2,1)}
+.order-sent-animation h2{font-size:29px;letter-spacing:-.045em;margin:4px 0;position:relative;z-index:2}
+.order-sent-animation p{font-size:11px;color:#738079;position:relative;z-index:2}
+.sent-progress{width:180px;height:4px;border-radius:9px;background:#edf3ef;overflow:hidden;position:relative;z-index:2;margin-top:10px}
+.sent-progress span{display:block;width:45%;height:100%;background:#20a966;border-radius:9px;animation:sentProgress 1.3s ease-in-out infinite}
+@keyframes sentPop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+@keyframes sentRipple{0%{transform:scale(.6);opacity:.65}100%{transform:scale(1.3);opacity:0}}
+@keyframes sentProgress{0%{transform:translateX(-110%)}100%{transform:translateX(420%)}}
+@keyframes modalFade{from{opacity:0}to{opacity:1}}
+@keyframes modalRise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:760px){
+ .order-success-rich{padding:32px 18px}
+ .success-order{grid-template-columns:1fr 1fr}
+ .success-order .success-status{grid-column:1/-1}
+ .order-confirmation-grid{grid-template-columns:1fr}
+ .payment-action-panel{display:grid;padding:18px}
+ .payment-action-buttons{min-width:0;grid-template-columns:1fr}
+ .delivery-modal{padding:25px 18px;border-radius:23px}
+ .delivery-modal h2{font-size:26px}
+}
+@media(max-width:520px){
+ .order-success-rich>h1{font-size:33px}
+ .confirmation-item{grid-template-columns:auto 1fr}
+ .confirmation-item>b{grid-column:2}
+ .success-order{grid-template-columns:1fr}
+ .success-order .success-status{grid-column:auto}
+ .payment-action-buttons{grid-template-columns:1fr}
+ .delivery-choice{padding:12px}
+}
