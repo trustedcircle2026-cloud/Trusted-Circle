@@ -22,14 +22,22 @@ function adminAddPaymentLinkStockBulk_(data){
       seen[link]=true;added.push({PaymentLinkStockID:id,Denomination:denomination,Status:'AVAILABLE',providerLinkId:providerLinkId||''});
     });
     appendAudit_(admin.UserID,'PAYMENT_LINK_STOCK_BULK_ADDED','PaymentLinkStock','',{count:added.length,skipped:skipped.length});
+    TC_ALLOWED_STOCK_DENOMS.forEach(function(d){
+      try{maybeAlertPaymentLinkStockLow_(d,{requestedAmount:d});}catch(err){console.error('Low-stock alert failed for '+d+': '+String(err&&err.message||err));}
+    });
     return{added:added.length,skipped:skipped.length,details:{added:added,skipped:skipped}};
   }finally{lock.releaseLock();}
 }
 function markPaymentLinkStockUsedForOrder_(orderId,now){
   if(!orderId)return;
   try{
-    getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(l){return String(l.OrderID)===String(orderId)&&l.PaymentLinkStockID;}).forEach(function(l){
+    var links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(l){return String(l.OrderID)===String(orderId)&&l.PaymentLinkStockID;});
+    links.forEach(function(l){
       updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',l.PaymentLinkStockID,{Status:'USED',OrderID:orderId,PaymentLinkID:l.PaymentLinkID,UpdatedAt:now||isoNow_()});
+      var stock=findOne_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',l.PaymentLinkStockID);
+      if(stock){
+        try{maybeAlertPaymentLinkStockLow_(Number(stock.Denomination||0),{requestedAmount:Number(stock.Denomination||0),orderId:orderId});}catch(ignore){}
+      }
     });
   }catch(ignore){}
 }
