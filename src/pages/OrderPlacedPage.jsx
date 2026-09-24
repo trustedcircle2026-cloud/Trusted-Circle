@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,FileText,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
+import { CheckCircle2,ChevronRight,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
