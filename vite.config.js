@@ -11,8 +11,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         admin: 'admin.html',
-        books: 'books.html',
-        cards: 'cards.html'
+        admin: 'admin.html'
       }
     }
   }
