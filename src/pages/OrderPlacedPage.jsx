@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,Clock3,FileText,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Smartphone,X } from 'lucide-react'
+import { CheckCircle2,ChevronRight,FileText,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
@@ -127,21 +127,21 @@ Payment has been verified. Please send my digital voucher.`
   return <main className="page-shell order-placed-page"><section className="order-success order-success-rich">
     <div className={`success-ring success-pop status-${statusTone}`}><CheckCircle2 size={42}/></div>
     <span className="eyebrow">{paymentState==='PAID'?'PAYMENT VERIFIED':'ORDER RECEIVED'}</span>
-    <h1>{paymentState==='PAID'?'Payment verified.':'Your order is received.'}</h1>
-    <p className="success-lead">{paymentState==='PAID'?'Your payment is verified. Choose how you want us to send the voucher.':'Complete the payment, then tell us when it is done. We will check it and unlock voucher delivery.'}</p>
+    <h1>{paymentState==='PAID'?'Payment verified':'Order received'}</h1>
+    <p className="success-lead">{paymentState==='PAID'?'Your payment is verified.':'Complete payment and confirm it below.'}</p>
 
-    {order?.order&&<div className="success-order"><div><small>ORDER</small><strong>{orderNumber}</strong></div><div><small>PAY NOW</small><strong>{money(order.order.Total)}</strong></div><div className={`success-status ${statusTone}`}><small>STATUS</small><strong>{statusLabel}</strong></div></div>}
+    {order?.order&&<div className="success-order"><div><small>ORDER</small><strong>{orderNumber}</strong></div><div><small>TOTAL</small><strong>{money(order.order.Total)}</strong></div><div className={`success-status ${statusTone}`}><small>STATUS</small><strong>{statusLabel}</strong></div></div>}
+
+    {paymentState!=='PAID'&&<div className="payment-action-panel"><div><span className="eyebrow">PAYMENT</span><h2>Select payment status</h2></div><div className="payment-action-buttons"><button className="payment-done-btn" onClick={requestPaymentCheck} disabled={paymentRequesting||paymentState==='PAYMENT_PROCESSING'}><CheckCircle2 size={19}/>{paymentRequesting?'Sending…':paymentState==='PAYMENT_PROCESSING'?'Checking…':'Payment Done'}</button><button className="payment-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={18}/>{retrying?'Opening…':'Payment Failed · Retry'}</button></div>{paymentError&&<div className="payment-action-error">{paymentError}</div>}</div>}
+
+    {paymentState==='PAYMENT_PROCESSING'&&<div className="verification-live"><span className="live-dot"></span><div><strong>Payment check sent</strong><small>Waiting for verification.</small></div><span className="verification-spinner"></span></div>}
 
     <div className="order-confirmation-grid"><div className="confirmation-card"><div className="confirmation-card-head"><PackageCheck size={18}/><div><span className="eyebrow">ORDER</span><h2>Voucher details</h2></div></div>
       {items.length?items.map((item,index)=><div className="confirmation-item" key={`${item.title}-${index}`}><BrandLogo name={item.brand} size="md"/><div><strong>{item.brand}</strong><span>{item.title}</span><small>{money(item.faceValue)} × {item.quantity}</small></div><b>{money(item.total)}</b></div>):null}
-      <div className="confirmation-totals"><div><span>Voucher value</span><b>{money(order?.snapshot?.subtotal)}</b></div><div><span>Cashback after payment</span><b>+ {money(order?.snapshot?.cashback||order?.snapshot?.savings)}</b></div><div className="grand"><span>Pay now</span><strong>{money(order?.snapshot?.total||order?.order?.Total)}</strong></div></div>
-    </div><div className="confirmation-side"><div className="next-card"><Clock3 size={18}/><div><strong>{paymentState==='PAID'?'Ready to send':'What happens next?'}</strong><span>{paymentState==='PAID'?'Choose WhatsApp or Email below and we will open it for you.':'After you tap Payment Done, the admin receives a secure payment-check email with direct action buttons.'}</span></div></div><div className="customer-card"><span className="eyebrow">CUSTOMER</span><strong>{order?.snapshot?.user?.name||'Trusted Circle Member'}</strong><span>{order?.snapshot?.user?.email||'—'}</span></div></div></div>
+      <div className="confirmation-totals"><div><span>Voucher value</span><b>{money(order?.snapshot?.subtotal)}</b></div><div><span>Cashback</span><b>+ {money(order?.snapshot?.cashback||order?.snapshot?.savings)}</b></div><div className="grand"><span>Total</span><strong>{money(order?.snapshot?.total||order?.order?.Total)}</strong></div></div>
+    </div><div className="confirmation-side"><div className="next-card"><strong>{paymentState==='PAID'?'Ready to send':'Payment status'}</strong><span>{paymentState==='PAID'?'Choose a delivery option.':'Update the payment status above.'}</span></div><div className="customer-card"><span className="eyebrow">CUSTOMER</span><strong>{order?.snapshot?.user?.name||'Trusted Circle Member'}</strong><span>{order?.snapshot?.user?.email||'—'}</span></div></div></div>
 
-    {paymentState!=='PAID'&&<div className="payment-action-panel"><div><span className="eyebrow">PAYMENT ACTION</span><h2>Did you complete the payment?</h2><p>Use one clear action below. Payment Done sends the admin verification request; Retry opens the payment link again.</p></div><div className="payment-action-buttons"><button className="payment-done-btn" onClick={requestPaymentCheck} disabled={paymentRequesting||paymentState==='PAYMENT_PROCESSING'}><CheckCircle2 size={19}/>{paymentRequesting?'Sending…':paymentState==='PAYMENT_PROCESSING'?'Payment check sent':'Payment Done'}</button><button className="payment-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={18}/>{retrying?'Opening…':'Payment Failed · Retry'}</button></div>{paymentError&&<div className="payment-action-error">{paymentError}</div>}</div>}
-
-    {paymentState==='PAYMENT_PROCESSING'&&<div className="verification-live"><span className="live-dot"></span><div><strong>Payment checking in progress</strong><small>We are waiting for admin verification. This screen updates automatically.</small></div><span className="verification-spinner"></span></div>}
-
-    <div className="success-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onOrders()}}><FileText size={17}/> View placed order</button><button className="btn-quiet" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Buy a new voucher</button></div>
+    {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onOrders()}}><FileText size={17}/> My orders</button><button className="btn-quiet" onClick={()=>{clearHandoff();onShop()}}><Home size={17}/> Home</button></div>}
   </section>
 
   {deliveryOpen&&<div className="delivery-modal-backdrop" role="dialog" aria-modal="true"><div className="delivery-modal">
