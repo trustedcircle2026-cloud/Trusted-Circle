@@ -50,6 +50,17 @@ var OrderService={
     var plId=newId_('TCPL'),expiresAt=new Date(Date.now()+TC_PAYMENT_LINK_TTL_MS).toISOString();
     appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINKS,{PaymentLinkID:plId,OrderID:orderId,Link:stock.Link,Label:stock.Label||'Pay securely',Status:'ACTIVE',PaymentLinkStockID:stock.PaymentLinkStockID,ProviderLinkID:stock.ProviderLinkID||'',CreatedAt:now,UpdatedAt:now});
     updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'RESERVED',OrderID:orderId,PaymentLinkID:plId,ReservedAt:now,ExpiresAt:expiresAt,UpdatedAt:now});
+    try{
+      if(typeof maybeAlertPaymentLinkStockLow_==='function'){
+        maybeAlertPaymentLinkStockLow_(Number(stock.Denomination||subtotal),{
+          requestedAmount:Number(stock.Denomination||subtotal),
+          orderId:orderId,
+          userId:user.UserID,
+          userEmail:user.Email,
+          userName:user.Name
+        });
+      }
+    }catch(alertError){console.error('Payment-link low-stock alert failed: '+String(alertError&&alertError.message||alertError));}
     var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===orderId;});
     if(!payments.length)appendRowObject_(TC_CONFIG.SHEETS.PAYMENTS,{PaymentID:newId_('TCPAY'),OrderID:orderId,Provider:'PAYMENT_LINK',ProviderOrderID:orderNumber,ProviderPaymentID:'',Amount:subtotal,Currency:'INR',Status:'PENDING',VerifiedAt:'',CreatedAt:now,UpdatedAt:now});
     var createdOrder=getOrder_(user.UserID,orderId);
@@ -109,8 +120,8 @@ function expirePaymentLinkReservations_(){
   updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'AVAILABLE',OrderID:'',PaymentLinkID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:updated});
   if(paymentLinkId){try{updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINKS,'PaymentLinkID',paymentLinkId,{Status:'EXPIRED',UpdatedAt:updated});}catch(ignore){}}
   if(orderId){try{var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);if(order&&String(order.Status||'').toUpperCase()==='PENDING_PAYMENT')updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId,{UpdatedAt:updated});}catch(ignore2){}}
- });
-}
+ }
+});
 function ensurePaymentLinkExpiryTrigger_(){
  var triggers=ScriptApp.getProjectTriggers();
  var exists=triggers.some(function(t){return t.getHandlerFunction()==='expirePaymentLinkReservations_';});
@@ -157,8 +168,19 @@ function requestPaymentLink_(data){
   var now=isoNow(),expiresAt=new Date(Date.now()+TC_PAYMENT_LINK_TTL_MS).toISOString(),plId=newId_('TCPL');
   appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINKS,{PaymentLinkID:plId,OrderID:orderId,Link:stock.Link,Label:stock.Label||'Pay securely',Status:'ACTIVE',PaymentLinkStockID:stock.PaymentLinkStockID,ProviderLinkID:stock.ProviderLinkID||'',CreatedAt:now,UpdatedAt:now});
   updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'RESERVED',OrderID:orderId,PaymentLinkID:plId,ReservedAt:now,ExpiresAt:expiresAt,UpdatedAt:now});
+  try{
+    if(typeof maybeAlertPaymentLinkStockLow_==='function'){
+      maybeAlertPaymentLinkStockLow_(Number(stock.Denomination||order.Total||0),{
+        requestedAmount:Number(stock.Denomination||order.Total||0),
+        orderId:orderId,
+        userId:user.UserID,
+        userEmail:user.Email,
+        userName:user.Name
+      });
+    }
+  }catch(alertError){console.error('Payment-link low-stock alert failed: '+String(alertError&&alertError.message||alertError));}
   var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===orderId;});
-  if(!payments.length)appendRowObject_(TC_CONFIG.SHEETS.PAYMENTS,{PaymentID:newId_('TCPAY'),OrderID:order.OrderNumber,Provider:'PAYMENT_LINK',ProviderOrderID:order.OrderNumber,ProviderPaymentID:'',Amount:Number(order.Total||0),Currency:'INR',Status:'PENDING',VerifiedAt:'',CreatedAt:now,UpdatedAt:now});
+  if(!payments.length)appendRowObject_(TC_CONFIG.SHEETS.PAYMENTS,{PaymentID:newId_('TCPAY'),OrderID:orderId,Provider:'PAYMENT_LINK',ProviderOrderID:order.OrderNumber,ProviderPaymentID:'',Amount:Number(order.Total||0),Currency:'INR',Status:'PENDING',VerifiedAt:'',CreatedAt:now,UpdatedAt:now});
   enqueuePaymentLinkEmail_(order,user,stock.Link,stock.Label||'Pay securely');
   return{paymentLink:findOne_(TC_CONFIG.SHEETS.PAYMENT_LINKS,'PaymentLinkID',plId),expiresAt:expiresAt,order:getOrder_(user.UserID,orderId)};
  }finally{lock.releaseLock();}
