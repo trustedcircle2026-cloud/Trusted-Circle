@@ -114,3 +114,75 @@
  .tc-login-card{margin:0;padding:26px 22px 30px}
  .tc-login-card-head h2{font-size:27px}
 }
+
+/* =========================================================
+   TRUSTED CIRCLE — OPERATIONS ERP SHELL
+   ========================================================= */
+.tc-admin-shell{background:#f4f8f5!important;color:#17231d!important}
+.tc-erp-sidebar{background:linear-gradient(180deg,#07140d 0%,#0b1b12 52%,#07120c 100%)!important;border-right:1px solid rgba(255,255,255,.07);box-shadow:14px 0 45px rgba(4,18,10,.08);position:relative!important;overflow:hidden!important}
+.tc-erp-sidebar:before{content:"";position:absolute;width:240px;height:240px;left:-145px;top:95px;border-radius:50%;background:radial-gradient(circle,rgba(52,192,112,.16),transparent 68%);pointer-events:none}
+.tc-erp-sidebar:after{content:"";position:absolute;right:-100px;bottom:-110px;width:230px;height:230px;border-radius:50%;border:1px solid rgba(99,219,149,.08);box-shadow:0 0 0 28px rgba(99,219,149,.025),0 0 0 56px rgba(99,219,149,.015);pointer-events:none}
+.tc-erp-brand{position:relative;z-index:2;height:76px;box-sizing:border-box;padding:15px 14px!important;border-bottom:1px solid rgba(255,255,255,.075)!important}
+.tc-brand-home{width:42px;height:42px;flex:0 0 42px;border:0;border-radius:14px;padding:3px;background:#fff;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.16);transition:.2s}
+.tc-brand-home:hover{transform:translateY(-1px);box-shadow:0 11px 28px rgba(45,192,112,.18)}
+.tc-brand-home img{width:100%;height:100%;object-fit:cover;border-radius:11px}
+.tc-erp-brand div{min-width:0}
+.tc-erp-brand b{font-size:13px!important;color:#f0f8f3}
+.tc-erp-brand small{font-size:7px!important;letter-spacing:.18em!important;color:#64cf93!important}
+.tc-admin-nav{position:relative;z-index:2;padding:13px 10px!important}
+.tc-admin-label{font-size:7px!important;letter-spacing:.2em!important;color:#5f776a!important;font-weight:900!important;padding:15px 11px 7px!important}
+.tc-admin-nav button{position:relative;border:1px solid transparent!important;color:#91a79b!important;border-radius:11px!important;padding:10px 11px!important;margin:2px 0!important;font-size:10px!important;transition:.18s ease!important}
+.tc-admin-nav button:hover{background:rgba(91,207,139,.08)!important;color:#dff3e7!important;border-color:rgba(103,216,151,.08)!important}
+.tc-admin-nav button.active{background:linear-gradient(90deg,rgba(69,190,116,.19),rgba(69,190,116,.07))!important;color:#e9fff1!important;border-color:rgba(95,211,143,.17)!important;box-shadow:inset 3px 0 #42c77c,0 8px 22px rgba(0,0,0,.08)}
+.tc-admin-nav button.active svg:first-child{color:#65d79a}
+.tc-admin-count{background:#35bd74!important;color:#062414!important;box-shadow:0 0 0 4px rgba(53,189,116,.09)}
+.tc-admin-foot{position:relative;z-index:2;padding:14px 12px!important;border-top:1px solid rgba(255,255,255,.07)!important}
+.tc-admin-foot span{height:31px;padding:0 9px;border-radius:9px;background:rgba(71,202,126,.06);border:1px solid rgba(91,212,143,.08);color:#8ca59a!important}
+.tc-admin-foot i{background:#45d581!important;box-shadow:0 0 0 5px rgba(69,213,129,.09)}
+.tc-admin-foot button{border-color:rgba(255,255,255,.1)!important;color:#9eb0a6!important;transition:.18s}
+.tc-admin-foot button:hover{background:rgba(255,255,255,.05);color:#fff}
+.tc-command-header{height:76px!important;padding:0 24px!important;background:rgba(255,255,255,.92)!important;border-bottom:1px solid #dfe9e2!important;box-shadow:0 6px 25px rgba(24,76,47,.04);backdrop-filter:blur(16px);position:sticky!important}
+.tc-command-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.tc-command-menu{width:38px!important;height:38px!important;border:1px solid #dce7e0!important;border-radius:11px!important;background:#fff!important;color:#24312a!important;display:none!important;align-items:center;justify-content:center;padding:0!important}
+.tc-command-title{min-width:0}
+.tc-command-title small{font-size:7px!important;letter-spacing:.2em!important;color:#7d8b83!important;font-weight:900}
+.tc-command-title h1{font-size:20px!important;letter-spacing:-.045em!important;color:#17231d!important;margin:5px 0 0!important}
+.tc-command-actions{display:flex;align-items:center;gap:8px}
+.tc-live-pill{height:32px;padding:0 10px;border-radius:10px;background:#effaf3;border:1px solid #d8eddf;display:flex;align-items:center;gap:7px;color:#238353;font-size:8px;font-weight:950;letter-spacing:.1em}
+.tc-live-pill i{width:6px;height:6px;border-radius:50%;background:#28b76c;box-shadow:0 0 0 4px rgba(40,183,108,.1);animation:tcLivePulse 1.7s infinite}
+.tc-command-refresh{width:36px;height:36px;border:1px solid #dce7e0!important;background:#fff!important;border-radius:10px!important;display:grid!important;place-items:center!important;color:#53625a!important;padding:0!important;cursor:pointer}
+.tc-command-refresh:hover{border-color:#acd2bc!important;color:#16834f!important;background:#f7fcf9!important}
+.tc-command-profile{height:40px;border:1px solid #dce7e0;background:#fff;border-radius:12px;padding:0 10px 0 5px;display:flex;align-items:center;gap:8px;cursor:default}
+.tc-command-profile>span{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#e9f8ef,#ccebd9);color:#167648;display:grid;place-items:center;font-size:11px;font-weight:950}
+.tc-command-profile>div{display:grid;gap:2px;text-align:left}
+.tc-command-profile b{font-size:9px;color:#26332c}
+.tc-command-profile small{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:7px;color:#87938d}
+.tc-admin-alert{margin:13px 24px 0!important;border-radius:12px!important;box-shadow:0 8px 25px rgba(120,60,40,.04)}
+.tc-admin-main{background:linear-gradient(180deg,#f7faf8 0,#f3f7f4 100%)!important}
+.tc-admin-page{padding:28px!important}
+.tc-admin-hero h2,.tc-data-head h2{letter-spacing:-.055em!important}
+.tc-admin-hero>div:first-child small{color:#4d9c70!important}
+.tc-admin-hero>div:first-child p{color:#75827b!important}
+.tc-quick-card,.tc-kpi,.tc-priority,.tc-work-card,.tc-table-wrap,.tc-empty,.tc-filter-panel{box-shadow:0 7px 24px rgba(26,77,48,.035)}
+.tc-kpi{transition:.2s}
+.tc-kpi:hover{transform:translateY(-2px);box-shadow:0 13px 30px rgba(26,77,48,.08)}
+.tc-kpi span{background:#edf9f2!important;color:#18804c!important}
+.tc-priority{background:linear-gradient(110deg,#10261a,#0b1b12)!important;border:1px solid rgba(82,190,121,.12)}
+.tc-quick-card{transition:.2s}
+.tc-quick-card:hover{border-color:#b9d9c5;transform:translateY(-2px);box-shadow:0 12px 28px rgba(26,77,48,.07)}
+@keyframes tcLivePulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media(max-width:900px){
+ .tc-command-menu{display:flex!important}
+ .tc-command-actions .tc-live-pill{display:none}
+ .tc-command-profile>div{display:none}
+ .tc-command-profile{padding:0 5px}
+ .tc-command-header{height:64px!important;padding:0 13px!important}
+ .tc-command-title h1{font-size:17px!important}
+ .tc-admin-alert{margin:10px 13px 0!important}
+}
+@media(max-width:600px){
+ .tc-command-refresh{width:34px;height:34px}
+ .tc-command-profile{height:36px}
+ .tc-command-profile>span{width:28px;height:28px}
+ .tc-admin-page{padding:17px!important}
+}
