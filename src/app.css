@@ -139,3 +139,11 @@
 /* Shared header badge animation for cart and pending-order counts. */
 .header-tool b.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center;}
 @keyframes headerBadgePulse{0%{transform:scale(.65);opacity:.35}45%{transform:scale(1.22);opacity:1}72%{transform:scale(.94)}100%{transform:scale(1);opacity:1}}
+
+/* Cart and order counters use the same complete icon + badge motion. */
+.header-tool.header-count-bump{animation:headerToolCountBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center;}
+.header-tool.header-count-bump svg{animation:headerToolIconBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center;}
+.header-tool b.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center;}
+@keyframes headerToolCountBump{0%{transform:scale(.88)}35%{transform:scale(1.08)}65%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes headerToolIconBump{0%{transform:scale(.82) rotate(-8deg)}30%{transform:scale(1.18) rotate(7deg)}55%{transform:scale(.96) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes headerBadgePulse{0%{transform:scale(.65);opacity:.35}45%{transform:scale(1.22);opacity:1}72%{transform:scale(.94)}100%{transform:scale(1);opacity:1}}
