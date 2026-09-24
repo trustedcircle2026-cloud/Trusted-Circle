@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {Activity,AlertTriangle,BarChart3,CheckCircle2,ChevronDown,ChevronRight,CircleDollarSign,ClipboardList,Database,Edit3,Filter,KeyRound,LayoutDashboard,Link2,LogOut,Menu,PackageCheck,Plus,RefreshCw,Search,ShieldCheck,ShoppingBag,Users,WalletCards,X} from 'lucide-react'
+import {Activity,AlertTriangle,BarChart3,CheckCircle2,ChevronDown,ChevronRight,CircleDollarSign,ClipboardList,Database,Edit3,Filter,KeyRound,LayoutDashboard,Link2,LogOut,Menu,PackageCheck,Plus,RefreshCw,Search,ShieldCheck,ShoppingBag,Users,WalletCards,X,Eye,EyeOff} from 'lucide-react'
 import {api} from './api'
 import './admin-workspace.css'
 import './admin-upgrade.css'
@@ -26,7 +26,37 @@ export default function AdminWorkspaceV2(){
  {active==='dashboard'?<Dashboard metrics={data?.metrics||{}} work={workItems.length} onWork={()=>open('work')} onOrders={()=>open('Orders')} onPayments={()=>open('Payments')} onCashback={()=>open('CashbackTransactions')} onStock={()=>open('PaymentLinkStock')}/>:active==='work'?<WorkQueue items={workItems} onOpen={setWork}/>:active==='reports'?<Reports metrics={data?.metrics||{}}/>:active==='all-data'?<AllData tables={tables} onOpen={open}/>:active==='PaymentLinkStock'?<StockPage rows={filtered} onAdd={()=>setStock(true)} onEdit={setEdit}/>:<DataPage title={title(active)} sheet={active} rows={filtered} columns={table?.columns||[]} idField={table?.idField} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} showFilter={showFilter} setShowFilter={setShowFilter} onEdit={setEdit} loading={loading}/>}</main>{work&&<WorkModal item={work} products={tables.Products?.rows||[]} token={token} onClose={()=>setWork(null)} onAction={workAction} onError={setError}/>} {edit&&<EditModal edit={edit} token={token} tables={tables} onClose={()=>setEdit(null)} onDone={()=>{setEdit(null);open(active)}} onError={setError}/>} {stock&&<StockModal token={token} onClose={()=>setStock(false)} onDone={()=>{setStock(false);open('PaymentLinkStock')}} onError={setError}/>}</div>
 }
 function apiError(e){const m=String(e?.message||'Request failed.');return /API request failed \(404\)/i.test(m)?'ERP backend returned 404. The Apps Script Web App deployment must be updated to the current Code.gs version, using the same Web App URL.':m}
-function Login({login,setLogin,loading,error,onSubmit}){return <div className="admin-login"><div className="admin-login-panel"><div className="admin-login-logo"><img src={LOGO}/></div><span className="admin-eyebrow">PRIVATE OPERATIONS</span><h2>Trusted Circle ERP</h2><p>Fast operations workspace for payments, vouchers, cashback and customers.</p><form onSubmit={onSubmit}><label>Email<input type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} required autoComplete="username"/></label><label>Password<input type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password"/></label>{error&&<div className="admin-login-error">{error}</div>}<button className="admin-primary" disabled={loading}>{loading?'Signing in…':'Enter operations ERP'}<ChevronRight size={16}/></button></form></div><div className="admin-login-side"><span>OPERATE WITH CLARITY</span><h1>Everything<br/><em>visible.</em></h1><p>Open a menu to fetch its latest records. The dashboard loads only the summary needed for operations.</p><div className="login-flow"><b>01</b><span>Verify payments</span><b>02</b><span>Deliver vouchers</span><b>03</b><span>Process cashback</span></div></div></div>}
+function Login({login,setLogin,loading,error,onSubmit}){
+ const[showPassword,setShowPassword]=useState(false)
+ return <div className="tc-login-screen">
+   <div className="tc-login-orb orb-one"></div><div className="tc-login-orb orb-two"></div><div className="tc-login-grid"></div>
+   <div className="tc-login-shell">
+     <section className="tc-login-brand-panel">
+       <div className="tc-login-brand-mark"><img src={LOGO} alt="Trusted Circle"/></div>
+       <div className="tc-login-brand-name">Trusted Circle</div>
+       <span className="tc-login-kicker">OPERATIONS CONTROL CENTRE</span>
+       <h1>Run every<br/><span>operation</span> with clarity.</h1>
+       <p>Orders, payments, vouchers, cashback and customers — one secure workspace.</p>
+       <div className="tc-login-flow">
+         <div><b>01</b><span>Monitor orders</span></div><i></i><div><b>02</b><span>Verify payments</span></div><i></i><div><b>03</b><span>Complete delivery</span></div>
+       </div>
+       <div className="tc-login-live"><span></span><b>Backend connected</b><small>Trusted Circle Operations</small></div>
+     </section>
+     <section className="tc-login-card">
+       <div className="tc-login-card-top"><span>SECURE ACCESS</span><div className="tc-login-shield"><ShieldCheck size={18}/></div></div>
+       <div className="tc-login-card-head"><h2>Welcome back.</h2><p>Sign in to continue to the operations ERP.</p></div>
+       <form onSubmit={onSubmit} className="tc-login-form">
+         <label><span>Email address</span><div className="tc-login-input"><Users size={16}/><input type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} required autoComplete="username" placeholder="admin@trustedcircle.in"/></div></label>
+         <label><span>Password</span><div className="tc-login-input"><KeyRound size={16}/><input type={showPassword?'text':'password'} value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password" placeholder="Enter your password"/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'Hide password':'Show password'}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></label>
+         {error&&<div className="tc-login-error"><AlertTriangle size={15}/><span>{error}</span></div>}
+         <button className="tc-login-submit" disabled={loading}><span>{loading?'Authenticating…':'Enter Operations ERP'}</span>{loading?<RefreshCw size={17} className="tc-spin"/>:<ChevronRight size={18}/>}</button>
+       </form>
+       <div className="tc-login-footer"><ShieldCheck size={14}/><span>Protected operations access</span><i></i><small>Admin only</small></div>
+     </section>
+   </div>
+   <div className="tc-login-bottom">TRUSTED CIRCLE <span>•</span> OPERATIONS <span>•</span> SECURE ERP</div>
+ </div>
+}
 function Dashboard({metrics,work,onWork,onOrders,onPayments,onCashback,onStock}){return <section className="tc-admin-page"><div className="tc-admin-hero"><div><small>COMMAND CENTER</small><h2>Operations at a glance.</h2><p>One control surface for orders, payments, vouchers, cashback and link stock.</p></div><div className="tc-hero-actions"><button onClick={onWork}><ClipboardList size={16}/> Work Queue <ChevronRight size={14}/></button><button className="tc-hero-secondary" onClick={()=>window.location.reload()}><RefreshCw size={15}/> Refresh</button></div></div><div className="tc-kpis"><Kpi icon={ShoppingBag} label="Orders" value={metrics.orders} onClick={onOrders}/><Kpi icon={CircleDollarSign} label="Verified sales" value={MONEY(metrics.revenue)} onClick={onPayments}/><Kpi icon={WalletCards} label="Cashback" value={MONEY(metrics.cashback)} onClick={onCashback}/><Kpi icon={Link2} label="Available links" value={metrics.availableLinks} onClick={onStock}/><Kpi icon={ClipboardList} label="Open work" value={work} onClick={onWork}/></div><div className="tc-priority"><b>{work}</b><div><strong>Open admin work</strong><span>Verify payments → send vouchers → process cashback.</span></div><button onClick={onWork}>Open queue</button></div><div className="tc-quick"><Quick title="Orders" text="Fetch latest order records" icon={ShoppingBag} onClick={onOrders}/><Quick title="Payments" text="Review verified and pending payment records" icon={CircleDollarSign} onClick={onPayments}/><Quick title="Cashback" text="Review wallet and cashback transactions" icon={WalletCards} onClick={onCashback}/><Quick title="Payment Link Stock" text="Manage ₹500 / ₹1,000 / ₹1,500 / ₹2,000 links" icon={Link2} onClick={onStock}/></div></section>}
 
 function Kpi({icon:Icon,label,value,onClick}){return <button className="tc-kpi tc-kpi-button" onClick={onClick||(()=>{})} type="button"><span><Icon size={17}/></span><small>{label}</small><strong>{value??0}</strong><em>Open details <ChevronRight size={13}/></em></button>}
