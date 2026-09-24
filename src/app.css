@@ -106,3 +106,32 @@
  .payment-action-buttons{grid-template-columns:1fr}
  .delivery-choice{padding:12px}
 }
+
+/* Unlimited order verification state */
+.verification-live{margin-top:16px;padding:22px 20px;border:1px solid #cfe7da;border-radius:18px;background:linear-gradient(145deg,#f5fcf8,#ffffff);display:flex;align-items:center;gap:14px;box-shadow:0 12px 30px rgba(25,90,55,.06)}
+.verification-live>div{display:grid;gap:4px;flex:1}
+.verification-live strong{font-size:14px}
+.verification-live small{font-size:10px;color:#728078}
+.verification-spinner{width:20px;height:20px;border:2px solid #d7ebe0;border-top-color:#16834f;border-radius:50%;animation:spin .8s linear infinite}
+.order-waiting-screen{margin-top:16px;padding:28px 20px 24px;border:1px solid #dcebe2;border-radius:20px;background:#fff;text-align:center;box-shadow:0 14px 35px rgba(25,90,55,.06)}
+.order-waiting-screen .waiting-logo{width:58px;height:58px;border-radius:18px;object-fit:cover;display:block;margin:0 auto 13px;box-shadow:0 8px 22px rgba(20,80,50,.12)}
+.order-waiting-screen strong{display:block;font-size:16px}
+.order-waiting-screen p{margin:6px auto 17px;font-size:11px;color:#748079}
+.waiting-progress{width:min(420px,100%);height:7px;border-radius:99px;background:#eaf1ed;overflow:hidden;margin:0 auto}
+.waiting-progress span{display:block;width:38%;height:100%;border-radius:99px;background:linear-gradient(90deg,#16834f,#5ac48b,#16834f);background-size:200% 100%;animation:waitingBar 1.6s linear infinite}
+.waiting-caption{display:block!important;margin-top:9px;font-size:9px!important;color:#9aa49f!important}
+@keyframes waitingBar{0%{transform:translateX(-110%);background-position:0 0}100%{transform:translateX(300%);background-position:200% 0}}
+.order-rejected-state{text-align:center}
+.rejected-mark{width:78px;height:78px;margin:0 auto 16px;border-radius:24px;background:#fff0ee;color:#b34f45;display:grid;place-items:center;box-shadow:0 0 0 9px #fff7f5}
+.rejected-order-meta{max-width:720px;margin:22px auto 0}
+.success-order .success-status.rejected{background:#fff0ee;color:#a7473f}
+.rejected-contact-card{max-width:720px;margin:18px auto 0;padding:20px;border:1px solid #ecd9d5;border-radius:19px;background:linear-gradient(145deg,#fff9f8,#fff);display:flex;align-items:center;justify-content:space-between;gap:18px;text-align:left}
+.rejected-contact-card h2{margin:5px 0;font-size:20px}
+.rejected-contact-card p{margin:0;font-size:10px;line-height:1.5;color:#7b8580;max-width:440px}
+.rejected-contact-actions{display:flex;gap:10px;flex:none}
+.rejected-contact{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;text-decoration:none;transition:.2s}
+.rejected-contact:hover{transform:translateY(-2px)}
+.rejected-contact.whatsapp{background:#eaf9f0;color:#16834f}
+.rejected-contact.email{background:#fff0f0;color:#d94b45}
+.final-order-actions{justify-content:center}
+@media(max-width:600px){.rejected-contact-card{flex-direction:column;align-items:flex-start}.rejected-contact-actions{width:100%}.rejected-contact{flex:1}}
