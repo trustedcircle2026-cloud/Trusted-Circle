@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Download, FileText, Link2, PackageCheck, X, AlertTriangle } from 'lucide-react'
+import { ChevronDown, Download, FileText, Link2, PackageCheck, X, AlertTriangle, ShoppingBag, Home } from 'lucide-react'
 import { api } from '../api'
 import PaymentGateway from '../components/PaymentGateway'
 import './orders-page.css'
@@ -144,7 +144,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
           {expanded && <div className="order-details"><OrderDetails order={order} detail={detail} detailsLoading={detailsLoading} paymentPending={paymentPending} isCancelled={isCancelled} ready={ready} invoiceLoading={invoiceLoading} cancelLoading={cancelLoading} downloadInvoice={downloadInvoice} setPay={setPay} onCancel={setCancelTarget}/></div>}
         </article>
       })}</div> : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
-      <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBagIcon/> Shop more</button><button className="btn-quiet" onClick={onHome}><HomeIcon/> Home</button></div>
+      <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
     </div>
 
     {cancelTarget && <div className="cancel-confirm-backdrop" onClick={() => setCancelTarget(null)}><div className="cancel-confirm-modal" onClick={event => event.stopPropagation()}><div className="cancel-warning-icon"><AlertTriangle size={22}/></div><span className="eyebrow">CANCEL ORDER</span><h2>Cancel this order?</h2><p>This payment-pending order will be cancelled. You can create a new order later.</p><div className="cancel-confirm-actions"><button className="btn-quiet" onClick={() => setCancelTarget(null)}>Keep order</button><button className="cancel-confirm-btn" disabled={cancelLoading === cancelTarget.OrderID} onClick={() => cancel(cancelTarget)}>{cancelLoading === cancelTarget.OrderID ? 'Cancelling…' : 'Yes, cancel order'}</button></div></div></div>}
@@ -152,6 +152,3 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}><div className="order-pay-modal" onClick={event => event.stopPropagation()}><PaymentGateway mode="order" total={pay.Total} cashback={pay.Discount} orderId={pay.OrderID} qrUrl="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg" onBack={() => setPay(null)} /></div></div>}
   </main>
 }
-
-function ShoppingBagIcon(){ return <span aria-hidden="true">🛍️</span> }
-function HomeIcon(){ return <span aria-hidden="true">⌂</span> }
