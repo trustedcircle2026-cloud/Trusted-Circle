@@ -1,4 +1,4 @@
-import { useEffect,useMemo,useState } from 'react'
+import { useEffect,useState } from 'react'
 import { CheckCircle2,ChevronRight,Clock3,FileText,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Smartphone,X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
