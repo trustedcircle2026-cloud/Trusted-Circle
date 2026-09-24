@@ -1,100 +1,164 @@
-import {useEffect,useMemo,useState} from 'react'
-import {Activity,AlertTriangle,BarChart3,CheckCircle2,ChevronDown,ChevronRight,CircleDollarSign,ClipboardList,Database,Edit3,Filter,KeyRound,LayoutDashboard,Link2,LogOut,Menu,PackageCheck,Plus,RefreshCw,Search,ShieldCheck,ShoppingBag,Users,WalletCards,X,Eye,EyeOff} from 'lucide-react'
+import {useEffect,useState} from 'react'
+import {AlertTriangle,ChevronRight,Eye,EyeOff,KeyRound,LogOut,Menu,RefreshCw,ShieldCheck,Users,X} from 'lucide-react'
 import {api} from './api'
 import './admin-workspace.css'
 import './admin-upgrade.css'
+
 const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
-const MONEY=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`
-const fmt=v=>v==null?'':typeof v==='object'?JSON.stringify(v):String(v)
-const LABEL={Users:'Shoppers',Orders:'Orders',OrderItems:'Order Items',Payments:'Payments',PaymentLinks:'Payment Links',PaymentLinkRequests:'Link Requests',PaymentLinkStock:'Link Stock',Vouchers:'Vouchers',Products:'Products',Brands:'Brands',Cart:'Cart',Notifications:'Notifications',OTP:'OTP Logs',UserSessions:'Sessions',AuditLogs:'Web Activity',CashbackWallet:'Cashback Wallet',CashbackTransactions:'Cashback History',WalletRedemptions:'Cashback Payouts'}
-const SHEETS=Object.keys(LABEL)
-const MENU=[['COMMAND',[['dashboard','Dashboard',LayoutDashboard],['work','Work Queue',ClipboardList]]],['SALES',[['Orders','Orders',ShoppingBag],['Payments','Payments',CircleDollarSign],['PaymentLinks','Payment Links',Link2],['PaymentLinkStock','Link Stock',Database]]],['CATALOG',[['Products','Products',PackageCheck],['Brands','Brands',ShoppingBag]]],['FINANCE',[['WalletRedemptions','Cashback Payouts',WalletCards],['CashbackWallet','Cashback Wallet',WalletCards],['CashbackTransactions','Cashback History',Activity]]],['CUSTOMERS',[['Users','Shoppers',Users]]],['INSIGHTS',[['reports','Reports',BarChart3],['all-data','All Data',Database]]],['SYSTEM',[['AuditLogs','Web Activity',Activity],['Notifications','Notifications',Activity],['OTP','OTP Logs',KeyRound],['UserSessions','Sessions',ShieldCheck]]]]
+
 export default function AdminWorkspaceV2(){
- const[token,setToken]=useState(()=>localStorage.getItem('tc_erp_session')||''),[user,setUser]=useState(null),[login,setLogin]=useState({email:'trustedcircle2026@gmail.com',password:''}),[error,setError]=useState(''),[loading,setLoading]=useState(false),[data,setData]=useState(null),[active,setActive]=useState('dashboard'),[mobile,setMobile]=useState(false),[sidebarOpen,setSidebarOpen]=useState(()=>localStorage.getItem('tc_erp_sidebar')!=='closed'),[query,setQuery]=useState(''),[filter,setFilter]=useState({field:'',value:''}),[showFilter,setShowFilter]=useState(false),[edit,setEdit]=useState(null),[work,setWork]=useState(null),[workItems,setWorkItems]=useState([]),[stock,setStock]=useState(false)
- useEffect(()=>{if(window.location.hash.replace(/^#\/?/,'').startsWith('erp')){const t=localStorage.getItem('tc_erp_session');if(t){setToken(t);loadDashboard(t)}}},[])
- async function loadDashboard(t=token){setLoading(true);setError('');try{const d=await api.adminDashboard(t);setData(d);setUser(d.admin);try{const w=await api.adminWorklist(t);setWorkItems(w?.items||[])}catch(e){setWorkItems([]);setError(apiError(e))}}catch(e){localStorage.removeItem('tc_erp_session');setToken('');setUser(null);setData(null);setError(apiError(e))}finally{setLoading(false)}}
- async function open(id){setActive(id);setQuery('');setFilter({field:'',value:''});setShowFilter(false);if(mobile){setMobile(false);setSidebarOpen(false);localStorage.setItem('tc_erp_sidebar','closed')}if(id==='dashboard'){await loadDashboard();return}if(id==='work'){setLoading(true);try{const r=await api.adminWorklist(token);setWorkItems(r?.items||[])}catch(e){setError(apiError(e))}finally{setLoading(false)}return}if(id==='reports'){await loadDashboard();return}if(id==='all-data')return;if(SHEETS.includes(id)){setLoading(true);try{const r=await api.adminTable(token,id);setData(p=>({...p,tables:{...(p?.tables||{}),[id]:r.table}}))}catch(e){setError(apiError(e))}finally{setLoading(false)}}}
- async function loginSubmit(e){e.preventDefault();setLoading(true);setError('');try{const r=await api.adminLogin(login.email,login.password);localStorage.setItem('tc_erp_session',r.session.token);setToken(r.session.token);setUser(r.user);setData(null);await loadDashboard(r.session.token)}catch(e){setError(apiError(e))}finally{setLoading(false)}}
- async function workAction(action,item,reason=''){try{await api.adminWorklistAction(token,action,item.sheet,item.recordId,reason);setWork(null);await open('work')}catch(e){setError(apiError(e))}}
- function closeSidebar(){setSidebarOpen(false);setMobile(false);localStorage.setItem('tc_erp_sidebar','closed')}
- function openSidebar(){setSidebarOpen(true);setMobile(true);localStorage.setItem('tc_erp_sidebar','open')}
- function logout(){localStorage.removeItem('tc_erp_session');localStorage.removeItem('tc_erp_sidebar');setToken('');setUser(null);window.location.href='/admin.html'}
- const tables=data?.tables||{},table=tables[active],raw=table?.rows||[]
- const filtered=useMemo(()=>raw.filter(r=>{const q=!query||Object.values(r).some(v=>fmt(v).toLowerCase().includes(query.toLowerCase()));const f=!filter.value||String(r[filter.field]??'').toLowerCase()===String(filter.value).toLowerCase();return q&&f}),[raw,query,filter])
- if(!token||!user)return <Login login={login} setLogin={setLogin} loading={loading} error={error} onSubmit={loginSubmit}/>
- return <div className={`tc-admin-shell ${sidebarOpen?'sidebar-open':'sidebar-closed'}`}><aside className={`tc-admin-sidebar tc-erp-sidebar ${mobile?'open':''}`}><div className="tc-admin-brand tc-erp-brand"><button className="tc-brand-home" onClick={()=>window.location.assign('/')} title="Trusted Circle home"><img src={LOGO} alt="Trusted Circle"/></button><div><b>Trusted Circle</b><small>OPERATIONS ERP</small></div><button className="tc-sidebar-close" onClick={closeSidebar} title="Close menu"><X size={17}/></button></div><nav className="tc-admin-nav">{MENU.map(([section,items])=><div key={section}><div className="tc-admin-label">{section}</div>{items.map(([id,text,Icon])=><button key={id} className={active===id?'active':''} onClick={()=>open(id)}><Icon size={16}/><span>{text}</span>{id==='work'&&workItems.length>0&&<b className="tc-admin-count">{workItems.length}</b>}{active===id&&<ChevronRight size={14}/>}</button>)}</div>)}</nav><div className="tc-admin-foot"><span><i/> Live backend</span><button onClick={logout}><LogOut size={15}/> Sign out</button></div></aside><main className="tc-admin-main"><header className="tc-admin-header tc-command-header">
- <div className="tc-command-left">
-  <button className="tc-admin-mobile tc-command-menu" onClick={sidebarOpen?closeSidebar:openSidebar} title={sidebarOpen?'Close menu':'Open menu'}><Menu size={19}/></button>
-  <div className="tc-command-title"><small>TRUSTED CIRCLE / OPERATIONS</small><h1>{title(active)}</h1></div>
- </div>
- <div className="tc-command-actions">
-  <div className="tc-live-pill"><i></i><span>LIVE</span></div>
-  <button className="tc-command-refresh" onClick={()=>open(active)} title="Refresh current page"><RefreshCw size={16} className={loading?'tc-spin':''}/></button>
-  <button className="tc-command-profile" title={user.email}><span>{String(user.email||'A').slice(0,1).toUpperCase()}</span><div><b>Admin</b><small>{user.email}</small></div></button>
- </div>
-</header>{error&&<div className="tc-admin-alert"><AlertTriangle size={15}/><span>{error}</span><button onClick={()=>setError('')}><X size={14}/></button></div>}
- {active==='dashboard'?<Dashboard metrics={data?.metrics||{}} work={workItems.length} onWork={()=>open('work')} onOrders={()=>open('Orders')} onPayments={()=>open('Payments')} onCashback={()=>open('CashbackTransactions')} onStock={()=>open('PaymentLinkStock')}/>:active==='work'?<WorkQueue items={workItems} onOpen={setWork}/>:active==='reports'?<Reports metrics={data?.metrics||{}}/>:active==='all-data'?<AllData tables={tables} onOpen={open}/>:active==='PaymentLinkStock'?<StockPage rows={filtered} onAdd={()=>setStock(true)} onEdit={setEdit}/>:<DataPage title={title(active)} sheet={active} rows={filtered} columns={table?.columns||[]} idField={table?.idField} query={query} setQuery={setQuery} filter={filter} setFilter={setFilter} showFilter={showFilter} setShowFilter={setShowFilter} onEdit={setEdit} loading={loading}/>}</main>{work&&<WorkModal item={work} products={tables.Products?.rows||[]} token={token} onClose={()=>setWork(null)} onAction={workAction} onError={setError}/>} {edit&&<EditModal edit={edit} token={token} tables={tables} onClose={()=>setEdit(null)} onDone={()=>{setEdit(null);open(active)}} onError={setError}/>} {stock&&<StockModal token={token} onClose={()=>setStock(false)} onDone={()=>{setStock(false);open('PaymentLinkStock')}} onError={setError}/>}</div>
+  const[token,setToken]=useState(()=>localStorage.getItem('tc_erp_session')||'')
+  const[user,setUser]=useState(null)
+  const[login,setLogin]=useState({email:'trustedcircle2026@gmail.com',password:''})
+  const[error,setError]=useState('')
+  const[loading,setLoading]=useState(false)
+  const[menuOpen,setMenuOpen]=useState(false)
+
+  useEffect(()=>{
+    if(!window.location.hash.replace(/^#\\/?/,'').startsWith('erp'))return
+    const t=localStorage.getItem('tc_erp_session')
+    if(t)restore(t)
+  },[])
+
+  async function restore(t){
+    setLoading(true)
+    setError('')
+    try{
+      const r=await api.adminDashboard(t)
+      setToken(t)
+      setUser(r?.admin||JSON.parse(localStorage.getItem('tc_erp_admin_user')||'null')||{email:'trustedcircle2026@gmail.com'})
+    }catch(e){
+      localStorage.removeItem('tc_erp_session')
+      setToken('')
+      setUser(null)
+      setError(apiError(e))
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  async function loginSubmit(e){
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try{
+      const r=await api.adminLogin(login.email,login.password)
+      localStorage.setItem('tc_erp_session',r.session.token)
+      localStorage.setItem('tc_erp_admin_user',JSON.stringify(r.user||{}))
+      setToken(r.session.token)
+      setUser(r.user)
+      setMenuOpen(false)
+    }catch(e){
+      setError(apiError(e))
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  function logout(){
+    localStorage.removeItem('tc_erp_session')
+    localStorage.removeItem('tc_erp_admin_user')
+    localStorage.removeItem('tc_erp_sidebar')
+    setToken('')
+    setUser(null)
+    setMenuOpen(false)
+    window.location.href='/admin.html'
+  }
+
+  if(!token||!user)return <Login login={login} setLogin={setLogin} loading={loading} error={error} onSubmit={loginSubmit}/>
+
+  return <div className="tc-admin-shell tc-erp-minimal">
+    <aside className={`tc-admin-sidebar tc-erp-sidebar tc-minimal-sidebar ${menuOpen?'open':''}`}>
+      <div className="tc-admin-brand tc-erp-brand">
+        <button className="tc-brand-home" onClick={()=>window.location.assign('/')} title="Trusted Circle home">
+          <img src={LOGO} alt="Trusted Circle"/>
+        </button>
+        <div><b>Trusted Circle</b><small>OPERATIONS ERP</small></div>
+        <button className="tc-sidebar-close" onClick={()=>setMenuOpen(false)} title="Close menu"><X size={17}/></button>
+      </div>
+      <div className="tc-minimal-sidebar-body">
+        <span>MENU</span>
+        <p>Admin pages will be added here as required.</p>
+      </div>
+      <div className="tc-admin-foot">
+        <span><i/> Live backend</span>
+        <button onClick={logout}><LogOut size={15}/> Sign out</button>
+      </div>
+    </aside>
+
+    <main className="tc-admin-main tc-minimal-main">
+      <header className="tc-admin-header tc-command-header tc-minimal-header">
+        <div className="tc-command-left">
+          <button className="tc-command-menu tc-command-menu-always" onClick={()=>setMenuOpen(v=>!v)} title={menuOpen?'Close menu':'Open menu'} aria-label={menuOpen?'Close menu':'Open menu'}>
+            <Menu size={19}/>
+          </button>
+          <button className="tc-header-logo" onClick={()=>window.location.assign('/')} title="Trusted Circle home">
+            <img src={LOGO} alt="Trusted Circle"/>
+          </button>
+          <div className="tc-command-title">
+            <small>TRUSTED CIRCLE / OPERATIONS</small>
+            <h1>Admin</h1>
+          </div>
+        </div>
+        <div className="tc-command-actions">
+          <div className="tc-live-pill"><i></i><span>LIVE</span></div>
+          <button className="tc-command-refresh" onClick={()=>restore(token)} title="Refresh"><RefreshCw size={16} className={loading?'tc-spin':''}/></button>
+          <button className="tc-command-profile" title={user.email}>
+            <span>{String(user.email||'A').slice(0,1).toUpperCase()}</span>
+            <div><b>Admin</b><small>{user.email}</small></div>
+          </button>
+        </div>
+      </header>
+
+      {error&&<div className="tc-admin-alert"><AlertTriangle size={15}/><span>{error}</span><button onClick={()=>setError('')}><X size={14}/></button></div>}
+
+      <section className="tc-admin-page tc-empty-admin-page">
+        <div className="tc-empty-admin-card">
+          <div className="tc-empty-admin-icon"><ShieldCheck size={25}/></div>
+          <small>ADMIN WORKSPACE</small>
+          <h2>Ready for the required pages.</h2>
+          <p>All previous admin pages and navigation have been removed. The next admin page will be added only from the required UI specification.</p>
+        </div>
+      </section>
+    </main>
+  </div>
 }
-function apiError(e){const m=String(e?.message||'Request failed.');return /API request failed \(404\)/i.test(m)?'ERP backend returned 404. The Apps Script Web App deployment must be updated to the current Code.gs version, using the same Web App URL.':m}
+
+function apiError(e){
+  const m=String(e?.message||'Request failed.')
+  return /API request failed \\(404\\)/i.test(m)
+    ?'ERP backend returned 404. Update the Apps Script Web App deployment to the current backend version.'
+    :m
+}
+
 function Login({login,setLogin,loading,error,onSubmit}){
- const[showPassword,setShowPassword]=useState(false)
- return <div className="tc-login-screen">
-   <div className="tc-login-orb orb-one"></div><div className="tc-login-orb orb-two"></div><div className="tc-login-grid"></div>
-   <div className="tc-login-shell">
-     <section className="tc-login-brand-panel">
-       <div className="tc-login-brand-mark"><img src={LOGO} alt="Trusted Circle"/></div>
-       <div className="tc-login-brand-name">Trusted Circle</div>
-       <span className="tc-login-kicker">OPERATIONS CONTROL CENTRE</span>
-       <h1>Run every<br/><span>operation</span> with clarity.</h1>
-       <p>Orders, payments, vouchers, cashback and customers — one secure workspace.</p>
-       <div className="tc-login-flow">
-         <div><b>01</b><span>Monitor orders</span></div><i></i><div><b>02</b><span>Verify payments</span></div><i></i><div><b>03</b><span>Complete delivery</span></div>
-       </div>
-       <div className="tc-login-live"><span></span><b>Backend connected</b><small>Trusted Circle Operations</small></div>
-     </section>
-     <section className="tc-login-card">
-       <div className="tc-login-card-top"><span>SECURE ACCESS</span><div className="tc-login-shield"><ShieldCheck size={18}/></div></div>
-       <div className="tc-login-card-head"><h2>Welcome back.</h2><p>Sign in to continue to the operations ERP.</p></div>
-       <form onSubmit={onSubmit} className="tc-login-form">
-         <label><span>Email address</span><div className="tc-login-input"><Users size={16}/><input type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} required autoComplete="username" placeholder="admin@trustedcircle.in"/></div></label>
-         <label><span>Password</span><div className="tc-login-input"><KeyRound size={16}/><input type={showPassword?'text':'password'} value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password" placeholder="Enter your password"/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'Hide password':'Show password'}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></label>
-         {error&&<div className="tc-login-error"><AlertTriangle size={15}/><span>{error}</span></div>}
-         <button className="tc-login-submit" disabled={loading}><span>{loading?'Authenticating…':'Enter Operations ERP'}</span>{loading?<RefreshCw size={17} className="tc-spin"/>:<ChevronRight size={18}/>}</button>
-       </form>
-       <div className="tc-login-footer"><ShieldCheck size={14}/><span>Protected operations access</span><i></i><small>Admin only</small></div>
-     </section>
-   </div>
-   <div className="tc-login-bottom">TRUSTED CIRCLE <span>•</span> OPERATIONS <span>•</span> SECURE ERP</div>
- </div>
+  const[showPassword,setShowPassword]=useState(false)
+  return <div className="tc-login-screen">
+    <div className="tc-login-orb orb-one"></div><div className="tc-login-orb orb-two"></div><div className="tc-login-grid"></div>
+    <div className="tc-login-shell">
+      <section className="tc-login-brand-panel">
+        <div className="tc-login-brand-mark"><img src={LOGO} alt="Trusted Circle"/></div>
+        <div className="tc-login-brand-name">Trusted Circle</div>
+        <span className="tc-login-kicker">OPERATIONS CONTROL CENTRE</span>
+        <h1>Run every<br/><span>operation</span> with clarity.</h1>
+        <p>Secure administration for Trusted Circle operations.</p>
+        <div className="tc-login-flow">
+          <div><b>01</b><span>Authenticate</span></div><i></i><div><b>02</b><span>Open menu</span></div><i></i><div><b>03</b><span>Operate</span></div>
+        </div>
+        <div className="tc-login-live"><span></span><b>Backend connected</b><small>Trusted Circle Operations</small></div>
+      </section>
+      <section className="tc-login-card">
+        <div className="tc-login-card-top"><span>SECURE ACCESS</span><div className="tc-login-shield"><ShieldCheck size={18}/></div></div>
+        <div className="tc-login-card-head"><h2>Welcome back.</h2><p>Sign in to continue to the operations ERP.</p></div>
+        <form onSubmit={onSubmit} className="tc-login-form">
+          <label><span>Email address</span><div className="tc-login-input"><Users size={16}/><input type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} required autoComplete="username" placeholder="admin@trustedcircle.in"/></div></label>
+          <label><span>Password</span><div className="tc-login-input"><KeyRound size={16}/><input type={showPassword?'text':'password'} value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password" placeholder="Enter your password"/><button type="button" onClick={()=>setShowPassword(v=>!v)} aria-label={showPassword?'Hide password':'Show password'}>{showPassword?<EyeOff size={16}/>:<Eye size={16}/>}</button></div></label>
+          {error&&<div className="tc-login-error"><AlertTriangle size={15}/><span>{error}</span></div>}
+          <button className="tc-login-submit" disabled={loading}><span>{loading?'Authenticating…':'Enter Operations ERP'}</span>{loading?<RefreshCw size={17} className="tc-spin"/>:<ChevronRight size={18}/>}</button>
+        </form>
+        <div className="tc-login-footer"><ShieldCheck size={14}/><span>Protected operations access</span><i></i><small>Admin only</small></div>
+      </section>
+    </div>
+    <div className="tc-login-bottom">TRUSTED CIRCLE <span>•</span> OPERATIONS <span>•</span> SECURE ERP</div>
+  </div>
 }
-function Dashboard({metrics,work,onWork,onOrders,onPayments,onCashback,onStock}){return <section className="tc-admin-page"><div className="tc-admin-hero"><div><small>COMMAND CENTER</small><h2>Operations at a glance.</h2><p>One control surface for orders, payments, vouchers, cashback and link stock.</p></div><div className="tc-hero-actions"><button onClick={onWork}><ClipboardList size={16}/> Work Queue <ChevronRight size={14}/></button><button className="tc-hero-secondary" onClick={()=>window.location.reload()}><RefreshCw size={15}/> Refresh</button></div></div><div className="tc-kpis"><Kpi icon={ShoppingBag} label="Orders" value={metrics.orders} onClick={onOrders}/><Kpi icon={CircleDollarSign} label="Verified sales" value={MONEY(metrics.revenue)} onClick={onPayments}/><Kpi icon={WalletCards} label="Cashback" value={MONEY(metrics.cashback)} onClick={onCashback}/><Kpi icon={Link2} label="Available links" value={metrics.availableLinks} onClick={onStock}/><Kpi icon={ClipboardList} label="Open work" value={work} onClick={onWork}/></div><div className="tc-priority"><b>{work}</b><div><strong>Open admin work</strong><span>Verify payments → send vouchers → process cashback.</span></div><button onClick={onWork}>Open queue</button></div><div className="tc-quick"><Quick title="Orders" text="Fetch latest order records" icon={ShoppingBag} onClick={onOrders}/><Quick title="Payments" text="Review verified and pending payment records" icon={CircleDollarSign} onClick={onPayments}/><Quick title="Cashback" text="Review wallet and cashback transactions" icon={WalletCards} onClick={onCashback}/><Quick title="Payment Link Stock" text="Manage ₹500 / ₹1,000 / ₹1,500 / ₹2,000 links" icon={Link2} onClick={onStock}/></div></section>}
-
-function Kpi({icon:Icon,label,value,onClick}){return <button className="tc-kpi tc-kpi-button" onClick={onClick||(()=>{})} type="button"><span><Icon size={17}/></span><small>{label}</small><strong>{value??0}</strong><em>Open details <ChevronRight size={13}/></em></button>}
-function Quick({title,text,icon:Icon,onClick}){return <button className="tc-quick-card" onClick={onClick}><Icon size={18}/><div><b>{title}</b><small>{text}</small></div><ChevronRight size={15}/></button>}
-function WorkQueue({items,onOpen}){return <section className="tc-admin-page"><div className="tc-admin-hero"><div><small>WORK QUEUE</small><h2>Everything requiring attention.</h2><p>Latest queue is fetched whenever this menu opens.</p></div><b>{items.length} open</b></div><div className="tc-work-flow"><span>01 Verify Payment</span><b>→</b><span>02 Voucher / Cashback</span><b>→</b><span>03 Complete</span></div><div className="tc-work-list">{items.length?items.map((x,i)=><article className="tc-work-card" key={`${x.sheet}-${x.recordId}-${i}`}><div className="tc-work-icon">{x.kind==='payment'?<CircleDollarSign size={18}/>:x.kind==='voucher'?<PackageCheck size={18}/>:<WalletCards size={18}/>}</div><div className="tc-work-copy"><div><span>{x.kind==='payment'?'PAYMENT':x.kind==='voucher'?'VOUCHER':'CASHBACK'}</span><b>{x.priority}</b></div><h3>{x.title}</h3><strong>{x.subtitle}</strong><small>{x.detail}</small></div><div className="tc-work-actions"><button className="primary" onClick={()=>onOpen(x)}>{x.kind==='payment'?'Verify':x.kind==='voucher'?'Send voucher':'Process'}</button><button onClick={()=>onOpen({...x,force:'menu'})}>More <ChevronDown size={13}/></button></div></article>):<div className="tc-empty"><CheckCircle2 size={32}/><b>Work queue is clear.</b></div>}</div></section>}
-const KPI_FIELDS={Orders:[['Orders','count'],['Paid / Fulfilled','paid'],['Payment Pending','pending'],['Delivered','delivered'],['Order Value','amount']],Payments:[['Payments','count'],['Verified','verified'],['Pending','pending'],['Failed','failed'],['Collected','amount']],PaymentLinks:[['Links','count'],['Ready','available'],['Reserved','reserved'],['Used','used']],PaymentLinkRequests:[['Requests','count'],['Pending','pending'],['Completed','completed'],['Rejected','rejected']],PaymentLinkStock:[['Available','available'],['Reserved','reserved'],['Used','used'],['Stock Value','amount']],Vouchers:[['Vouchers','count'],['Delivered','delivered'],['Pending','pending'],['Failed','failed']],Products:[['Products','count'],['Active','active'],['Discounted','discounted'],['Avg Discount','avgdiscount']],Brands:[['Brands','count'],['Active','active']],Cart:[['Cart Items','count'],['Quantity','quantity'],['Cart Value','amount']],Notifications:[['Notifications','count'],['Unread','unread'],['Successful','successful']],OTP:[['Attempts','count'],['Successful','successful'],['Failed','failed']],UserSessions:[['Sessions','count'],['Active','active'],['Expired','expired']],AuditLogs:[['Activity','count'],['Successful','successful'],['Errors','failed']],CashbackWallet:[['Wallets','count'],['Balance','balance'],['Earned','earned'],['Redeemed','redeemed']],CashbackTransactions:[['Transactions','count'],['Completed','completed'],['Pending','pending'],['Value','amount']],WalletRedemptions:[['Requests','count'],['Pending','pending'],['Completed','completed'],['Amount','amount']],Users:[['Shoppers','count'],['Active','active'],['Pending','pending'],['Restricted','restricted']],OrderItems:[['Line Items','count'],['Orders','orders'],['Quantity','quantity']]};
-const kState=r=>String(r?.Status??r?.PaymentStatus??r?.OrderStatus??r?.State??'').trim().toUpperCase();
-const kNum=v=>{const n=Number(String(v??'').replace(/[^0-9.-]/g,''));return Number.isFinite(n)?n:0};
-const kMoney=v=>'₹'+kNum(v).toLocaleString('en-IN',{maximumFractionDigits:2});
-function kVal(rows,type){const done=['COMPLETED','PAID','DELIVERED','VERIFIED','SENT','SUCCESS','FULFILLED'],pending=['PENDING','PENDING_PAYMENT','REQUESTED','PROCESSING','INITIATED'],bad=['FAILED','REJECTED','CANCELLED','ERROR','BLOCKED'];if(type==='count')return rows.length;if(type==='pending')return rows.filter(r=>pending.includes(kState(r))).length;if(['paid','verified','completed','successful'].includes(type))return rows.filter(r=>done.includes(kState(r))).length;if(['failed','rejected','restricted'].includes(type))return rows.filter(r=>bad.includes(kState(r))).length;if(type==='delivered')return rows.filter(r=>kState(r)==='DELIVERED').length;if(type==='available'||type==='active')return rows.filter(r=>['ACTIVE','TRUE','YES','AVAILABLE','READY','IN_STOCK'].includes(kState(r))||['TRUE','YES','1'].includes(String(r?.Active||'').toUpperCase())).length;if(type==='reserved')return rows.filter(r=>kState(r)==='RESERVED').length;if(type==='used')return rows.filter(r=>['USED','CONSUMED'].includes(kState(r))).length;if(type==='unread')return rows.filter(r=>['UNREAD','FALSE','0'].includes(String(r?.Read??r?.Status??'').toUpperCase())).length;if(type==='quantity')return rows.reduce((s,r)=>s+kNum(r.Quantity),0).toLocaleString('en-IN');if(type==='orders')return new Set(rows.map(r=>r.OrderID).filter(Boolean)).size;if(type==='discounted')return rows.filter(r=>kNum(r.DiscountPercent)>0).length;if(type==='avgdiscount'){const a=rows.map(r=>kNum(r.DiscountPercent)).filter(Boolean);return (a.length?a.reduce((x,y)=>x+y,0)/a.length:0).toFixed(2)+'%'}if(type==='amount')return kMoney(rows.reduce((s,r)=>s+kNum(r.Amount??r.TotalAmount??r.OrderValue??r.Total??r.Price??r.Denomination),0));if(type==='balance')return kMoney(rows.reduce((s,r)=>s+kNum(r.Balance),0));if(type==='earned')return kMoney(rows.reduce((s,r)=>s+kNum(r.TotalEarned),0));if(type==='redeemed')return kMoney(rows.reduce((s,r)=>s+kNum(r.TotalRedeemed),0));return 0}
-function DataKpis({sheet,rows}){const config=KPI_FIELDS[sheet]||[];if(!config.length)return null;return <div className="tc-new-kpi-grid">{config.map(([label,type],i)=><div className={`tc-new-kpi ${i===1?'good':i===2?'warn':'neutral'}`} key={label}><span className="tc-new-kpi-icon">{type==='amount'||type==='balance'||type==='earned'||type==='redeemed'?'₹':type==='failed'||type==='rejected'||type==='restricted'?'!':type==='pending'?'◷':'•'}</span><div><small>{label}</small><strong>{kVal(rows,type)}</strong><em>Live data</em></div></div>)}</div>}
-function DataPage({title,sheet,rows,columns,idField,query,setQuery,filter,setFilter,showFilter,setShowFilter,onEdit,loading}){
- const shown=columns.length?columns:Object.keys(rows[0]||{})
- const field=filter.field||shown[0]||''
- const values=[...new Set(rows.map(r=>fmt(r[field])).filter(Boolean))].slice(0,150)
- return <section className="tc-admin-page"><div className="tc-data-head"><div><small>DATA CONTROL</small><h2>{title}</h2><span>{rows.length} records shown</span></div><div className="tc-data-tools"><div className="tc-search"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search anything…"/></div><button className={showFilter||filter.value?'active':''} onClick={()=>setShowFilter(v=>!v)}><Filter size={15}/> Filter {filter.value&&<b>1</b>}</button></div></div><DataKpis sheet={sheet} rows={rows}/>
- &<div className="tc-filter-panel"><label>Field<select value={field} onChange={e=>setFilter({field:e.target.value,value:''})}><option value="">Choose field</option>{shown.map(f=><option key={f}>{f}</option>)}</select></label><label>Choose value<select value={filter.value} onChange={e=>setFilter({field,value:e.target.value})}><option value="">All values</option>{values.map(v=><option key={v}>{v}</option>)}</select></label><button onClick={()=>setFilter({field:'',value:''})}>Clear filter</button></div>}
- <div className="tc-table-wrap">{loading&&!rows.length?<div className="tc-empty"><RefreshCw className="tc-spin"/> Loading…</div>:rows.length?<table><thead><tr>{shown.map(c=><th key={c}>{c}</th>)}<th>Action</th></tr></thead><tbody>{rows.map((r,i)=><tr key={String(r[idField]||i)}>{shown.map(c=><td key={c} title={fmt(r[c])}>{fmt(r[c])}</td>)}<td><button className="tc-edit" onClick={()=>onEdit({sheet,id:r[idField],idField,row:r,columns:shown})}><Edit3 size={13}/> Edit / Update</button></td></tr>)}</tbody></table>:<div className="tc-empty"><Database size={28}/><b>No records</b><span>Change search or filter.</span></div>}</div></section>
-}
-function WorkModal({item,products,token,onClose,onAction,onError}){const[menu,setMenu]=useState(item.force==='menu'),[reason,setReason]=useState(''),[code,setCode]=useState(''),[pin,setPin]=useState(''),[productId,setProductId]=useState('');const run=async a=>{if(a==='SEND_VOUCHER'){if(!code.trim()){onError('Voucher code is required.');return}try{await api.adminSendVoucher(token,item.recordId,code.trim(),pin.trim(),productId,true);onClose();window.location.reload()}catch(e){onError(apiError(e))}}else await onAction(a,item,reason)};return <div className="tc-modal-backdrop"><div className="tc-modal"><button className="tc-modal-x" onClick={onClose}><X size={17}/></button><small>WORK ACTION</small><h3>{item.title}</h3><p>{item.subtitle} · {item.detail}</p>{item.kind==='voucher'&&<div className="tc-form-grid"><label>Voucher code<input value={code} onChange={e=>setCode(e.target.value)} placeholder="Enter voucher code"/></label><label>PIN<input value={pin} onChange={e=>setPin(e.target.value)} placeholder="Optional PIN"/></label><label>Product<select value={productId} onChange={e=>setProductId(e.target.value)}><option value="">Select product</option>{products.map(p=><option key={p.ProductID} value={p.ProductID}>{p.Title}</option>)}</select></label></div>}<label>Reason / admin note<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Add an internal note if required…"/></label><div className="tc-action-grid">{(item.actions||[]).filter(a=>menu||['VERIFY_PAYMENT','SEND_VOUCHER','PROCESS_CASHBACK'].includes(a)).map(a=><button key={a} className={['REJECT','CANCEL','REMOVE'].includes(a)?'danger':['VERIFY_PAYMENT','SEND_VOUCHER','PROCESS_CASHBACK'].includes(a)?'primary':''} onClick={()=>run(a)}>{actionLabel(a)}</button>)}</div>{!menu&&<button className="tc-more" onClick={()=>setMenu(true)}>Show all admin actions <ChevronDown size={14}/></button>}</div></div>}
-function actionLabel(a){return({VERIFY_PAYMENT:'Verify Payment',SEND_VOUCHER:'Send Voucher',PROCESS_CASHBACK:'Process Cashback',COMPLETE_CASHBACK:'Complete Cashback',APPROVE:'Approve',REJECT:'Reject',CANCEL:'Cancel',REMOVE:'Remove from Work Queue'}[a]||a)}
-const OPTIONS={Status:['ACTIVE','INACTIVE','PENDING','PENDING_PAYMENT','PAID','PROCESSING','DELIVERED','CANCELLED','VERIFIED','FAILED','REJECTED','USED','AVAILABLE','RESERVED','EXPIRED'],Role:['USER','ADMIN'],Active:['TRUE','FALSE'],InventoryStatus:['ACTIVE','INACTIVE','OUT_OF_STOCK'],Currency:['INR','USD'],Type:['OTP','VOUCHER','CASHBACK','PAYMENT','SYSTEM'],Method:['UPI','BANK','PAYTM_MANUAL'],Provider:['PAYTM_MANUAL','OTHER'],Success:['TRUE','FALSE']}
-const EDITABLE_FIELDS={Users:['Email','Name','Role','Status'],Products:['BrandID','SKU','Title','Description','FaceValue','SellingPrice','DiscountPercent','Currency','InventoryStatus','Active'],Brands:['Name','Slug','LogoURL','Active'],Cart:['Quantity'],Notifications:['Type','Title','Message','ReadAt'],WalletRedemptions:['Status','AdminNote']}
-const ENUM_OPTIONS={Role:['USER','ADMIN'],Status:['ACTIVE','INACTIVE','PENDING','PENDING_PAYMENT','PAID','PROCESSING','DELIVERED','CANCELLED','USED','AVAILABLE','RESERVED','EXPIRED','VERIFIED','FAILED','READ','UNREAD','REMOVED'],Active:['TRUE','FALSE'],InventoryStatus:['ACTIVE','INACTIVE','AVAILABLE','OUT_OF_STOCK','DISABLED'],Currency:['INR'],Type:['INFO','SUCCESS','WARNING','ERROR','VOUCHER','ORDER','PAYMENT','CASHBACK'],Method:['UPI','BANK'],Provider:['PAYTM_MANUAL','UPI','BANK'],Success:['TRUE','FALSE']}
-function EditModal({edit,token,tables,onClose,onDone,onError}){const allowed=EDITABLE_FIELDS[edit.sheet]||[];const brands=tables?.Brands?.rows||[];const initial=Object.fromEntries(allowed.map(c=>[c,fmt(edit.row[c])]));const[patch,setPatch]=useState(initial);const save=async()=>{try{await api.adminEditAnyRow(token,edit.sheet,edit.id,patch);await onDone()}catch(e){onError(apiError(e))}};const inputFor=(k,value)=>{const opts=ENUM_OPTIONS[k];if(k==='BrandID'){return <select value={value} onChange={e=>setPatch(p=>({...p,[k]:e.target.value}))}><option value="">Choose brand</option>{brands.map(b=><option key={b.BrandID} value={b.BrandID}>{b.Name} · {b.BrandID}</option>)}{value&&!brands.some(b=>String(b.BrandID)===String(value))&&<option value={value}>{value}</option>}</select>}if(opts){return <select value={value} onChange={e=>setPatch(p=>({...p,[k]:e.target.value}))}><option value="">Choose {k}</option>{opts.map(o=><option key={o}>{o}</option>)}{value&&!opts.includes(value)&&<option value={value}>{value}</option>}</select>}if(['FaceValue','SellingPrice','DiscountPercent','Quantity'].includes(k)){return <input type="number" step="any" min="0" value={value} onChange={e=>setPatch(p=>({...p,[k]:e.target.value}))}/>}if(['Description','AdminNote','Message'].includes(k)){return <textarea value={value} onChange={e=>setPatch(p=>({...p,[k]:e.target.value}))}/>}return <input value={value} onChange={e=>setPatch(p=>({...p,[k]:e.target.value}))}/>};return <div className="tc-modal-backdrop"><div className="tc-modal tc-edit-modal"><button className="tc-modal-x" onClick={onClose}><X size={17}/></button><small>ADMIN EDIT / UPDATE</small><h3>{LABEL[edit.sheet]||edit.sheet}</h3><p>Use controlled selections where applicable. System-managed IDs, tokens and audit fields stay protected.</p><div className="tc-edit-grid">{allowed.map(k=><label key={k}>{k}{inputFor(k,patch[k]||'')}</label>)}</div><div className="tc-modal-actions"><button onClick={onClose}>Cancel</button><button className="primary" onClick={save}>Save & Update</button></div></div></div>}
-
-function StockPage({rows,onAdd,onEdit}){return <section className="tc-admin-page"><div className="tc-data-head"><div><small>PAYMENT LINKS</small><h2>Payment Link Stock</h2><span>{rows.length} latest records</span></div><button className="tc-add" onClick={onAdd}><Plus size={15}/> Add stock</button></div><DataPage title="Payment Link Stock" sheet="PaymentLinkStock" rows={rows} columns={rows[0]?Object.keys(rows[0]):['PaymentLinkStockID','Denomination','Link','Label','Status']} idField="PaymentLinkStockID" query="" setQuery={()=>{}} filter={{}} setFilter={()=>{}} showFilter={false} setShowFilter={()=>{}} onEdit={onEdit}/></section>}
-function StockModal({token,onClose,onDone,onError}){const[amount,setAmount]=useState(''),[links,setLinks]=useState(''),[saving,setSaving]=useState(false);const save=async()=>{setSaving(true);try{const list=links.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(![500,1000,1500,2000].includes(Number(amount)))throw Error('Select ₹500, ₹1,000, ₹1,500 or ₹2,000.');if(!list.length)throw Error('Paste at least one payment link.');if(list.some(x=>!/^https:\/\//i.test(x)))throw Error('Each payment link must start with https://');await api.adminAddPaymentLinkStockBulk(token,list.map(link=>({denomination:Number(amount),link,label:`Pay ₹${Number(amount).toLocaleString('en-IN')}`})));await onDone()}catch(e){onError(apiError(e))}finally{setSaving(false)}};return <div className="tc-modal-backdrop"><div className="tc-modal"><button className="tc-modal-x" onClick={onClose}><X size={17}/></button><small>LINK STOCK</small><h3>Add payment links</h3><label>Amount<select value={amount} onChange={e=>setAmount(e.target.value)}><option value="">Select amount</option><option value="500">₹500</option><option value="1000">₹1,000</option><option value="1500">₹1,500</option><option value="2000">₹2,000</option></select></label><label>Payment links<textarea rows="7" value={links} onChange={e=>setLinks(e.target.value)} placeholder="Paste one payment link per line"/></label><div className="tc-modal-actions"><button onClick={onClose}>Cancel</button><button className="primary" disabled={saving} onClick={save}>{saving?'Adding…':'Add to Stock'}</button></div></div></div>}
-function Reports({metrics}){return <section className="tc-admin-page"><div className="tc-admin-hero"><div><small>REPORTS</small><h2>Business control</h2><p>Lightweight live summary; open source menus for full records.</p></div></div><div className="tc-kpis"><Kpi icon={ShoppingBag} label="Orders" value={metrics.orders}/><Kpi icon={CircleDollarSign} label="Revenue" value={MONEY(metrics.revenue)}/><Kpi icon={WalletCards} label="Cashback" value={MONEY(metrics.cashback)}/><Kpi icon={Link2} label="Available links" value={metrics.availableLinks}/></div></section>}
-function AllData({tables,onOpen}){return <section className="tc-admin-page"><div className="tc-admin-hero"><div><small>ALL DATA</small><h2>Operational datasets</h2><p>Choose a dataset to fetch its latest records.</p></div></div><div className="tc-data-cards">{SHEETS.filter(x=>x!=='AuditLogs').map(s=><button key={s} onClick={()=>onOpen(s)}><Database size={17}/><div><b>{LABEL[s]}</b><span>{tables[s]?.rows?.length||0} records loaded</span></div><ChevronRight size={14}/></button>)}</div><button className="tc-data-card-wide" onClick={()=>onOpen('AuditLogs')}><Activity size={17}/><div><b>Web Activity</b><span>Latest API activity and operational edits</span></div><ChevronRight size={14}/></button></section>}
-function title(x){return x==='dashboard'?'Dashboard':x==='work'?'Work Queue':x==='reports'?'Reports':x==='all-data'?'All Data':LABEL[x]||x}
