@@ -3,7 +3,16 @@ var TC_EMAIL={PRIMARY:'trustedcircle2026@gmail.com',INFO:'info@trustedcircle.in'
 function emailEscape_(value){return escapeHtml_(String(value===undefined||value===null?'':value));}
 function emailMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN',{maximumFractionDigits:2});}
 function emailAliasList_(){try{return GmailApp.getAliases().map(function(a){return normalizeEmail_(a);});}catch(e){return [];}}
-function sendTransactionalEmail_(to,subject,htmlBody,textBody){if(!isValidEmail_(to))return false;try{var from=TC_EMAIL.PRIMARY,aliases=emailAliasList_();if(aliases.indexOf(from)<0)throw new Error('Sender email '+from+' is not configured as a Gmail alias for the Apps Script account.');GmailApp.sendEmail(to,subject,textBody,{htmlBody:htmlBody,body:textBody,name:'Trusted Circle',replyTo:TC_EMAIL.INFO,from:from});return true;}catch(error){console.error('Trusted Circle sender '+TC_EMAIL.PRIMARY+' failed: '+String(error&&error.message||error));return false;}}
+function sendTransactionalEmail_(to,subject,htmlBody,textBody){
+ if(!isValidEmail_(to))return false;
+ try{
+  MailApp.sendEmail({to:to,subject:subject,htmlBody:htmlBody,body:textBody,name:'Trusted Circle',replyTo:TC_EMAIL.INFO});
+  return true;
+ }catch(mailError){
+  console.error('Transactional email failed: '+String(mailError&&mailError.message||mailError));
+  return false;
+ }
+}
 function sendDualTransactionalEmail_(subject,htmlBody,textBody,userEmail){return{userSent:sendTransactionalEmail_(userEmail,subject,htmlBody,textBody),infoSent:sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] '+subject,htmlBody,textBody)};}
 function orderEmailItems_(items){return(items||[]).map(function(i){var product=findOne_(TC_CONFIG.SHEETS.PRODUCTS,'ProductID',i.ProductID)||{},brand=findOne_(TC_CONFIG.SHEETS.BRANDS,'BrandID',product.BrandID)||{};return{title:product.Title||'Gift voucher',brand:brand.Name||'',qty:Number(i.Quantity||1),value:Number(i.Denomination||i.FaceValue||0),total:Number(i.Total||0)};});}
 function orderEmailDetails_(order,user,items){var lines=orderEmailItems_(items),rows=lines.map(function(i){return '<tr><td style="padding:10px;border-bottom:1px solid #edf1ee"><b>'+emailEscape_(i.brand)+'</b><br><span style="color:#5f6b64">'+emailEscape_(i.title)+'</span></td><td style="padding:10px;border-bottom:1px solid #edf1ee">'+i.qty+'</td><td style="padding:10px;border-bottom:1px solid #edf1ee">'+emailMoney_(i.value)+'</td><td style="padding:10px;border-bottom:1px solid #edf1ee">'+emailMoney_(i.total)+'</td></tr>';}).join('');return '<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure digital gifting</div></div><div style="padding:24px"><p style="font-size:17px">Hi '+emailEscape_(user&&user.Name||'there')+',</p><p>Order <b>'+emailEscape_(order.OrderNumber)+'</b> · '+emailMoney_(order.Total)+'</p>'+(rows?'<table style="border-collapse:collapse;width:100%;margin-top:18px"><tr><th align="left" style="padding:10px">Voucher</th><th align="left" style="padding:10px">Qty</th><th align="left" style="padding:10px">Value</th><th align="left" style="padding:10px">Total</th></tr>'+rows+'</table>':'')+'</div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';}
