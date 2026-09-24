@@ -49,15 +49,21 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     // Opening it only after the async Apps Script request completes can be
     // treated as an unsolicited popup and blocked by the browser.
     const isMobileViewport = window.matchMedia('(max-width: 760px)').matches
-    const popupWidth = isMobileViewport ? Math.min(500, Math.max(320, window.innerWidth - 24)) : 500
-    const popupHeight = isMobileViewport ? Math.min(720, Math.max(520, window.innerHeight - 24)) : 620
-    const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
-    const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
-    const popup = window.open(
-      'about:blank',
-      'TrustedCirclePayment',
-      `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    )
+    // Mobile browsers often ignore popup dimensions and render the temporary
+    // about:blank document in a tiny desktop viewport. Use the current tab on
+    // phones so the payment provider opens in the full mobile viewport.
+    let popup = null
+    if (!isMobileViewport) {
+      const popupWidth = 500
+      const popupHeight = 620
+      const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
+      const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
+      popup = window.open(
+        'about:blank',
+        'TrustedCirclePayment',
+        `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
+      )
+    }
 
     // Show a useful temporary state in the reserved popup instead of leaving
     // the customer with a blank about:blank window while Apps Script generates
@@ -114,23 +120,22 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
 
-      if (popup && !popup.closed) {
-        // The window was already created during the click, so navigating it
-        // now is not a new popup request and is not subject to the same
-        // async popup-blocker restriction.
+      if (isMobileViewport) {
+        // Keep mobile payment in the current full-screen tab. This avoids the
+        // tiny about:blank viewport shown by some Android Chrome builds.
+        api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
+        if (mode === 'checkout' && typeof onCreateOrder === 'function') {
+          onCreateOrder(result)
+        }
+        window.location.assign(link)
+      } else if (popup && !popup.closed) {
         popup.location.replace(link)
         popup.focus()
         api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
-
-        // Checkout creates the order before the provider page opens. Move the
-        // main Trusted Circle page to the success/order screen immediately,
-        // while the payment provider remains open in the separate window.
         if (mode === 'checkout' && typeof onCreateOrder === 'function') {
           onCreateOrder(result)
         }
       } else {
-        // If the browser blocks all popups, keep the flow usable instead of
-        // failing the order. The UI will expose a normal payment link button.
         setLinkRequest({ link, expiresAt, orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId, error: 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.' })
       }
     } catch (error) {
