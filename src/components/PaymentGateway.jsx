@@ -110,7 +110,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (!link) throw new Error('Payment link was not returned. Please try again.')
       const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || ''
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
-      setLinkRequest({ link, expiresAt })
+      setLinkRequest({ link, expiresAt, orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
 
@@ -120,6 +120,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         // async popup-blocker restriction.
         popup.location.replace(link)
         popup.focus()
+        api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
 
         // Checkout creates the order before the provider page opens. Move the
         // main Trusted Circle page to the success/order screen immediately,
@@ -130,7 +131,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       } else {
         // If the browser blocks all popups, keep the flow usable instead of
         // failing the order. The UI will expose a normal payment link button.
-        setLinkRequest({ link, expiresAt, error: 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.' })
+        setLinkRequest({ link, expiresAt, orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId, error: 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.' })
       }
     } catch (error) {
       if (popup && !popup.closed) popup.close()
@@ -183,7 +184,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             </button>
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
             {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
-            {linkRequest?.link && linkRequest?.error && <a className="gateway-pay-button gateway-fallback-link" href={linkRequest.link} target="_blank" rel="noopener noreferrer"><Link2 size={17} /> Open payment page <ChevronRight size={17} /></a>}
+            {linkRequest?.link && linkRequest?.error && <a className="gateway-pay-button gateway-fallback-link" href={linkRequest.link} target="_blank" rel="noopener noreferrer" onClick={()=>{const token=localStorage.getItem('tc_session');const id=linkRequest?.orderId||orderId;if(token&&id)api.paymentLinkOpened(token,id).catch(()=>{})}}><Link2 size={17} /> Open payment page <ChevronRight size={17} /></a>}
             {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
           </div>
 
