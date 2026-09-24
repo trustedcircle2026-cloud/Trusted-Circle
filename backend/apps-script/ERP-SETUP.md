@@ -13,6 +13,7 @@ In **Google Apps Script → Project Settings → Script Properties**, set:
 Run `setupBackend()` once. It creates/migrates the operational sheets, including:
 
 - `PaymentLinkStock`
+- `PaymentLinkStockAlerts`
 - `CashbackWallet`
 - `CashbackTransactions`
 - `WalletRedemptions`
@@ -26,11 +27,36 @@ Use `PaymentLinkStock` for reusable payment links. Keep five available links for
 - ₹1,500 — 5 links
 - ₹2,000 — 5 links
 
-Required columns are `PaymentLinkStockID`, `Denomination`, `Link`, `Label`, `Status`, `OrderID`, `PaymentLinkID`, `ProviderLinkID`, `CreatedAt`, `UpdatedAt`.
+Required columns are `PaymentLinkStockID`, `Denomination`, `Link`, `Label`, `Status`, `OrderID`, `PaymentLinkID`, `ProviderLinkID`, `CreatedAt`, `UpdatedAt`. Reservation metadata uses `ReservedAt` and `ExpiresAt`.
 
 Use `AVAILABLE` for fresh stock. A checkout reserves one matching link as `RESERVED`. A verified payment changes it to `USED`. A cancelled pending order releases it back to `AVAILABLE`.
 
 `ProviderLinkID` is optional and can be retained for future provider integrations. The current Trusted Circle flow does not require Paytm MID, Merchant Key, API credentials, or a Paytm webhook.
+
+## Payment-link stock alerts and email replenishment
+
+`PaymentLinkStockAlertService.gs` adds a separate `PaymentLinkStockAlerts` sheet so existing `AdminEmailActions` records used by order actions remain untouched.
+
+The alert threshold is **below 2 AVAILABLE links** for each supported denomination. The backend checks after stock is consumed/reserved and can also run `sendLowStockAlertsForAllPaymentLinkDenominations_()` to scan all denominations.
+
+When a customer requests a payment link and no matching stock exists, the backend immediately sends an administrator email containing:
+
+- Requested amount
+- Customer email/name when available
+- Order ID when the request is tied to an existing order
+- A one-time secure stock-action token
+- A payment-link input form
+- `ADD LINK TO STOCK` action
+
+The amount/denomination is bound to the token on the server. The submitted link must use HTTPS and cannot duplicate an existing stocked link. Successful submission adds the link as `AVAILABLE`, records an audit entry, and marks the one-time alert token as used. Tokens expire automatically.
+
+The email also includes a fallback **Open secure stock form** link because some email clients do not support interactive HTML forms. Opening the link without submitting a payment URL only displays the secure form; the stock is not changed.
+
+The `PaymentLinkStockAlerts` sheet uses:
+
+`AlertID`, `TokenHash`, `Denomination`, `RequestedAmount`, `OrderID`, `UserID`, `UserEmail`, `UserName`, `Reason`, `Status`, `ExpiresAt`, `CreatedAt`, `UsedAt`, `UsedBy`.
+
+For first-time installation, copy **all** files from `backend/apps-script` into the same Apps Script project, then run `setupBackend()` so the new sheet can be created automatically when the alert workflow is first used.
 
 ## Paytm for Business payment links
 
