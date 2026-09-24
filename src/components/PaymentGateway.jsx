@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, ShieldCheck, X } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, Mail, MessageCircle, ShieldCheck, X } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
 
@@ -28,8 +28,48 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
   const [linkLoading, setLinkLoading] = useState(false)
+  const [paymentCheck, setPaymentCheck] = useState('idle')
+  const [paymentCheckMessage, setPaymentCheckMessage] = useState('')
+  const [paymentCheckLoading, setPaymentCheckLoading] = useState(false)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
+  const orderRef = linkRequest?.orderId || orderId
+  const checkPayment = async () => {
+    if (!orderRef || paymentCheckLoading) return
+    setPaymentCheckLoading(true)
+    setPaymentCheck('checking')
+    setPaymentCheckMessage('Checking the latest payment status…')
+    try {
+      const token = localStorage.getItem('tc_session')
+      if (!token) throw new Error('Please sign in again.')
+      try { await api.paymentCheckRequested(token, orderRef) } catch (_) {}
+      let latest = null
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        latest = await api.orderDetails(token, orderRef)
+        const status = String(latest?.payment?.Status || latest?.order?.PaymentStatus || '').toUpperCase()
+        const orderStatus = String(latest?.order?.Status || '').toUpperCase()
+        if (['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)) {
+          setPaymentCheck('paid')
+          setPaymentCheckMessage('Payment received. Your order status has been updated.')
+          return
+        }
+        if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 3000))
+      }
+      setPaymentCheck('pending')
+      setPaymentCheckMessage('Payment is still pending verification. If you have completed payment, please check again shortly.')
+    } catch (error) {
+      setPaymentCheck('retry')
+      setPaymentCheckMessage(error.message || 'We could not check the payment status. Please try again.')
+    } finally {
+      setPaymentCheckLoading(false)
+    }
+  }
+  const sharePaymentLink = kind => {
+    if (!linkRequest?.link) return
+    const text = 'Trusted Circle payment link — ' + money(total) + '\n' + linkRequest.link
+    if (kind === 'whatsapp') window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
+    else window.location.href = 'mailto:' + encodeURIComponent(user?.email || '') + '?subject=' + encodeURIComponent('Trusted Circle payment link') + '&body=' + encodeURIComponent(text)
+  }
 
   useEffect(() => {
     if (!linkLoading && !linkRequest?.link) return undefined
@@ -173,7 +213,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
         <section className="gateway-payment">
           <div className="gateway-payment-head">
-            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Complete your payment' : 'Pay pending order'}</h1><p>Click once. We will wait for the secure payment link to be fully assigned before opening the payment page.</p></div>
+            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Payment' : 'Pay pending order'}</h1></div>
             <button className="gateway-close" onClick={onBack} aria-label="Close payment"><X size={16} /></button>
           </div>
 
@@ -182,7 +222,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <span className="gateway-mini-label">SECURE PAYMENT</span>
             <h2>{money(total)}</h2>
             <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
-            {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : <p>{activeLink ? `Link valid for ${formatDuration(linkValidSeconds)}.` : 'Click Make Payment once. Your assigned secure payment page will open automatically.'}</p>}
+            {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : {activeLink ? <p>{formatDuration(linkValidSeconds)}</p> : null}
             <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
               {linkLoading ? 'Preparing secure payment…' : activeLink ? 'Make Payment Again' : 'Make Payment'}
               <ChevronRight size={17} />
@@ -190,6 +230,15 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
             {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
             {linkRequest?.link && linkRequest?.error && <a className="gateway-pay-button gateway-fallback-link" href={linkRequest.link} target="_blank" rel="noopener noreferrer" onClick={()=>{const token=localStorage.getItem('tc_session');const id=linkRequest?.orderId||orderId;if(token&&id)api.paymentLinkOpened(token,id).catch(()=>{})}}><Link2 size={17} /> Open payment page <ChevronRight size={17} /></a>}
+            {activeLink && paymentCheck === 'idle' && <div className="gateway-payment-actions">
+              <button className="gateway-secondary-action" type="button" onClick={checkPayment} disabled={paymentCheckLoading}><CheckCircle2 size={16}/> I completed payment — Check status</button>
+              <div className="gateway-share-row"><span>Send payment link</span><button type="button" onClick={()=>sharePaymentLink('whatsapp')}><MessageCircle size={15}/> WhatsApp</button><button type="button" onClick={()=>sharePaymentLink('email')}><Mail size={15}/> Email</button></div>
+            </div>}
+            {paymentCheck !== 'idle' && <div className={'gateway-payment-check gateway-payment-check-' + paymentCheck}>
+              {paymentCheck === 'checking' ? <Clock3 size={20}/> : paymentCheck === 'paid' ? <CheckCircle2 size={20}/> : <ShieldCheck size={20}/>}
+              <div><strong>{paymentCheck === 'checking' ? 'Checking payment…' : paymentCheck === 'paid' ? 'Payment received' : paymentCheck === 'pending' ? 'Payment still pending' : 'Payment check needs a retry'}</strong><span>{paymentCheckMessage}</span></div>
+              {paymentCheck !== 'paid' && <button type="button" onClick={paymentCheck === 'pending' ? checkPayment : requestPayment} disabled={paymentCheckLoading}>{paymentCheck === 'pending' ? 'Check again' : 'Retry payment'} <ChevronRight size={15}/></button>}
+            </div>}
             {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
           </div>
 
