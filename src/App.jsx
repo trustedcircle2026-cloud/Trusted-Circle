@@ -18,7 +18,6 @@ import './mobile.css'
 import './site-overrides.css'
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const QR_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg'
-const WHATSAPP_NUMBER='919442456039'
 function readRoute(){const raw=window.location.hash.replace(/^#\/?/,'')||'home';const[path,id]=raw.split('/');return{path,id:id||''}}
 const friendlyApiError=error=>{const message=String(error?.message||'Request failed.');if(/API request failed \(404\)/i.test(message))return'Authentication service is not on the latest backend deployment. Please redeploy the Trusted Circle Apps Script Web App and try again.';if(/unknown api action/i.test(message))return'The backend needs the latest deployment.';if(/6-digit OTP/i.test(message))return'Enter the complete 6-digit OTP from the latest email.';return message}
 export default function App(){
