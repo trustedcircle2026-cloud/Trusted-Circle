@@ -41,7 +41,10 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         if(fresh)setLatestOrder(fresh)
         const status=String(fresh?.Status||'').toUpperCase()
         if(status){
-          setPaymentState(status)
+          if(status==='PAID'){setPaymentState('PAID')
+          }else if(status==='CANCELLED'){setPaymentState('CANCELLED')
+          }else if(paymentRequested){setPaymentState('PAYMENT_PROCESSING')
+          }else{setPaymentState(status)}
           if(status==='PAID'){
             setDeliveryOpen(true)
             return
@@ -56,7 +59,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     }
     refresh()
     return()=>{active=false;if(timer)window.clearTimeout(timer)}
-  },[token,orderId])
+  },[token,orderId,paymentRequested])
 
   useEffect(()=>{
     if(!handoff)return undefined
