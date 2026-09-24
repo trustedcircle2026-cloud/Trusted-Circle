@@ -87,7 +87,8 @@ export default function App(){
  },[])
  useEffect(()=>{if(!['vouchers'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},180);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
  const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);return{...item,product,denomination,unitPrice:denomination}}).filter(Boolean),[cart,allProducts])
- const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])\n const pendingOrdersCount=useMemo(()=>orders.filter(order=>{const payment=String(order.PaymentStatus||'PENDING').toUpperCase();const status=String(order.Status||'').toUpperCase();return payment==='PENDING'&&!['PAID','DELIVERED','CANCELLED','REFUNDED'].includes(status)}).length,[orders])
+ const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])
+ const pendingOrdersCount=useMemo(()=>orders.filter(order=>{const payment=String(order.PaymentStatus||'PENDING').toUpperCase();const status=String(order.Status||'').toUpperCase();return payment==='PENDING'&&!['PAID','DELIVERED','CANCELLED','REFUNDED'].includes(status)}).length,[orders])
  const subtotal=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+item.denomination*Number(item.Quantity||0),0),[cartDetailed])
  const cashback=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+(item.denomination*Number(item.Quantity||0)*Number(item.product.DiscountPercent||0)/100),0),[cartDetailed])
  const total=subtotal
