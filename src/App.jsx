@@ -51,6 +51,7 @@ export default function App(){
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
  const loadCart=useCallback(async currentToken=>{if(!currentToken){setCart([]);return}const data=await api.cart(currentToken);setCart(data?.items||[])},[])
  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}setOrdersLoading(true);try{const data=await api.orders(currentToken);setOrders(data?.items||[])}catch(error){setAuthMessage(friendlyApiError(error))}finally{setOrdersLoading(false)}},[])
+ useEffect(()=>{if(route.path!=='orders'||!token)return;loadOrders(token).catch(()=>{})},[route.path,token,loadOrders])
  useEffect(()=>{
   let active=true
   const start=async()=>{
