@@ -80,6 +80,12 @@ function adminActionUrl_(token,action){
 function adminEmailButton_(url,label,bg){
  return '<a href="'+emailEscape_(url)+'" style="display:inline-block;margin:0 8px 10px 0;padding:13px 22px;border-radius:10px;background:'+bg+';color:#fff;text-decoration:none;font-weight:800;font-family:Arial,sans-serif">'+emailEscape_(label)+'</a>';
 }
+function sendAdminOrderActionEmailOnce_(order,user,link,label){
+ ensureAdminEmailActionSheet_();
+ var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){return String(r.OrderID)===String(order.OrderID);});
+ if(existing)return false;
+ return sendAdminOrderActionEmail_(order,user,link,label);
+}
 function sendAdminOrderActionEmail_(order,user,link,label){
  try{
   var received=createAdminEmailActionToken_(order.OrderID,'RECEIVED'),cancel=createAdminEmailActionToken_(order.OrderID,'CANCEL'),safeOrder=emailEscape_(order.OrderNumber),name=emailEscape_(user&&user.Name||'there'),amount=emailMoney_(order.Total);
