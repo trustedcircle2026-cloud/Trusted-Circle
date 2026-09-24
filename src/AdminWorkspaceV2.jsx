@@ -15,7 +15,7 @@ export default function AdminWorkspaceV2(){
   const[menuOpen,setMenuOpen]=useState(false)
 
   useEffect(()=>{
-    if(!window.location.hash.replace(/^#\\/?/,'').startsWith('erp'))return
+    if(!window.location.hash.replace(/^#\/?/,'').startsWith('erp'))return
     const t=localStorage.getItem('tc_erp_session')
     if(t)restore(t)
   },[])
@@ -24,11 +24,12 @@ export default function AdminWorkspaceV2(){
     setLoading(true)
     setError('')
     try{
-      const r=await api.adminDashboard(t)
+      const stored=JSON.parse(localStorage.getItem('tc_erp_admin_user')||'null')
       setToken(t)
-      setUser(r?.admin||JSON.parse(localStorage.getItem('tc_erp_admin_user')||'null')||{email:'trustedcircle2026@gmail.com'})
+      setUser(stored||{email:'trustedcircle2026@gmail.com'})
     }catch(e){
       localStorage.removeItem('tc_erp_session')
+      localStorage.removeItem('tc_erp_admin_user')
       setToken('')
       setUser(null)
       setError(apiError(e))
@@ -126,7 +127,7 @@ export default function AdminWorkspaceV2(){
 
 function apiError(e){
   const m=String(e?.message||'Request failed.')
-  return /API request failed \\(404\\)/i.test(m)
+  return /API request failed \(404\)/i.test(m)
     ?'ERP backend returned 404. Update the Apps Script Web App deployment to the current backend version.'
     :m
 }
