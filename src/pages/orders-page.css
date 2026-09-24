@@ -19,3 +19,17 @@
 .cancel-confirm-btn{border:0;border-radius:11px;background:#b34f45;color:#fff;font-weight:850;cursor:pointer;padding:0 14px}
 .cancel-confirm-btn:disabled{opacity:.6;cursor:wait}
 @media(max-width:600px){.orders-bottom-actions{padding:0 4px}.orders-bottom-actions button{flex:1}.cancel-confirm-modal{padding:24px 18px}}
+
+/* Mobile order history: keep each order full-width. Desktop layout is unchanged. */
+@media(max-width:700px){
+  .orders-page .order-card-rich{display:block!important;width:100%;padding:0!important;min-width:0;}
+  .orders-page .order-main{width:100%;min-width:0;box-sizing:border-box;}
+  .orders-page .order-details{width:100%;box-sizing:border-box;min-width:0;overflow:hidden;}
+  .orders-page .order-detail-content{width:100%;min-width:0;box-sizing:border-box;}
+  .orders-page .detail-head,.orders-page .detail-grid,.orders-page .detail-items,.orders-page .saved-payment-link,.orders-page .invoice-ready-banner{max-width:100%;min-width:0;box-sizing:border-box;}
+  .orders-page .detail-grid{grid-template-columns:1fr 1fr;}
+  .orders-page .detail-item{grid-template-columns:minmax(0,1.5fr) minmax(0,.9fr) auto;}
+  .orders-page .detail-item b{grid-column:3;}
+  .orders-page .order-detail-actions{width:100%;}
+  .orders-page .order-detail-actions button{min-width:0;}
+}
