@@ -166,7 +166,13 @@ Payment has been verified. Please send my digital voucher.`
 
     {paymentState!=='PAID'&&<div className="payment-action-panel"><div><span className="eyebrow">PAYMENT</span><h2>Select payment status</h2></div><div className="payment-action-buttons"><button className="payment-done-btn" onClick={requestPaymentCheck} disabled={paymentRequesting||paymentState==='PAYMENT_PROCESSING'}><CheckCircle2 size={19}/>{paymentRequesting?'Sending…':paymentState==='PAYMENT_PROCESSING'?'Checking…':'Payment Done'}</button><button className="payment-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={18}/>{retrying?'Opening…':'Payment Failed · Retry'}</button></div>{paymentError&&<div className="payment-action-error">{paymentError}</div>}</div>}
 
-    {paymentState==='PAYMENT_PROCESSING'&&<div className="verification-live"><span className="live-dot"></span><div><strong>Sit back and relax</strong><small>Your order is with us. We’ll update you soon.</small></div><span className="verification-spinner"></span></div>}
+    {paymentState==='PAYMENT_PROCESSING'&&<div className="order-waiting-screen">
+      <img className="waiting-logo" src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"/>
+      <strong>Sit back and relax</strong>
+      <p>Your order is with us. We’ll update you soon.</p>
+      <div className="waiting-progress" aria-label="Order verification in progress"><span></span></div>
+      <small className="waiting-caption">Verification in progress</small>
+    </div>}
 
     <div className="order-confirmation-grid"><div className="confirmation-card"><div className="confirmation-card-head"><PackageCheck size={18}/><div><span className="eyebrow">ORDER</span><h2>Voucher details</h2></div></div>
       {items.length?items.map((item,index)=><div className="confirmation-item" key={`${item.title}-${index}`}><BrandLogo name={item.brand} size="md"/><div><strong>{item.brand}</strong><span>{item.title}</span><small>{money(item.faceValue)} × {item.quantity}</small></div><b>{money(item.total)}</b></div>):null}
