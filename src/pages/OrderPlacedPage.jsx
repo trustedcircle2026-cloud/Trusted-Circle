@@ -6,7 +6,7 @@ import { api } from '../api'
 const money=value=>`₹${Number(value||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`
 const UPI_APPS_URL='upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
 
-export default function OrderPlacedPage({order,token,onOrders,onShop,onRetryPayment}){
+export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRetryPayment}){
   const items=order?.snapshot?.items||[]
   const orderNumber=order?.order?.OrderNumber||order?.OrderNumber||'Your order'
   const orderId=order?.order?.OrderID||order?.OrderID||''
@@ -141,7 +141,7 @@ Payment has been verified. Please send my digital voucher.`
       <div className="confirmation-totals"><div><span>Voucher value</span><b>{money(order?.snapshot?.subtotal)}</b></div><div><span>Cashback</span><b>+ {money(order?.snapshot?.cashback||order?.snapshot?.savings)}</b></div><div className="grand"><span>Total</span><strong>{money(order?.snapshot?.total||order?.order?.Total)}</strong></div></div>
     </div><div className="confirmation-side"><div className="next-card"><strong>{paymentState==='PAID'?'Ready to send':'Payment status'}</strong><span>{paymentState==='PAID'?'Choose a delivery option.':'Update the payment status above.'}</span></div><div className="customer-card"><span className="eyebrow">CUSTOMER</span><strong>{order?.snapshot?.user?.name||'Trusted Circle Member'}</strong><span>{order?.snapshot?.user?.email||'—'}</span></div></div></div>
 
-    {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onOrders()}}><FileText size={17}/> My orders</button><button className="btn-quiet" onClick={()=>{clearHandoff();onShop()}}><Home size={17}/> Home</button></div>}
+    {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onHome()}}><Home size={17}/> Home</button></div>}
   </section>
 
   {deliveryOpen&&<div className="delivery-modal-backdrop" role="dialog" aria-modal="true"><div className="delivery-modal">
