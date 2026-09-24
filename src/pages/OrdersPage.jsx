@@ -105,8 +105,23 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
       const result = await api.orderDetails(localStorage.getItem('tc_session'), id)
       setDetails(previous => ({ ...previous, [id]: result }))
     } catch (error) {
-      setOpen(null)
-      setInvoiceError(error.message || 'Could not load this order.')
+      // Older Apps Script deployments may not yet expose orderDetails.
+      // Keep the order fully usable from the list instead of showing a blocking
+      // 404 error. The summary already contains the latest order/payment state.
+      if (/API request failed \(404\)/i.test(String(error?.message || ''))) {
+        setDetails(previous => ({
+          ...previous,
+          [id]: {
+            order,
+            payment: { Status: order.PaymentStatus || 'PENDING' },
+            items: [],
+            legacyFallback: true
+          }
+        }))
+      } else {
+        setOpen(null)
+        setInvoiceError(error.message || 'Could not load this order.')
+      }
     } finally { setDetailsLoading('') }
   }
 
