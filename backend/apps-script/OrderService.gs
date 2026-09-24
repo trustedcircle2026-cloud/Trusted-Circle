@@ -120,8 +120,8 @@ function expirePaymentLinkReservations_(){
   updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'AVAILABLE',OrderID:'',PaymentLinkID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:updated});
   if(paymentLinkId){try{updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINKS,'PaymentLinkID',paymentLinkId,{Status:'EXPIRED',UpdatedAt:updated});}catch(ignore){}}
   if(orderId){try{var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);if(order&&String(order.Status||'').toUpperCase()==='PENDING_PAYMENT')updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId,{UpdatedAt:updated});}catch(ignore2){}}
- }
-});
+  });
+}
 function ensurePaymentLinkExpiryTrigger_(){
  var triggers=ScriptApp.getProjectTriggers();
  var exists=triggers.some(function(t){return t.getHandlerFunction()==='expirePaymentLinkReservations_';});
