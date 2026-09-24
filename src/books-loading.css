@@ -1,6 +1,0 @@
-.tc-books-loading{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:transparent;pointer-events:none}
-.tc-books-loading-content{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:11px;pointer-events:none;transform:translateY(-2px)}
-.tc-books-spinner{width:44px;height:44px;border:4px solid rgba(15,23,42,.12);border-top-color:#0f172a;border-right-color:#0f172a;border-radius:50%;box-sizing:border-box;animation:tcBooksSpinner .72s linear infinite;filter:drop-shadow(0 3px 8px rgba(15,23,42,.12))}
-.tc-books-loading-content span{display:block;max-width:min(360px,calc(100vw - 32px));font-size:12px;line-height:1.5;font-weight:600;color:#172033;text-shadow:0 1px 3px rgba(255,255,255,.9)}
-@keyframes tcBooksSpinner{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.tc-books-spinner{animation:none}}
