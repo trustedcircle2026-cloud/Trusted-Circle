@@ -9,8 +9,6 @@ import './public-ui.css'
 import './erp-overrides.css'
 import './shopping-upgrade.css'
 import './erp-polish.css'
-import './books-footer.css'
-import './footer-books-link.js'
 
 function isErpRoute(){return window.location.hash.replace(/^#\/?/,'').startsWith('erp')}
 
