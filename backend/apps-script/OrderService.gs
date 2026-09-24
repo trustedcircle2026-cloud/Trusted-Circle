@@ -37,8 +37,10 @@ var OrderService={
     appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINKS,{PaymentLinkID:plId,OrderID:orderId,Link:stock.Link,Label:stock.Label||'Pay securely',Status:'ACTIVE',PaymentLinkStockID:stock.PaymentLinkStockID,ProviderLinkID:stock.ProviderLinkID||'',CreatedAt:now,UpdatedAt:now});
     updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'RESERVED',OrderID:orderId,PaymentLinkID:plId,ReservedAt:now,ExpiresAt:expiresAt,UpdatedAt:now});
     appendRowObject_(TC_CONFIG.SHEETS.PAYMENTS,{PaymentID:newId_('TCPAY'),OrderID:orderId,Provider:'PAYMENT_LINK',ProviderOrderID:orderNumber,ProviderPaymentID:'',Amount:subtotal,Currency:'INR',Status:'PENDING',VerifiedAt:'',CreatedAt:now,UpdatedAt:now});
-    enqueuePaymentLinkEmail_(getOrder_(user.UserID,orderId).order,user,stock.Link,stock.Label||'Pay securely');
-    return getOrder_(user.UserID,orderId);
+    var createdOrder=getOrder_(user.UserID,orderId);
+    enqueuePaymentLinkEmail_(createdOrder.order,user,stock.Link,stock.Label||'Pay securely');
+    if(typeof sendAdminOrderActionEmail_==='function')sendAdminOrderActionEmail_(createdOrder.order,user,stock.Link,stock.Label||'Pay securely');
+    return createdOrder;
    }
    return getOrder_(user.UserID,orderId);
   }finally{lock.releaseLock();}
