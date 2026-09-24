@@ -1,21 +1,18 @@
 function authorizeTrustedCircleEmail(){var quota=MailApp.getRemainingDailyQuota();return{authorized:true,remainingDailyQuota:quota};}
 
 function testTrustedCircleEmail(){
-  var recipient=normalizeEmail_(getScriptProperties_().getProperty('TEST_EMAIL')||TC_CONFIG.PRIMARY_EMAIL||TC_CONFIG.ADMIN_EMAIL);
+  var recipient=normalizeEmail_(getScriptProperties_().getProperty('TEST_EMAIL')||TC_CONFIG.ADMIN_EMAIL);
   require_(isValidEmail_(recipient),'Set TEST_EMAIL in Script Properties to a valid email address.');
   var quotaBefore=MailApp.getRemainingDailyQuota();
   var subject='Trusted Circle · Email delivery test';
-  var body='This is a Trusted Circle email delivery test. If you received this message, Apps Script email authorization and delivery are working.';
+  var body='This is a Trusted Circle email delivery test from info@trustedcircle.in.';
   var started=isoNow_();
   try{
-    MailApp.sendEmail({to:recipient,subject:subject,body:body,htmlBody:'<div style="font-family:Arial,sans-serif"><h2>Trusted Circle</h2><p>Email delivery test successful.</p><p>Started: '+started+'</p></div>',name:'Trusted Circle',replyTo:TC_EMAIL.INFO});
+    require_(emailAliasList_().indexOf(TC_EMAIL.PRIMARY)>=0,'Add info@trustedcircle.in as a Gmail alias for the Apps Script account before sending.');
+    GmailApp.sendEmail(recipient,subject,body,{htmlBody:'<div style="font-family:Arial,sans-serif"><h2>Trusted Circle</h2><p>Email delivery test successful.</p><p>Sender: info@trustedcircle.in</p><p>Started: '+started+'</p></div>',name:'Trusted Circle',replyTo:TC_EMAIL.INFO,from:TC_EMAIL.PRIMARY});
     var quotaAfter=MailApp.getRemainingDailyQuota();
-    console.log(JSON.stringify({ok:true,to:recipient,quotaBefore:quotaBefore,quotaAfter:quotaAfter,started:started,completedAt:isoNow_()}));
-    return {ok:true,to:recipient,quotaBefore:quotaBefore,quotaAfter:quotaAfter,started:started,completedAt:isoNow_()};
-  }catch(error){
-    console.error(JSON.stringify({ok:false,to:recipient,quotaBefore:quotaBefore,error:String(error&&error.message||error),stack:String(error&&error.stack||'')}));
-    throw new Error('Trusted Circle email test failed: '+String(error&&error.message||error));
-  }
+    return {ok:true,to:recipient,from:TC_EMAIL.PRIMARY,quotaBefore:quotaBefore,quotaAfter:quotaAfter,started:started,completedAt:isoNow_()};
+  }catch(error){throw new Error('Trusted Circle email test failed: '+String(error&&error.message||error));}
 }
 
 function doGet(e){return handleRequest_(e,false);}
