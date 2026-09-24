@@ -30,3 +30,87 @@
 @keyframes tcPageIn{from{opacity:.6;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media(max-width:1100px){.tc-quick{grid-template-columns:repeat(2,1fr)!important}}
 @media(max-width:650px){.tc-quick{grid-template-columns:1fr!important}.tc-hero-actions{width:100%}.tc-hero-actions button{flex:1}.tc-edit-grid{grid-template-columns:1fr!important}}
+
+/* =========================================================
+   TRUSTED CIRCLE — NEW OPERATIONS LOGIN
+   UI-only redesign. Existing authentication/API handlers unchanged.
+   ========================================================= */
+.tc-login-screen{position:fixed;inset:0;z-index:5000;overflow:hidden;background:#07120d;color:#f6fbf8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center}
+.tc-login-screen:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% 18%,rgba(44,185,113,.18),transparent 31%),radial-gradient(circle at 82% 78%,rgba(74,173,226,.09),transparent 30%),linear-gradient(135deg,#07120d 0%,#0b1a12 47%,#06100b 100%);pointer-events:none}
+.tc-login-grid{position:absolute;inset:-50%;opacity:.18;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:46px 46px;transform:perspective(700px) rotateX(58deg) translateY(24%);animation:tcLoginGrid 18s linear infinite;pointer-events:none}
+.tc-login-orb{position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none}
+.tc-login-orb:after{content:"";position:absolute;inset:16%;border:1px solid rgba(111,231,164,.24);border-radius:50%}
+.orb-one{width:380px;height:380px;left:-150px;top:-110px;background:radial-gradient(circle,rgba(47,192,116,.17),transparent 67%);animation:tcLoginFloat 9s ease-in-out infinite}
+.orb-two{width:420px;height:420px;right:-160px;bottom:-170px;background:radial-gradient(circle,rgba(48,140,105,.13),transparent 68%);animation:tcLoginFloat 11s ease-in-out infinite reverse}
+.tc-login-shell{position:relative;z-index:2;width:min(1120px,calc(100vw - 64px));min-height:min(650px,calc(100vh - 90px));display:grid;grid-template-columns:1.12fr .88fr;border:1px solid rgba(255,255,255,.11);border-radius:30px;overflow:hidden;background:rgba(9,22,15,.68);box-shadow:0 40px 120px rgba(0,0,0,.46),inset 0 1px rgba(255,255,255,.08);backdrop-filter:blur(22px)}
+.tc-login-brand-panel{position:relative;padding:58px 60px 48px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid rgba(255,255,255,.08);overflow:hidden}
+.tc-login-brand-panel:after{content:"";position:absolute;width:330px;height:330px;right:-150px;top:-160px;border:1px solid rgba(91,214,145,.13);border-radius:50%;box-shadow:0 0 0 38px rgba(91,214,145,.025),0 0 0 76px rgba(91,214,145,.018)}
+.tc-login-brand-mark{width:74px;height:74px;padding:5px;border-radius:23px;background:rgba(255,255,255,.96);box-shadow:0 15px 45px rgba(40,181,105,.18),0 0 0 9px rgba(80,210,139,.06);margin-bottom:19px;animation:tcLoginLogo 3.4s ease-in-out infinite}
+.tc-login-brand-mark img{width:100%;height:100%;object-fit:cover;border-radius:18px}
+.tc-login-brand-name{font-size:13px;font-weight:850;letter-spacing:.01em;color:#dcece3;margin-bottom:7px}
+.tc-login-kicker{font-size:9px;letter-spacing:.22em;font-weight:900;color:#65d497}
+.tc-login-brand-panel h1{font-size:clamp(48px,5.3vw,76px);line-height:.94;letter-spacing:-.07em;margin:27px 0 19px;max-width:620px}
+.tc-login-brand-panel h1 span{color:#70dba0}
+.tc-login-brand-panel>p{max-width:500px;color:#91a69a;font-size:13px;line-height:1.7;margin:0}
+.tc-login-flow{display:flex;align-items:center;gap:10px;margin-top:39px;max-width:570px}
+.tc-login-flow div{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.tc-login-flow b{width:27px;height:27px;border-radius:9px;display:grid;place-items:center;background:rgba(80,204,134,.1);border:1px solid rgba(104,218,151,.16);font-size:8px;color:#76dca2}
+.tc-login-flow span{font-size:9px;color:#bacbc2;font-weight:750}
+.tc-login-flow i{width:24px;height:1px;background:linear-gradient(90deg,rgba(91,212,143,.38),rgba(255,255,255,.06));display:block}
+.tc-login-live{margin-top:34px;display:flex;align-items:center;gap:8px;font-size:9px;color:#bfd0c6}
+.tc-login-live>span{width:7px;height:7px;border-radius:50%;background:#42d27e;box-shadow:0 0 0 5px rgba(66,210,126,.11);animation:tcLoginPulse 1.6s infinite}
+.tc-login-live small{color:#6f8578;margin-left:3px}
+.tc-login-card{align-self:center;margin:38px 42px;padding:34px;border:1px solid rgba(18,40,27,.09);border-radius:24px;background:rgba(255,255,255,.97);color:#17231d;box-shadow:0 25px 80px rgba(0,0,0,.2)}
+.tc-login-card-top{display:flex;align-items:center;justify-content:space-between}
+.tc-login-card-top>span{font-size:8px;font-weight:950;letter-spacing:.18em;color:#6e7d74}
+.tc-login-shield{width:38px;height:38px;border-radius:12px;background:#eaf8f0;color:#16834f;display:grid;place-items:center}
+.tc-login-card-head{margin-top:24px}
+.tc-login-card-head h2{font-size:31px;letter-spacing:-.055em;margin:0 0 6px}
+.tc-login-card-head p{font-size:11px;color:#77837c;margin:0;line-height:1.6}
+.tc-login-form{display:grid;gap:14px;margin-top:25px}
+.tc-login-form label{display:grid;gap:7px}
+.tc-login-form label>span{font-size:9px;font-weight:850;color:#46534c}
+.tc-login-input{height:48px;display:flex;align-items:center;gap:9px;padding:0 12px;border:1px solid #dce5df;border-radius:13px;background:#fbfdfc;transition:.2s;box-sizing:border-box}
+.tc-login-input:focus-within{border-color:#63bd8b;box-shadow:0 0 0 4px rgba(54,177,105,.09);background:#fff}
+.tc-login-input>svg{color:#8a9890;flex:none}
+.tc-login-input input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#17231d;font:inherit;font-size:11px}
+.tc-login-input input::placeholder{color:#a6b0ab}
+.tc-login-input button{border:0;background:transparent;color:#7c8a82;display:grid;place-items:center;padding:4px;cursor:pointer}
+.tc-login-error{display:flex;align-items:flex-start;gap:8px;padding:11px 12px;border:1px solid #f0d2ce;background:#fff5f3;color:#a3453c;border-radius:11px;font-size:10px;line-height:1.45}
+.tc-login-error svg{flex:none;margin-top:1px}
+.tc-login-submit{height:50px;border:0;border-radius:13px;background:linear-gradient(135deg,#126c43,#1b9159);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 15px 0 18px;font-size:11px;font-weight:900;cursor:pointer;box-shadow:0 13px 28px rgba(21,127,76,.22);transition:.2s}
+.tc-login-submit:hover{transform:translateY(-1px);box-shadow:0 17px 34px rgba(21,127,76,.28)}
+.tc-login-submit:disabled{opacity:.65;cursor:wait;transform:none}
+.tc-login-submit>svg:last-child{width:31px;height:31px;padding:7px;box-sizing:border-box;border-radius:9px;background:rgba(255,255,255,.13)}
+.tc-login-footer{display:flex;align-items:center;gap:7px;margin-top:21px;color:#8b9790;font-size:8px}
+.tc-login-footer svg{color:#3c9f69}
+.tc-login-footer i{width:3px;height:3px;background:#c2cbc6;border-radius:50%;margin-left:3px}
+.tc-login-footer small{font-size:8px;color:#a2aca7}
+.tc-login-bottom{position:absolute;z-index:3;bottom:17px;left:50%;transform:translateX(-50%);font-size:7px;letter-spacing:.2em;color:#4f685a;font-weight:850;white-space:nowrap}
+.tc-login-bottom span{color:#263e31;margin:0 5px}
+@keyframes tcLoginGrid{from{transform:perspective(700px) rotateX(58deg) translateY(24%) translateX(0)}to{transform:perspective(700px) rotateX(58deg) translateY(24%) translateX(46px)}}
+@keyframes tcLoginFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(22px,-16px,0)}}
+@keyframes tcLoginLogo{0%,100%{transform:translateY(0);box-shadow:0 15px 45px rgba(40,181,105,.18),0 0 0 9px rgba(80,210,139,.06)}50%{transform:translateY(-4px);box-shadow:0 20px 55px rgba(40,181,105,.25),0 0 0 12px rgba(80,210,139,.08)}}
+@keyframes tcLoginPulse{0%,100%{opacity:1}50%{opacity:.4}}
+@media(max-width:900px){
+ .tc-login-shell{width:min(620px,calc(100vw - 28px));min-height:auto;grid-template-columns:1fr}
+ .tc-login-brand-panel{padding:34px 30px 28px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08)}
+ .tc-login-brand-panel h1{font-size:48px;margin:20px 0 13px}
+ .tc-login-flow{margin-top:23px}
+ .tc-login-live{margin-top:20px}
+ .tc-login-card{margin:0;padding:30px;border-radius:0;background:#fff}
+ .tc-login-bottom{display:none}
+}
+@media(max-width:600px){
+ .tc-login-shell{width:100%;height:100%;min-height:100%;border-radius:0;border:0;background:transparent;overflow:auto}
+ .tc-login-brand-panel{padding:30px 22px 24px}
+ .tc-login-brand-mark{width:61px;height:61px;border-radius:19px}
+ .tc-login-brand-mark img{border-radius:14px}
+ .tc-login-brand-panel h1{font-size:39px}
+ .tc-login-brand-panel>p{font-size:11px}
+ .tc-login-flow{gap:6px}
+ .tc-login-flow i{width:10px}
+ .tc-login-flow span{font-size:7px}
+ .tc-login-card{margin:0;padding:26px 22px 30px}
+ .tc-login-card-head h2{font-size:27px}
+}
