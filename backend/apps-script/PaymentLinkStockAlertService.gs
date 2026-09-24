@@ -13,6 +13,9 @@
 
 var TC_STOCK_ALERT_THRESHOLD=2;
 var TC_STOCK_ALERT_TTL_MS=7*24*60*60*1000;
+function paymentLinkStockDenominations_(){
+  return typeof TC_ALLOWED_STOCK_DENOMS!=='undefined'?TC_ALLOWED_STOCK_DENOMS.slice():[500,1000,1500,2000];
+}
 
 function ensurePaymentLinkStockAlertSheet_(){
   var headers=[
@@ -60,6 +63,7 @@ function paymentLinkStockAlertUrl_(token){
 function paymentLinkStockAlertHtml_(payload,token){
   var amount=emailMoney_(payload.requestedAmount||payload.denomination),
       denomination=emailMoney_(payload.denomination),
+      availableStock=payload.availableStock===undefined?'':String(payload.availableStock),
       order=payload.orderId?emailEscape_(payload.orderId):'Not linked to a specific order',
       customer=payload.userEmail?emailEscape_(payload.userEmail):'Customer request',
       name=payload.userName?emailEscape_(payload.userName):'',
@@ -79,9 +83,14 @@ function paymentLinkStockAlertHtml_(payload,token){
         '<table style="border-collapse:collapse;width:100%;margin:0 0 20px">'+
           '<tr><td style="padding:8px 0;color:#68736d">Required amount</td><td style="padding:8px 0;text-align:right;font-weight:800">'+amount+'</td></tr>'+
           '<tr><td style="padding:8px 0;color:#68736d">Stock denomination</td><td style="padding:8px 0;text-align:right;font-weight:800">'+denomination+'</td></tr>'+
+          (availableStock!==''?'<tr><td style="padding:8px 0;color:#68736d">Available now</td><td style="padding:8px 0;text-align:right;font-weight:800">'+availableStock+'</td></tr>':'')+
           '<tr><td style="padding:8px 0;color:#68736d">Customer</td><td style="padding:8px 0;text-align:right">'+customer+(name?' · '+name:'')+'</td></tr>'+
           '<tr><td style="padding:8px 0;color:#68736d">Order ID</td><td style="padding:8px 0;text-align:right">'+order+'</td></tr>'+
         '</table>'+
+        '<div style="margin:0 0 14px">'+
+          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN SECURE STOCK FORM</a>'+
+          '<p style="margin:10px 0 0;color:#68736d;font-size:12px;line-height:1.5">This browser form is the reliable option when your mail app blocks interactive HTML email forms.</p>'+
+        '</div>'+
         '<div style="padding:18px;background:#f5fbf7;border:1px solid #dce9e0;border-radius:14px">'+
           '<div style="font-weight:800;margin-bottom:8px">Paste the new payment link</div>'+
           '<p style="margin:0 0 14px;color:#68736d;font-size:13px;line-height:1.5">The amount is locked to this request. The link must use HTTPS and must not already exist in stock.</p>'+
@@ -103,7 +112,7 @@ function paymentLinkStockAlertHtml_(payload,token){
 function sendPaymentLinkStockAlert_(payload){
   var denomination=Number(payload.denomination||0),
       requestedAmount=Number(payload.requestedAmount||denomination||0);
-  require_([500,1000,1500,2000].indexOf(denomination)>=0,'Invalid stock denomination.');
+  require_(paymentLinkStockDenominations_().indexOf(denomination)>=0,'Invalid stock denomination.');
   require_(requestedAmount===denomination,'Requested amount must match the supported stock denomination.');
 
   var token=createPaymentLinkStockAlertToken_({
@@ -113,7 +122,8 @@ function sendPaymentLinkStockAlert_(payload){
     userId:payload.userId||'',
     userEmail:payload.userEmail||'',
     userName:payload.userName||'',
-    reason:payload.reason||'LOW_STOCK'
+    reason:payload.reason||'LOW_STOCK',
+    availableStock:payload.availableStock
   });
 
   var html=paymentLinkStockAlertHtml_({
@@ -122,7 +132,8 @@ function sendPaymentLinkStockAlert_(payload){
     orderId:payload.orderId||'',
     userEmail:payload.userEmail||'',
     userName:payload.userName||'',
-    reason:payload.reason||'LOW_STOCK'
+    reason:payload.reason||'LOW_STOCK',
+    availableStock:payload.availableStock
   },token);
 
   var subject='[Action Required] Payment-link stock · '+emailMoney_(denomination);
@@ -140,7 +151,7 @@ function getAvailablePaymentLinkStockCount_(denomination){
 
 function maybeAlertPaymentLinkStockLow_(denomination,context){
   var d=Number(denomination||0),count=getAvailablePaymentLinkStockCount_(d);
-  if([500,1000,1500,2000].indexOf(d)<0||count>=TC_STOCK_ALERT_THRESHOLD)return false;
+  if(paymentLinkStockDenominations_().indexOf(d)<0||count>=TC_STOCK_ALERT_THRESHOLD)return false;
 
   ensurePaymentLinkStockAlertSheet_();
   var recentCutoff=Date.now()-30*60*1000;
@@ -159,13 +170,14 @@ function maybeAlertPaymentLinkStockLow_(denomination,context){
     userId:context&&context.userId||'',
     userEmail:context&&context.userEmail||'',
     userName:context&&context.userName||'',
-    reason:'LOW_STOCK'
+    reason:'LOW_STOCK',
+    availableStock:count
   });
 }
 
 function notifyPaymentLinkStockUnavailable_(context){
   var d=Number(context&&context.denomination||0);
-  require_([500,1000,1500,2000].indexOf(d)>=0,'Unsupported payment-link denomination.');
+  require_(paymentLinkStockDenominations_().indexOf(d)>=0,'Unsupported payment-link denomination.');
   ensurePaymentLinkStockAlertSheet_();
 
   var orderId=String(context&&context.orderId||'');
@@ -184,7 +196,8 @@ function notifyPaymentLinkStockUnavailable_(context){
     userId:context&&context.userId||'',
     userEmail:context&&context.userEmail||'',
     userName:context&&context.userName||'',
-    reason:'USER_REQUEST'
+    reason:'USER_REQUEST',
+    availableStock:0
   });
 }
 
@@ -223,7 +236,8 @@ function paymentLinkStockEmailActionResponse_(e){
         orderId:actionRow.OrderID||'',
         userEmail:actionRow.UserEmail||'',
         userName:actionRow.UserName||'',
-        reason:actionRow.Reason||'LOW_STOCK'
+        reason:actionRow.Reason||'LOW_STOCK',
+        availableStock:getAvailablePaymentLinkStockCount_(Number(actionRow.Denomination||0))
       },token));
     }
 
@@ -300,7 +314,7 @@ function paymentLinkStockEmailResultHtml_(title,message,orderId,remaining,isErro
 }
 
 function sendLowStockAlertsForAllPaymentLinkDenominations_(){
-  [500,1000,1500,2000].forEach(function(d){
+  paymentLinkStockDenominations_().forEach(function(d){
     try{maybeAlertPaymentLinkStockLow_(d,{requestedAmount:d});}catch(err){console.error('Low-stock alert failed for '+d+': '+String(err&&err.message||err));}
   });
 }
