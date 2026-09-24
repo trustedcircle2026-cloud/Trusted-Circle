@@ -4,11 +4,11 @@
  *  Flow:
  *   1) Low stock (< 2 AVAILABLE links) => immediate admin email with one-time add form.
  *   2) Customer requests an unavailable amount => immediate admin email with one-time add form.
- *   3) Admin pastes the payment URL and submits from the email.
- *   4) The backend validates the signed/hashed one-time action token and amount.
+ *   3) Admin opens the secure stock form from email, pastes the payment URL, and submits.
+ *   4) The backend validates the hashed one-time action token, expiry, and bound denomination.
  *   5) The link is inserted into PaymentLinkStock as AVAILABLE and the token is consumed.
  *
- *  Existing payment/order APIs are intentionally left intact.
+ *  Existing order/payment/admin action APIs remain separate and intact.
  */
 
 var TC_STOCK_ALERT_THRESHOLD=2;
@@ -19,8 +19,9 @@ function ensurePaymentLinkStockAlertSheet_(){
     'AlertID','TokenHash','Denomination','RequestedAmount','OrderID','UserID','UserEmail',
     'UserName','Reason','Status','ExpiresAt','CreatedAt','UsedAt','UsedBy'
   ];
-  ensureSheet_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,headers);
-  ensureColumns_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,headers);
+  var sheetName=TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS;
+  ensureSheet_(sheetName,headers);
+  ensureColumns_(sheetName,headers);
 }
 
 function createPaymentLinkStockAlertToken_(payload){
@@ -28,7 +29,7 @@ function createPaymentLinkStockAlertToken_(payload){
   var raw=Utilities.getUuid()+'.'+Utilities.getUuid(),
       now=isoNow_(),
       expires=new Date(Date.now()+TC_STOCK_ALERT_TTL_MS).toISOString();
-  appendRowObject_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,{
+  appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS,{
     AlertID:newId_('TCPLA'),
     TokenHash:hash_(raw),
     Denomination:Number(payload.denomination||0),
@@ -83,7 +84,7 @@ function paymentLinkStockAlertHtml_(payload,token){
         '</table>'+
         '<div style="padding:18px;background:#f5fbf7;border:1px solid #dce9e0;border-radius:14px">'+
           '<div style="font-weight:800;margin-bottom:8px">Paste the new payment link</div>'+
-          '<p style="margin:0 0 14px;color:#68736d;font-size:13px;line-height:1.5">The amount above is locked to this request. The link must be HTTPS and must not already exist in stock.</p>'+
+          '<p style="margin:0 0 14px;color:#68736d;font-size:13px;line-height:1.5">The amount is locked to this request. The link must use HTTPS and must not already exist in stock.</p>'+
           '<form method="POST" action="'+emailEscape_(actionUrl)+'" style="margin:0">'+
             '<input type="hidden" name="stockAction" value="ADD_PAYMENT_LINK">'+
             '<input type="hidden" name="token" value="'+emailEscape_(token)+'">'+
@@ -91,6 +92,7 @@ function paymentLinkStockAlertHtml_(payload,token){
             '<input type="text" name="label" value="Pay securely" placeholder="Button label (optional)" style="width:100%;box-sizing:border-box;padding:13px;border:1px solid #cfdad3;border-radius:10px;font-size:15px;margin-bottom:12px">'+
             '<button type="submit" style="border:0;cursor:pointer;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;font-weight:800;font-size:14px">ADD LINK TO STOCK</button>'+
           '</form>'+
+          '<div style="margin-top:12px"><a href="'+emailEscape_(actionUrl)+'" style="font-size:13px;color:#173c2a;font-weight:700">Open secure stock form</a></div>'+
         '</div>'+
         '<p style="font-size:12px;color:#7a847e;line-height:1.5;margin:16px 0 0">This one-time action expires automatically and cannot be reused after a successful add.</p>'+
       '</div>'+
@@ -102,7 +104,7 @@ function sendPaymentLinkStockAlert_(payload){
   var denomination=Number(payload.denomination||0),
       requestedAmount=Number(payload.requestedAmount||denomination||0);
   require_([500,1000,1500,2000].indexOf(denomination)>=0,'Invalid stock denomination.');
-  require_(requestedAmount>0,'Requested amount is required.');
+  require_(requestedAmount===denomination,'Requested amount must match the supported stock denomination.');
 
   var token=createPaymentLinkStockAlertToken_({
     denomination:denomination,
@@ -125,7 +127,7 @@ function sendPaymentLinkStockAlert_(payload){
 
   var subject='[Action Required] Payment-link stock · '+emailMoney_(denomination);
   return sendTransactionalEmail_(getAdminEmail_(),subject,html,
-    'Payment-link stock action required for '+emailMoney_(denomination)+'. Open the email in HTML mode to add the link.');
+    'Payment-link stock action required for '+emailMoney_(denomination)+'. Use the secure stock form to add the link.');
 }
 
 function getAvailablePaymentLinkStockCount_(denomination){
@@ -142,11 +144,11 @@ function maybeAlertPaymentLinkStockLow_(denomination,context){
 
   ensurePaymentLinkStockAlertSheet_();
   var recentCutoff=Date.now()-30*60*1000;
-  var recent=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){
+  var recent=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS).some(function(r){
+    var created=new Date(r.CreatedAt||0).getTime();
     return Number(r.Denomination||0)===d &&
       String(r.Reason||'').toUpperCase()==='LOW_STOCK' &&
-      new Date(r.CreatedAt||0).getTime()>recentCutoff &&
-      String(r.Status||'').toUpperCase()==='ACTIVE';
+      created>recentCutoff;
   });
   if(recent)return false;
 
@@ -167,7 +169,7 @@ function notifyPaymentLinkStockUnavailable_(context){
   ensurePaymentLinkStockAlertSheet_();
 
   var orderId=String(context&&context.orderId||'');
-  var recent=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){
+  var recent=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS).some(function(r){
     return Number(r.Denomination||0)===d &&
       String(r.OrderID||'')===orderId &&
       String(r.Reason||'').toUpperCase()==='USER_REQUEST' &&
@@ -186,38 +188,59 @@ function notifyPaymentLinkStockUnavailable_(context){
   });
 }
 
+function validatePaymentLinkStockAlertToken_(token){
+  ensurePaymentLinkStockAlertSheet_();
+  var raw=String(token||'');
+  require_(raw,'Payment-link stock action token is required.');
+  var tokenHash=hash_(raw),rows=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS),actionRow=null;
+  for(var i=rows.length-1;i>=0;i--){
+    if(String(rows[i].TokenHash||'')===tokenHash){actionRow=rows[i];break;}
+  }
+  require_(actionRow,'Payment-link stock action not found.');
+  require_(String(actionRow.Status||'').toUpperCase()==='ACTIVE','This stock action has already been used.');
+  require_(new Date(actionRow.ExpiresAt||0).getTime()>Date.now(),'This stock action has expired.');
+  var d=Number(actionRow.Denomination||0);
+  require_([500,1000,1500,2000].indexOf(d)>=0,'Invalid stock denomination.');
+  require_(Number(actionRow.RequestedAmount||0)===d,'Stock amount mismatch.');
+  return actionRow;
+}
+
 function paymentLinkStockEmailActionResponse_(e){
   try{
-    var p=e&&e.parameter?e.parameter:{};
-    require_(String(p.stockAction||'').toUpperCase()==='ADD_PAYMENT_LINK','Invalid stock action.');
-    var token=String(p.token||''),link=cleanText_(p.link||'',2000),label=cleanText_(p.label||'Pay securely',100);
-    require_(token,'Payment-link stock action token is required.');
-    require_(/^https:\/\//i.test(link),'Payment link must use HTTPS.');
+    var p=e&&e.parameter?e.parameter:{},
+        action=String(p.stockAction||'').toUpperCase(),
+        token=String(p.token||''),
+        link=cleanText_(p.link||'',2000),
+        label=cleanText_(p.label||'Pay securely',100);
+    require_(action==='ADD_PAYMENT_LINK','Invalid stock action.');
+    var actionRow=validatePaymentLinkStockAlertToken_(token);
 
-    ensurePaymentLinkStockAlertSheet_();
-    ensurePaymentLinkStockSheet_();
-
-    var tokenHash=hash_(token),rows=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS),actionRow=null;
-    for(var i=rows.length-1;i>=0;i--){
-      if(String(rows[i].TokenHash||'')===tokenHash){actionRow=rows[i];break;}
+    // A GET/open from the email shows the form. A POST with the link performs the add.
+    if(!link){
+      return HtmlService.createHtmlOutput(paymentLinkStockAlertHtml_({
+        denomination:Number(actionRow.Denomination||0),
+        requestedAmount:Number(actionRow.RequestedAmount||actionRow.Denomination||0),
+        orderId:actionRow.OrderID||'',
+        userEmail:actionRow.UserEmail||'',
+        userName:actionRow.UserName||'',
+        reason:actionRow.Reason||'LOW_STOCK'
+      },token));
     }
-    require_(actionRow,'Payment-link stock action not found.');
-    require_(String(actionRow.Status||'').toUpperCase()==='ACTIVE','This stock action has already been used.');
-    require_(new Date(actionRow.ExpiresAt||0).getTime()>Date.now(),'This stock action has expired.');
 
-    var denomination=Number(actionRow.Denomination||0);
-    require_([500,1000,1500,2000].indexOf(denomination)>=0,'Invalid stock denomination.');
-    require_(Number(actionRow.RequestedAmount||0)===Number(denomination),'Stock amount mismatch.');
+    require_(/^https:\/\//i.test(link),'Payment link must use HTTPS.');
+    ensurePaymentLinkStockSheet_();
 
     var lock=LockService.getScriptLock();
     lock.waitLock(10000);
     try{
+      // Re-read the action inside the lock so two browser requests cannot use the same token.
+      actionRow=validatePaymentLinkStockAlertToken_(token);
       var duplicate=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK).some(function(r){
         return String(r.Link||'').trim()===link;
       });
       require_(!duplicate,'This payment link is already stocked.');
 
-      var now=isoNow_(),id=newId_('TCPLS');
+      var denomination=Number(actionRow.Denomination||0),now=isoNow_(),id=newId_('TCPLS');
       appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,{
         PaymentLinkStockID:id,
         Denomination:denomination,
@@ -233,7 +256,7 @@ function paymentLinkStockEmailActionResponse_(e){
         UpdatedAt:now
       });
 
-      updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'AlertID',actionRow.AlertID,{
+      updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS,'AlertID',actionRow.AlertID,{
         Status:'USED',
         UsedAt:now,
         UsedBy:getAdminEmail_()
