@@ -35,28 +35,45 @@ Use `AVAILABLE` for fresh stock. A checkout reserves one matching link as `RESER
 
 ## Payment-link stock alerts and email replenishment
 
-`PaymentLinkStockAlertService.gs` adds a separate `PaymentLinkStockAlerts` sheet so existing `AdminEmailActions` records used by order actions remain untouched.
+`PaymentLinkStockAlertService.gs` uses a **separate** `PaymentLinkStockAlerts` sheet. This keeps the existing `AdminEmailActions` records used by order action emails unchanged.
 
-The alert threshold is **below 2 AVAILABLE links** for each supported denomination. The backend checks after stock is consumed/reserved and can also run `sendLowStockAlertsForAllPaymentLinkDenominations_()` to scan all denominations.
+The alert threshold is **below 2 AVAILABLE links** for each supported denomination. Alerts are checked immediately after a link is reserved or consumed, and `sendLowStockAlertsForAllPaymentLinkDenominations_()` can be run manually to scan all four supported denominations.
 
 When a customer requests a payment link and no matching stock exists, the backend immediately sends an administrator email containing:
 
 - Requested amount
 - Customer email/name when available
-- Order ID when the request is tied to an existing order
-- A one-time secure stock-action token
-- A payment-link input form
-- `ADD LINK TO STOCK` action
+- Order ID when the request already belongs to an order
+- One-time secure stock-action token
+- Payment-link textbox
+- `ADD LINK TO STOCK` button
+- `Open secure stock form` fallback for email clients that do not support HTML forms
 
-The amount/denomination is bound to the token on the server. The submitted link must use HTTPS and cannot duplicate an existing stocked link. Successful submission adds the link as `AVAILABLE`, records an audit entry, and marks the one-time alert token as used. Tokens expire automatically.
+The amount/denomination is bound to the token on the server. The submitted link must use HTTPS and cannot duplicate an existing stocked link. Successful submission:
 
-The email also includes a fallback **Open secure stock form** link because some email clients do not support interactive HTML forms. Opening the link without submitting a payment URL only displays the secure form; the stock is not changed.
+1. Inserts the link into `PaymentLinkStock` as `AVAILABLE`
+2. Marks the alert token `USED`
+3. Records an audit event
+4. Shows a confirmation page with the remaining available stock
+
+The token expires automatically after 7 days and cannot be reused. The server re-reads the token inside a script lock before inserting the stock row.
 
 The `PaymentLinkStockAlerts` sheet uses:
 
 `AlertID`, `TokenHash`, `Denomination`, `RequestedAmount`, `OrderID`, `UserID`, `UserEmail`, `UserName`, `Reason`, `Status`, `ExpiresAt`, `CreatedAt`, `UsedAt`, `UsedBy`.
 
-For first-time installation, copy **all** files from `backend/apps-script` into the same Apps Script project, then run `setupBackend()` so the new sheet can be created automatically when the alert workflow is first used.
+For first-time installation, copy **all** files from `backend/apps-script` into the same Apps Script project. The new alert sheet is created automatically the first time an alert or secure stock form is used. If you use a deployment without live script access to the updated source, create a **new Web App deployment/version** after importing these changes.
+
+### Email action endpoint
+
+`Code.gs` now preserves the existing `emailAction` order buttons and additionally recognizes:
+
+`?stockAction=ADD_PAYMENT_LINK&token=...`
+
+- GET without a link displays the secure stock form.
+- POST with the payment link validates and inserts it into stock.
+
+The existing generic API POST route continues unchanged for normal application requests.
 
 ## Paytm for Business payment links
 
