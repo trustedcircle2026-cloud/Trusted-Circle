@@ -222,7 +222,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <span className="gateway-mini-label">SECURE PAYMENT</span>
             <h2>{money(total)}</h2>
             <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
-            {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : activeLink ? <p>Link valid for {formatDuration(linkValidSeconds)}.</p> : null
+            {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : activeLink ? <p>Link valid for {formatDuration(linkValidSeconds)}.</p> : null}
             <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
               {linkLoading ? 'Preparing secure payment…' : activeLink ? 'Make Payment Again' : 'Make Payment'}
               <ChevronRight size={17} />
