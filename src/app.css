@@ -148,8 +148,3 @@
 @keyframes headerToolIconBump{0%{transform:scale(.82) rotate(-8deg)}30%{transform:scale(1.18) rotate(7deg)}55%{transform:scale(.96) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes headerBadgePulse{0%{transform:scale(.65);opacity:.35}45%{transform:scale(1.22);opacity:1}72%{transform:scale(.94)}100%{transform:scale(1);opacity:1}}
 
-.session-status{height:30px;padding:0 9px;border:1px solid var(--tc-line);border-radius:999px;background:#fff;display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:800;color:#66716c;white-space:nowrap}
-.session-status i{width:7px;height:7px;border-radius:50%;background:#a7b0ac;box-shadow:0 0 0 3px rgba(167,176,172,.12)}
-.session-status.active{color:#19734d;border-color:#cfe5d9;background:#f4fbf7}
-.session-status.active i{background:#27a56b;box-shadow:0 0 0 3px rgba(39,165,107,.13)}
-@media(max-width:700px){.session-status{width:30px;padding:0;justify-content:center}.session-status span{display:none}.session-status i{width:8px;height:8px}}
