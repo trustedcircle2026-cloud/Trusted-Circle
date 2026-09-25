@@ -1,5 +1,5 @@
 /** Trusted Circle transactional email service. Only OTP, payment-link and voucher emails go to shoppers. */
-var TC_EMAIL={PRIMARY:'trustedcircle2026@gmail.com',INFO:'info@trustedcircle.in'};
+var TC_EMAIL={PRIMARY:'trustedcircle2026@gmail.com',INFO:'info@trustedcircle.in',PROMOTER:'promoter@trustedcircle.in'};
 function emailEscape_(value){return escapeHtml_(String(value===undefined||value===null?'':value));}
 function emailMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN',{maximumFractionDigits:2});}
 function emailAliasList_(){try{return GmailApp.getAliases().map(function(a){return normalizeEmail_(a);});}catch(e){return [];}}
@@ -93,7 +93,7 @@ function sendAdminOrderActionEmail_(order,user,link,label){
   var lines=orderEmailItems_(items).map(function(i){return '<tr><td style="padding:8px;border-bottom:1px solid #edf1ee">'+emailEscape_(i.brand)+' · '+emailEscape_(i.title)+'</td><td style="padding:8px;border-bottom:1px solid #edf1ee">'+i.qty+'</td><td style="padding:8px;border-bottom:1px solid #edf1ee">'+emailMoney_(i.total)+'</td></tr>';}).join('');
   var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Order Action</div><div style="margin-top:5px;opacity:.8">Admin action required</div></div><div style="padding:24px"><p style="font-size:17px">A payment-link order is ready for action.</p><p><b>Order:</b> '+safeOrder+'<br><b>Customer:</b> '+name+'<br><b>Email:</b> '+emailEscape_(user.Email)+'<br><b>Total:</b> '+amount+'</p>'+(lines?'<table style="border-collapse:collapse;width:100%;margin:18px 0"><tr><th align="left" style="padding:8px">Item</th><th align="left" style="padding:8px">Qty</th><th align="left" style="padding:8px">Total</th></tr>'+lines+'</table>':'')+'<p style="color:#5f6b64">Payment link: <a href="'+emailEscape_(link)+'">Open payment link</a></p><div style="margin-top:22px">'+adminEmailButton_(adminActionUrl_(received.token,'RECEIVED'),'Received','#173c2a')+adminEmailButton_(adminActionUrl_(cancel.token,'CANCEL'),'Cancel Order','#b42318')+'</div><p style="font-size:12px;color:#7a847e;margin-top:14px">These buttons update the Trusted Circle backend directly. A cancelled order must be created again by the customer.</p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
   var text='Order '+order.OrderNumber+' · '+amount+'\nCustomer: '+(user.Name||'')+' · '+user.Email+'\nReceived: '+adminActionUrl_(received.token,'RECEIVED')+'\nCancel: '+adminActionUrl_(cancel.token,'CANCEL');
-  return sendTransactionalEmail_(TC_EMAIL.PRIMARY,'[Action Required] Payment-link order '+order.OrderNumber,html,text);
+  return sendTransactionalEmail_(TC_EMAIL.PROMOTER,'[Action Required] Payment confirmation · '+order.OrderNumber,html,text);
  }catch(e){console.error('Admin order action email failed: '+String(e&&e.message||e));return false;}
 }
 function adminEmailActionResponse_(e){
