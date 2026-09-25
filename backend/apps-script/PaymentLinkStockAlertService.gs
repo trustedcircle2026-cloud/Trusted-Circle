@@ -92,16 +92,9 @@ function paymentLinkStockAlertHtml_(payload,token){
           '<p style="margin:10px 0 0;color:#68736d;font-size:12px;line-height:1.5">This browser form is the reliable option when your mail app blocks interactive HTML email forms.</p>'+
         '</div>'+
         '<div style="padding:18px;background:#f5fbf7;border:1px solid #dce9e0;border-radius:14px">'+
-          '<div style="font-weight:800;margin-bottom:8px">Paste the new payment link</div>'+
-          '<p style="margin:0 0 14px;color:#68736d;font-size:13px;line-height:1.5">The amount is locked to this request. The link must use HTTPS and must not already exist in stock.</p>'+
-          '<form method="POST" action="'+emailEscape_(actionUrl)+'" style="margin:0">'+
-            '<input type="hidden" name="stockAction" value="ADD_PAYMENT_LINK">'+
-            '<input type="hidden" name="token" value="'+emailEscape_(token)+'">'+
-            '<input type="url" name="link" required placeholder="https://..." style="width:100%;box-sizing:border-box;padding:13px;border:1px solid #cfdad3;border-radius:10px;font-size:15px;margin-bottom:12px">'+
-            '<input type="text" name="label" value="Pay securely" placeholder="Button label (optional)" style="width:100%;box-sizing:border-box;padding:13px;border:1px solid #cfdad3;border-radius:10px;font-size:15px;margin-bottom:12px">'+
-            '<button type="submit" style="border:0;cursor:pointer;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;font-weight:800;font-size:14px">ADD LINK TO STOCK</button>'+
-          '</form>'+
-          '<div style="margin-top:12px"><a href="'+emailEscape_(actionUrl)+'" style="font-size:13px;color:#173c2a;font-weight:700">Open secure stock form</a></div>'+
+          '<div style="font-weight:800;margin-bottom:8px">Add the payment link from the secure browser form</div>'+
+          '<p style="margin:0;color:#68736d;font-size:13px;line-height:1.5">Gmail does not allow interactive forms inside emails. Open the secure Apps Script page below, then paste the new payment link there.</p>'+
+          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;margin-top:14px;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN SECURE STOCK FORM</a>'+
         '</div>'+
         '<p style="font-size:12px;color:#7a847e;line-height:1.5;margin:16px 0 0">This one-time action expires automatically and cannot be reused after a successful add.</p>'+
       '</div>'+
@@ -230,7 +223,7 @@ function paymentLinkStockEmailActionResponse_(e){
 
     // A GET/open from the email shows the form. A POST with the link performs the add.
     if(!link){
-      return HtmlService.createHtmlOutput(paymentLinkStockAlertHtml_({
+      return HtmlService.createHtmlOutput(paymentLinkStockBrowserFormHtml_({
         denomination:Number(actionRow.Denomination||0),
         requestedAmount:Number(actionRow.RequestedAmount||actionRow.Denomination||0),
         orderId:actionRow.OrderID||'',
@@ -238,7 +231,7 @@ function paymentLinkStockEmailActionResponse_(e){
         userName:actionRow.UserName||'',
         reason:actionRow.Reason||'LOW_STOCK',
         availableStock:getAvailablePaymentLinkStockCount_(Number(actionRow.Denomination||0))
-      },token));
+      },token)).setTitle('Trusted Circle · Add Payment Link');
     }
 
     require_(/^https:\/\//i.test(link),'Payment link must use HTTPS.');
@@ -300,6 +293,27 @@ function paymentLinkStockEmailActionResponse_(e){
       true
     ));
   }
+}
+
+function paymentLinkStockBrowserFormHtml_(payload,token){
+  var amount=emailMoney_(payload.requestedAmount||payload.denomination),
+      denomination=emailMoney_(payload.denomination),
+      order=payload.orderId?emailEscape_(payload.orderId):'Not linked to a specific order',
+      customer=payload.userEmail?emailEscape_(payload.userEmail):'Customer request',
+      name=payload.userName?emailEscape_(payload.userName):'',
+      actionUrl=paymentLinkStockAlertUrl_(token);
+  return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trusted Circle · Add Payment Link</title><style>'+
+    'body{margin:0;background:#f4f7f5;font-family:Arial,sans-serif;color:#18241e}.wrap{max-width:620px;margin:0 auto;padding:20px}.head{background:#173c2a;color:#fff;border-radius:18px;padding:22px}.card{background:#fff;margin-top:14px;border:1px solid #dce9e0;border-radius:18px;padding:24px;box-shadow:0 12px 35px rgba(20,51,31,.08)}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.meta div{padding:12px;border-radius:12px;background:#f5f8f6}.meta small{display:block;color:#68736d;font-size:11px}.meta b{display:block;margin-top:4px;font-size:15px}.field{margin-top:16px}.field label{display:block;font-weight:800;font-size:13px;margin-bottom:7px}.field input{width:100%;box-sizing:border-box;padding:14px;border:1px solid #cfdad3;border-radius:11px;font-size:15px;outline:none}.field input:focus{border-color:#4aa878;box-shadow:0 0 0 3px #eaf7ef}.btn{margin-top:18px;width:100%;border:0;border-radius:11px;padding:14px;background:#173c2a;color:#fff;font-weight:800;font-size:14px;cursor:pointer}.note{margin-top:14px;color:#68736d;font-size:12px;line-height:1.55}.warn{padding:12px;border-radius:11px;background:#fff8e8;color:#795d13;font-size:12px}.lock{margin-top:14px;text-align:center;color:#7a847e;font-size:11px}'+
+    '@media(max-width:600px){.wrap{padding:12px}.meta{grid-template-columns:1fr}.card{padding:18px}.head{padding:18px}}</style></head><body><main class="wrap">'+
+    '<header class="head"><div style="font-size:21px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure payment-link stock</div></header>'+
+    '<section class="card"><div style="font-size:18px;font-weight:800">Add payment link to stock</div><p style="color:#5f6b64;line-height:1.55">Paste the new HTTPS payment link below. The stock denomination is locked to this request.</p>'+
+    '<div class="meta"><div><small>Required amount</small><b>'+amount+'</b></div><div><small>Stock denomination</small><b>'+denomination+'</b></div><div><small>Customer</small><b>'+customer+(name?' · '+name:'')+'</b></div><div><small>Order ID</small><b>'+order+'</b></div></div>'+
+    '<form method="POST" action="'+emailEscape_(actionUrl)+'"><input type="hidden" name="stockAction" value="ADD_PAYMENT_LINK"><input type="hidden" name="token" value="'+emailEscape_(token)+'">'+
+    '<div class="field"><label>Payment Link</label><input type="url" name="link" required placeholder="https://..." autocomplete="off"></div>'+
+    '<div class="field"><label>Button Label</label><input type="text" name="label" value="Pay securely" placeholder="Pay securely"></div>'+
+    '<button class="btn" type="submit">ADD LINK TO STOCK</button></form>'+
+    '<div class="note">The link must use HTTPS and must not already exist in stock. This secure action is one-time and expires automatically.</div>'+
+    '<div class="lock">Trusted Circle · Secure Apps Script action</div></section></main></body></html>';
 }
 
 function paymentLinkStockEmailResultHtml_(title,message,orderId,remaining,isError){
