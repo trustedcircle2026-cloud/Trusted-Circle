@@ -24,6 +24,8 @@ function authenticate_(token) {
       require_(new Date(row.ExpiresAt).getTime() > Date.now(), 'Session expired.');
       const user = findOne_(TC_CONFIG.SHEETS.USERS, 'UserID', row.UserID);
       require_(user && user.Status === 'ACTIVE', 'User account is inactive.');
+      // Sliding session: every authenticated activity extends the session by one hour.
+      updateRowById_(TC_CONFIG.SHEETS.SESSIONS, 'SessionID', row.SessionID, { ExpiresAt: new Date(Date.now() + getSessionTtl_() * 1000).toISOString() });
       return user;
     }
   }
