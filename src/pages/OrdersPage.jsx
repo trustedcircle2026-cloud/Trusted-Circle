@@ -79,7 +79,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
 }
 
 export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome }) {
-  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set())
+  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false)
 
   const pending = order => !cancelled.has(order.OrderID) && String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
@@ -144,7 +144,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     <div className="page-shell">
       <div className="page-banner compact"><span className="eyebrow">MY ORDERS</span><h1>Your orders</h1><p>Open an order to view its latest status.</p></div>
       {invoiceError && <div className="invoice-error"><FileText size={16}/><span>{invoiceError}</span><button onClick={() => setInvoiceError('')}><X size={14}/></button></div>}
-      {loading ? <div className="empty-panel"><PackageCheck size={30}/><h3>Loading your orders…</h3><p>Please wait.</p></div> : orders.length ? <div className="orders-list">{orders.map(order => {
+      {loading ? <div className="empty-panel"><PackageCheck size={30}/><h3>Loading your orders…</h3><p>Please wait.</p></div> : orders.length ? (() => { const orderedOrders=[...orders].sort((a,b)=>{const da=Date.parse(a.CreatedAt||'')||0;const db=Date.parse(b.CreatedAt||'')||0;return db-da}); const recentOrders=orderedOrders.slice(0,4); const olderOrders=orderedOrders.slice(4); const visibleOrders=showOlder?orderedOrders:recentOrders; return <><div className="orders-list">{visibleOrders.map(order => {
         const expanded = open === order.OrderID
         const detail = details[order.OrderID]
         const displayOrder = detail?.order || order
@@ -158,7 +158,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
           <button className="order-main" onClick={() => viewOrder(order)}><div className="order-icon"><PackageCheck size={20}/></div><div className="order-copy"><span>{order.OrderNumber}</span><h3>{isCancelled ? 'Cancelled' : String(displayOrder.Status || 'ORDER').replaceAll('_', ' ')}</h3><small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small></div><div className="order-right"><strong>{money(order.Total)}</strong><span className={`payment-state ${stateClass}`}>{stateLabel}</span></div><ChevronDown size={17} className="order-chevron"/></button>
           {expanded && <div className="order-details"><OrderDetails order={order} detail={detail} detailsLoading={detailsLoading} paymentPending={paymentPending} isCancelled={isCancelled} ready={ready} invoiceLoading={invoiceLoading} cancelLoading={cancelLoading} downloadInvoice={downloadInvoice} setPay={setPay} onCancel={setCancelTarget}/></div>}
         </article>
-      })}</div> : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
+      })}</div>{olderOrders.length>0 && <div className="older-orders-action">{showOlder ? <button className="btn-quiet" onClick={()=>{setShowOlder(false);window.scrollTo({top:0,behavior:'smooth'})}}>Show recent 4 orders</button> : <button className="btn-quiet" onClick={()=>setShowOlder(true)}>View Older orders <ChevronDown size={16}/></button>}</div>}</>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
       <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
     </div>
 
