@@ -40,3 +40,12 @@
 
 .older-orders-action{display:flex;justify-content:center;margin:20px 0 8px}
 .older-orders-action .btn-quiet{min-width:210px}
+
+.check-payment-btn,.mark-payment-btn{min-height:42px;padding:0 14px;border-radius:11px;border:1px solid #d9e4de;background:#f7fbf9;color:#1c7250;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
+.mark-payment-btn{background:#173c2a;color:#fff;border-color:#173c2a}
+.check-payment-btn:disabled,.mark-payment-btn:disabled{opacity:.55;cursor:wait}
+.payment-action-notice{margin:0 0 16px;padding:12px 14px;border-radius:12px;display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.5}
+.payment-action-notice.success{background:#eef9f3;border:1px solid #c7e4d2;color:#176f4d}
+.payment-action-notice.pending{background:#fff9ec;border:1px solid #eeddb5;color:#7b5d17}
+.payment-action-notice.error{background:#fff4f4;border:1px solid #eed0d0;color:#a33b3b}
+@media(max-width:700px){.order-detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.order-detail-actions .make-payment-btn{grid-column:1/-1}.check-payment-btn,.mark-payment-btn{width:100%;font-size:11px;padding:0 8px}}
