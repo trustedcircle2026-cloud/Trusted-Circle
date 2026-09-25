@@ -155,3 +155,10 @@
 .header-tool.orders-tool b.header-badge-pulse,.header-tool.cart-tool b.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
 .header-tool.orders-tool.header-count-bump,.header-tool.cart-tool.header-count-bump{animation:headerToolCountBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
 .header-tool.orders-tool.header-count-bump svg,.header-tool.cart-tool.header-count-bump svg{animation:headerToolIconBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+
+/* Shared cart/order counter: identical geometry at 0, 1, and higher values. */
+.header-tool .header-count-badge{position:absolute;right:-5px;top:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:var(--tc-green);color:#fff;font-size:10px;font-weight:700;line-height:1;display:grid;place-items:center;box-sizing:border-box}
+.header-tool .header-count-badge.header-count-empty{background:var(--tc-green-soft);color:var(--tc-green-dark);border:1px solid #d5ecdf}
+.header-tool .header-count-badge.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+.header-tool.header-count-bump{animation:headerToolCountBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+.header-tool.header-count-bump svg{animation:headerToolIconBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
