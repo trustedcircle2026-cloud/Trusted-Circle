@@ -39,7 +39,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
         <div className="order-detail-actions">
           {paymentPending && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}
           {paymentPending && <button className="check-payment-btn" onClick={() => onCheckPayment(order)} disabled={paymentCheckLoading === order.OrderID}><PackageCheck size={15}/> {paymentCheckLoading === order.OrderID ? 'Checking…' : 'Check payment status'}</button>}
-          {paymentPending && <button className="mark-payment-btn" onClick={() => onCheckPayment(order, true)} disabled={paymentDoneLoading === order.OrderID}><FileText size={15}/> {paymentDoneLoading === order.OrderID ? 'Sending…' : 'Mark payment done'}</button>
+          {paymentPending && <button className="mark-payment-btn" onClick={() => onCheckPayment(order, true)} disabled={paymentDoneLoading === order.OrderID}><FileText size={15}/> {paymentDoneLoading === order.OrderID ? 'Sending…' : 'Mark payment done'}</button>}
           {canCancel && <button className="cancel-order-mini" onClick={() => onCancel(order)} disabled={cancelLoading === order.OrderID}><X size={14}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel'}</button>}
           {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(detailedOrder)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
         </div>
