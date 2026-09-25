@@ -148,3 +148,10 @@
 @keyframes headerToolIconBump{0%{transform:scale(.82) rotate(-8deg)}30%{transform:scale(1.18) rotate(7deg)}55%{transform:scale(.96) rotate(-3deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes headerBadgePulse{0%{transform:scale(.65);opacity:.35}45%{transform:scale(1.22);opacity:1}72%{transform:scale(.94)}100%{transform:scale(1);opacity:1}}
 
+
+/* Cart and order counters intentionally share the exact same badge geometry, position and animation. */
+.header-tool .header-count-empty{background:var(--tc-green-soft);color:var(--tc-green-dark);border:1px solid #d5ecdf}
+.header-tool.orders-tool b,.header-tool.cart-tool b{right:-5px;top:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;font-size:10px;line-height:1}
+.header-tool.orders-tool b.header-badge-pulse,.header-tool.cart-tool b.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+.header-tool.orders-tool.header-count-bump,.header-tool.cart-tool.header-count-bump{animation:headerToolCountBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+.header-tool.orders-tool.header-count-bump svg,.header-tool.cart-tool.header-count-bump svg{animation:headerToolIconBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
