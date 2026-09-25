@@ -217,7 +217,8 @@ function paymentLinkStockEmailActionResponse_(e){
         action=String(p.stockAction||'').toUpperCase(),
         token=String(p.token||''),
         link=cleanText_(p.link||'',2000),
-        label=cleanText_(p.label||'Pay securely',100);
+        label=cleanText_(p.label||'Pay securely',100),
+        selectedDenomination=Number(p.denomination||0);
     require_(action==='ADD_PAYMENT_LINK','Invalid stock action.');
     var actionRow=validatePaymentLinkStockAlertToken_(token);
 
@@ -230,11 +231,13 @@ function paymentLinkStockEmailActionResponse_(e){
         userEmail:actionRow.UserEmail||'',
         userName:actionRow.UserName||'',
         reason:actionRow.Reason||'LOW_STOCK',
-        availableStock:getAvailablePaymentLinkStockCount_(Number(actionRow.Denomination||0))
+        availableStock:getAvailablePaymentLinkStockCount_(Number(actionRow.Denomination||0)),
+        selectedDenomination:Number(actionRow.Denomination||0)
       },token)).setTitle('Trusted Circle · Add Payment Link');
     }
 
     require_(/^https:\/\//i.test(link),'Payment link must use HTTPS.');
+    require_([500,1000,1500,2000].indexOf(selectedDenomination)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
     ensurePaymentLinkStockSheet_();
 
     var lock=LockService.getScriptLock();
@@ -247,7 +250,7 @@ function paymentLinkStockEmailActionResponse_(e){
       });
       require_(!duplicate,'This payment link is already stocked.');
 
-      var denomination=Number(actionRow.Denomination||0),now=isoNow_(),id=newId_('TCPLS');
+      var denomination=selectedDenomination,now=isoNow_(),id=newId_('TCPLS');
       appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,{
         PaymentLinkStockID:id,
         Denomination:denomination,
@@ -296,23 +299,26 @@ function paymentLinkStockEmailActionResponse_(e){
 }
 
 function paymentLinkStockBrowserFormHtml_(payload,token){
-  var amount=emailMoney_(payload.requestedAmount||payload.denomination),
-      denomination=emailMoney_(payload.denomination),
+  var selected=Number(payload.selectedDenomination||payload.denomination||500),
       order=payload.orderId?emailEscape_(payload.orderId):'Not linked to a specific order',
       customer=payload.userEmail?emailEscape_(payload.userEmail):'Customer request',
       name=payload.userName?emailEscape_(payload.userName):'',
-      actionUrl=paymentLinkStockAlertUrl_(token);
+      actionUrl=paymentLinkStockAlertUrl_(token),
+      options=[500,1000,1500,2000].map(function(d){
+        return '<option value="'+d+'"'+(d===selected?' selected':'')+'>₹'+Number(d).toLocaleString('en-IN')+'</option>';
+      }).join('');
   return '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trusted Circle · Add Payment Link</title><style>'+
-    'body{margin:0;background:#f4f7f5;font-family:Arial,sans-serif;color:#18241e}.wrap{max-width:620px;margin:0 auto;padding:20px}.head{background:#173c2a;color:#fff;border-radius:18px;padding:22px}.card{background:#fff;margin-top:14px;border:1px solid #dce9e0;border-radius:18px;padding:24px;box-shadow:0 12px 35px rgba(20,51,31,.08)}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.meta div{padding:12px;border-radius:12px;background:#f5f8f6}.meta small{display:block;color:#68736d;font-size:11px}.meta b{display:block;margin-top:4px;font-size:15px}.field{margin-top:16px}.field label{display:block;font-weight:800;font-size:13px;margin-bottom:7px}.field input{width:100%;box-sizing:border-box;padding:14px;border:1px solid #cfdad3;border-radius:11px;font-size:15px;outline:none}.field input:focus{border-color:#4aa878;box-shadow:0 0 0 3px #eaf7ef}.btn{margin-top:18px;width:100%;border:0;border-radius:11px;padding:14px;background:#173c2a;color:#fff;font-weight:800;font-size:14px;cursor:pointer}.note{margin-top:14px;color:#68736d;font-size:12px;line-height:1.55}.warn{padding:12px;border-radius:11px;background:#fff8e8;color:#795d13;font-size:12px}.lock{margin-top:14px;text-align:center;color:#7a847e;font-size:11px}'+
+    'body{margin:0;background:#f4f7f5;font-family:Arial,sans-serif;color:#18241e}.wrap{max-width:620px;margin:0 auto;padding:20px}.head{background:#173c2a;color:#fff;border-radius:18px;padding:22px}.card{background:#fff;margin-top:14px;border:1px solid #dce9e0;border-radius:18px;padding:24px;box-shadow:0 12px 35px rgba(20,51,31,.08)}.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0}.meta div{padding:12px;border-radius:12px;background:#f5f8f6}.meta small{display:block;color:#68736d;font-size:11px}.meta b{display:block;margin-top:4px;font-size:15px}.field{margin-top:16px}.field label{display:block;font-weight:800;font-size:13px;margin-bottom:7px}.field input,.field select{width:100%;box-sizing:border-box;padding:14px;border:1px solid #cfdad3;border-radius:11px;font-size:15px;outline:none;background:#fff}.field input:focus,.field select:focus{border-color:#4aa878;box-shadow:0 0 0 3px #eaf7ef}.btn{margin-top:18px;width:100%;border:0;border-radius:11px;padding:14px;background:#173c2a;color:#fff;font-weight:800;font-size:14px;cursor:pointer}.note{margin-top:14px;color:#68736d;font-size:12px;line-height:1.55}.lock{margin-top:14px;text-align:center;color:#7a847e;font-size:11px}'+
     '@media(max-width:600px){.wrap{padding:12px}.meta{grid-template-columns:1fr}.card{padding:18px}.head{padding:18px}}</style></head><body><main class="wrap">'+
     '<header class="head"><div style="font-size:21px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.8">Secure payment-link stock</div></header>'+
-    '<section class="card"><div style="font-size:18px;font-weight:800">Add payment link to stock</div><p style="color:#5f6b64;line-height:1.55">Paste the new HTTPS payment link below. The stock denomination is locked to this request.</p>'+
-    '<div class="meta"><div><small>Required amount</small><b>'+amount+'</b></div><div><small>Stock denomination</small><b>'+denomination+'</b></div><div><small>Customer</small><b>'+customer+(name?' · '+name:'')+'</b></div><div><small>Order ID</small><b>'+order+'</b></div></div>'+
+    '<section class="card"><div style="font-size:20px;font-weight:800">Add payment link to stock</div><p style="color:#5f6b64;line-height:1.55">Choose the voucher denomination and paste the new HTTPS payment link below.</p>'+
+    '<div class="meta"><div><small>Customer</small><b>'+customer+(name?' · '+name:'')+'</b></div><div><small>Order ID</small><b>'+order+'</b></div></div>'+
     '<form method="POST" action="'+emailEscape_(actionUrl)+'"><input type="hidden" name="stockAction" value="ADD_PAYMENT_LINK"><input type="hidden" name="token" value="'+emailEscape_(token)+'">'+
+    '<div class="field"><label>Voucher Denomination</label><select name="denomination" required>'+options+'</select></div>'+
     '<div class="field"><label>Payment Link</label><input type="url" name="link" required placeholder="https://..." autocomplete="off"></div>'+
     '<div class="field"><label>Button Label</label><input type="text" name="label" value="Pay securely" placeholder="Pay securely"></div>'+
     '<button class="btn" type="submit">ADD LINK TO STOCK</button></form>'+
-    '<div class="note">The link must use HTTPS and must not already exist in stock. This secure action is one-time and expires automatically.</div>'+
+    '<div class="note">Supported denominations: ₹500, ₹1,000, ₹1,500 and ₹2,000. The link must use HTTPS and must not already exist in stock. This secure action is one-time and expires automatically.</div>'+
     '<div class="lock">Trusted Circle · Secure Apps Script action</div></section></main></body></html>';
 }
 
