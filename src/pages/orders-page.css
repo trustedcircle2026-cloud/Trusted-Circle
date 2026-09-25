@@ -33,3 +33,7 @@
   .orders-page .order-detail-actions{width:100%;}
   .orders-page .order-detail-actions button{min-width:0;}
 }
+
+.sent-final-actions{display:flex;justify-content:center;gap:10px;width:min(100%,430px);margin:20px auto 0}
+.sent-final-actions button{min-width:145px;min-height:44px;justify-content:center}
+@media(max-width:560px){.sent-final-actions{flex-direction:column}.sent-final-actions button{width:100%;min-width:0}}
