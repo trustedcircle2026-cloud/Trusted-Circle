@@ -52,8 +52,8 @@ export default function App(){
  const loadCatalog=useCallback(async(q=query,brand=brandFilter)=>{const data=await api.products(q.trim(),brand);setProducts(data?.items||[])},[query,brandFilter])
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
  const loadCart=useCallback(async currentToken=>{if(!currentToken){setCart([]);return}const data=await api.cart(currentToken);setCart(data?.items||[])},[])
- const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}setOrdersLoading(true);try{const data=await api.orders(currentToken);setOrders(data?.items||[])}catch(error){setAuthMessage(friendlyApiError(error))}finally{setOrdersLoading(false)}},[])
- useEffect(()=>{if(route.path!=='orders'||!token)return;loadOrders(token).catch(()=>{})},[route.path,token,loadOrders])
+ const loadOrders=useCallback(async (currentToken,limit=50,offset=0)=>{if(!currentToken){setOrders([]);return}setOrdersLoading(true);try{const data=await api.orders(currentToken,limit,offset);setOrders(data?.items||[]);return data}catch(error){setAuthMessage(friendlyApiError(error));return null}finally{setOrdersLoading(false)}},[])
+ useEffect(()=>{if(route.path!=='orders'||!token)return;loadOrders(token,4,0).catch(()=>{})},[route.path,token,loadOrders])
  useEffect(()=>{
   let active=true
   const start=async()=>{
