@@ -88,18 +88,18 @@ function sendAdminOrderActionEmailOnce_(order,user,link,label){
 }
 function sendAdminOrderActionEmail_(order,user,link,label){
  try{
-  var received=createAdminEmailActionToken_(order.OrderID,'RECEIVED'),cancel=createAdminEmailActionToken_(order.OrderID,'CANCEL'),safeOrder=emailEscape_(order.OrderNumber),name=emailEscape_(user&&user.Name||'there'),amount=emailMoney_(order.Total);
+  var received=createAdminEmailActionToken_(order.OrderID,'RECEIVED'),notReceived=createAdminEmailActionToken_(order.OrderID,'NOT_RECEIVED'),cancel=createAdminEmailActionToken_(order.OrderID,'CANCEL'),safeOrder=emailEscape_(order.OrderNumber),name=emailEscape_(user&&user.Name||'there'),amount=emailMoney_(order.Total);
   var items=getRows_(TC_CONFIG.SHEETS.ORDER_ITEMS).filter(function(r){return String(r.OrderID)===String(order.OrderID);});
   var lines=orderEmailItems_(items).map(function(i){return '<tr><td style="padding:8px;border-bottom:1px solid #edf1ee">'+emailEscape_(i.brand)+' · '+emailEscape_(i.title)+'</td><td style="padding:8px;border-bottom:1px solid #edf1ee">'+i.qty+'</td><td style="padding:8px;border-bottom:1px solid #edf1ee">'+emailMoney_(i.total)+'</td></tr>';}).join('');
-  var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Order Action</div><div style="margin-top:5px;opacity:.8">Admin action required</div></div><div style="padding:24px"><p style="font-size:17px">A payment-link order is ready for action.</p><p><b>Order:</b> '+safeOrder+'<br><b>Customer:</b> '+name+'<br><b>Email:</b> '+emailEscape_(user.Email)+'<br><b>Total:</b> '+amount+'</p>'+(lines?'<table style="border-collapse:collapse;width:100%;margin:18px 0"><tr><th align="left" style="padding:8px">Item</th><th align="left" style="padding:8px">Qty</th><th align="left" style="padding:8px">Total</th></tr>'+lines+'</table>':'')+'<p style="color:#5f6b64">Payment link: <a href="'+emailEscape_(link)+'">Open payment link</a></p><div style="margin-top:22px">'+adminEmailButton_(adminActionUrl_(received.token,'RECEIVED'),'Received','#173c2a')+adminEmailButton_(adminActionUrl_(cancel.token,'CANCEL'),'Cancel Order','#b42318')+'</div><p style="font-size:12px;color:#7a847e;margin-top:14px">These buttons update the Trusted Circle backend directly. A cancelled order must be created again by the customer.</p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
-  var text='Order '+order.OrderNumber+' · '+amount+'\nCustomer: '+(user.Name||'')+' · '+user.Email+'\nReceived: '+adminActionUrl_(received.token,'RECEIVED')+'\nCancel: '+adminActionUrl_(cancel.token,'CANCEL');
-  return sendTransactionalEmail_(TC_EMAIL.PROMOTER,'[Action Required] Payment confirmation · '+order.OrderNumber,html,text);
+  var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Order Action</div><div style="margin-top:5px;opacity:.8">Admin action required</div></div><div style="padding:24px"><p style="font-size:17px">A payment-link order is ready for action.</p><p><b>Order:</b> '+safeOrder+'<br><b>Customer:</b> '+name+'<br><b>Email:</b> '+emailEscape_(user.Email)+'<br><b>Total:</b> '+amount+'</p>'+(lines?'<table style="border-collapse:collapse;width:100%;margin:18px 0"><tr><th align="left" style="padding:8px">Item</th><th align="left" style="padding:8px">Qty</th><th align="left" style="padding:8px">Total</th></tr>'+lines+'</table>':'')+'<p style="color:#5f6b64">Payment link: <a href="'+emailEscape_(link)+'">Open payment link</a></p><div style="margin-top:22px">'+adminEmailButton_(adminActionUrl_(received.token,'RECEIVED'),'Received','#173c2a')+adminEmailButton_(adminActionUrl_(notReceived.token,'NOT_RECEIVED'),'Not Received','#9a6700')+adminEmailButton_(adminActionUrl_(cancel.token,'CANCEL'),'Reject Order','#b42318')+'</div><p style="font-size:12px;color:#7a847e;margin-top:14px">These buttons update the Trusted Circle backend directly. A cancelled order must be created again by the customer.</p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
+  var text='Order '+order.OrderNumber+' · '+amount+'\nCustomer: '+(user.Name||'')+' · '+user.Email+'\nReceived: '+adminActionUrl_(received.token,'RECEIVED')+'\nNot Received: '+adminActionUrl_(notReceived.token,'NOT_RECEIVED')+'\nReject: '+adminActionUrl_(cancel.token,'CANCEL');
+  return sendTransactionalEmail_(getAdminEmail_(),'[Action Required] Payment confirmation · '+order.OrderNumber,html,text);
  }catch(e){console.error('Admin order action email failed: '+String(e&&e.message||e));return false;}
 }
 function adminEmailActionResponse_(e){
  try{
   var token=String(e.parameter.emailAction||''),action=String(e.parameter.action||'').toUpperCase();
-  require_(token&&['RECEIVED','CANCEL'].indexOf(action)>=0,'Invalid action link.');
+  require_(token&&['RECEIVED','NOT_RECEIVED','CANCEL'].indexOf(action)>=0,'Invalid action link.');
   ensureAdminEmailActionSheet_();
   var tokenHash=hash_(token),rows=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS),row=null;
   for(var i=rows.length-1;i>=0;i--){if(String(rows[i].TokenHash)===tokenHash){row=rows[i];break;}}
@@ -118,17 +118,21 @@ function adminEmailActionResponse_(e){
    updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',order.OrderID,{Status:'PAID',UpdatedAt:now});
    if(typeof creditCashbackForOrder_==='function')creditCashbackForOrder_(order);
    if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(order.OrderID,now);
+  }else if(action==='NOT_RECEIVED'){
+   require_(['PENDING_PAYMENT','PAYMENT_PROCESSING','PROCESSING'].indexOf(current)>=0,'This order is no longer awaiting payment.');
+   appendAudit_('', 'ADMIN_EMAIL_NOT_RECEIVED', 'Orders', order.OrderID, {orderNumber:order.OrderNumber});
   }else{
+
    require_(current==='PENDING_PAYMENT','Only a pending-payment order can be cancelled.');
    var paid=getRows_(TC_CONFIG.SHEETS.PAYMENTS).some(function(p){return String(p.OrderID)===String(order.OrderID)&&['PAID','VERIFIED','SUCCESS','CAPTURED'].indexOf(String(p.Status||'').toUpperCase())>=0;});
    require_(!paid,'A paid order cannot be cancelled.');
    updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',order.OrderID,{Status:'CANCELLED',UpdatedAt:now});
    getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(l){return String(l.OrderID)===String(order.OrderID);}).forEach(function(l){try{updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINKS,'PaymentLinkID',l.PaymentLinkID,{Status:'CANCELLED',UpdatedAt:now});}catch(ignore){}if(l.PaymentLinkStockID)try{updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',l.PaymentLinkStockID,{Status:'AVAILABLE',OrderID:'',PaymentLinkID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now});}catch(ignore2){}});
   }
-  updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'ActionTokenID',row.ActionTokenID,{Status:'USED',UsedAt:now});
+  getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).filter(function(a){return String(a.OrderID)===String(order.OrderID)&&String(a.Status||'').toUpperCase()==='ACTIVE';}).forEach(function(a){updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'ActionTokenID',a.ActionTokenID,{Status:'USED',UsedAt:now});});
   appendAudit_('', 'ADMIN_EMAIL_'+action, 'Orders', order.OrderID, {orderNumber:order.OrderNumber});
-  var title=action==='RECEIVED'?'Payment marked as received':'Order cancelled';
-  var body=action==='RECEIVED'?'The order is now marked PAID. Cashback has been processed.':'The order has been cancelled and its payment link stock released. The customer must create a new order.';
+  var title=action==='RECEIVED'?'Payment marked as received':action==='NOT_RECEIVED'?'Payment marked as not received':'Order cancelled';
+  var body=action==='RECEIVED'?'The order is now marked PAID. Cashback has been processed.':action==='NOT_RECEIVED'?'The order remains pending payment. The customer can continue using the active payment link.':'The order has been cancelled and its payment link stock released. The customer must create a new order.';
   return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f8f6;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px;box-sizing:border-box"><main style="max-width:520px;background:#fff;border:1px solid #dce9e0;border-radius:18px;padding:30px;box-shadow:0 14px 40px rgba(0,0,0,.08);text-align:center"><h1 style="color:#173c2a;margin:0 0 10px">'+emailEscape_(title)+'</h1><p style="color:#5f6b64;line-height:1.6">'+emailEscape_(body)+'</p><p style="font-size:12px;color:#7a847e">Order '+emailEscape_(order.OrderNumber)+'</p></main></body></html>');
  }catch(err){return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f7f7f7;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px;box-sizing:border-box"><main style="max-width:520px;background:#fff;border:1px solid #ead4d4;border-radius:18px;padding:30px;text-align:center"><h1 style="margin:0 0 10px;color:#b42318">Action not completed</h1><p style="color:#5f6b64;line-height:1.6">'+emailEscape_(String(err&&err.message||err))+'</p></main></body></html>');}
 }
