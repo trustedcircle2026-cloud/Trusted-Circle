@@ -103,9 +103,14 @@ function paymentLinkStockAlertHtml_(payload,token){
 
 function sendPaymentLinkStockAlert_(payload){
   var denomination=Number(payload.denomination||0),
-      requestedAmount=Number(payload.requestedAmount||denomination||0);
+      requestedAmount=Number(payload.requestedAmount||denomination||0),
+      recipient=getAdminEmail_();
   require_(paymentLinkStockDenominations_().indexOf(denomination)>=0,'Invalid stock denomination.');
   require_(requestedAmount===denomination,'Requested amount must match the supported stock denomination.');
+  require_(isValidEmail_(recipient),'Admin alert email is invalid: '+recipient);
+
+  var quota=Number(MailApp.getRemainingDailyQuota()||0);
+  require_(quota>=1,'Google Apps Script email quota is exhausted.');
 
   var token=createPaymentLinkStockAlertToken_({
     denomination:denomination,
@@ -128,9 +133,67 @@ function sendPaymentLinkStockAlert_(payload){
     availableStock:payload.availableStock
   },token);
 
-  var subject=(String(payload.reason||'LOW_STOCK')==='STOCK_EXHAUSTED'?'[URGENT] Payment-link stock exhausted · ':'[Action Required] Payment-link stock · ')+emailMoney_(denomination);
-  return sendTransactionalEmail_(getAdminEmail_(),subject,html,
-    'Payment-link stock action required for '+emailMoney_(denomination)+'. Use the secure stock form to add the link.');
+  var reason=String(payload.reason||'LOW_STOCK').toUpperCase(),
+      subject=(reason==='STOCK_EXHAUSTED'?'[URGENT] Payment-link stock exhausted · ':'[Action Required] Payment-link stock · ')+emailMoney_(denomination),
+      text='Payment-link stock action required for '+emailMoney_(denomination)+'. Available stock: '+String(payload.availableStock===undefined?'':payload.availableStock)+'. Use the Trusted Circle secure stock page to add links.';
+
+  try{
+    var sent=sendTransactionalEmail_(recipient,subject,html,text);
+    if(!sent)throw new Error('MailApp could not send the stock alert.');
+    try{
+      appendAudit_('', 'PAYMENT_LINK_STOCK_ALERT_SENT', 'PaymentLinkStock', String(denomination), {
+        recipient:recipient,
+        availableStock:Number(payload.availableStock||0),
+        reason:reason,
+        orderId:String(payload.orderId||''),
+        quotaBefore:quota
+      });
+    }catch(ignoreAudit){}
+    return true;
+  }catch(err){
+    try{
+      appendAudit_('', 'PAYMENT_LINK_STOCK_ALERT_FAILED', 'PaymentLinkStock', String(denomination), {
+        recipient:recipient,
+        availableStock:Number(payload.availableStock||0),
+        reason:reason,
+        orderId:String(payload.orderId||''),
+        quotaBefore:quota,
+        error:String(err&&err.message||err)
+      });
+    }catch(ignoreAudit){}
+    throw err;
+  }
+}
+
+function testPaymentLinkStockAlertEmail(){
+  var recipient=getAdminEmail_(),
+      denomination=1000,
+      availableStock=0,
+      token=createPaymentLinkStockAlertToken_({
+        denomination:denomination,
+        requestedAmount:denomination,
+        orderId:'TEST-STOCK-ALERT',
+        userId:'',
+        userEmail:'',
+        userName:'Admin email test',
+        reason:'STOCK_EXHAUSTED',
+        availableStock:availableStock
+      }),
+      html=paymentLinkStockAlertHtml_({
+        denomination:denomination,
+        requestedAmount:denomination,
+        orderId:'TEST-STOCK-ALERT',
+        userEmail:'',
+        userName:'Admin email test',
+        reason:'STOCK_EXHAUSTED',
+        availableStock:availableStock
+      },token);
+  var quota=Number(MailApp.getRemainingDailyQuota()||0);
+  require_(quota>=1,'Google Apps Script email quota is exhausted.');
+  var sent=sendTransactionalEmail_(recipient,'[TEST] Trusted Circle · payment-link stock alert',html,
+    'TEST: Trusted Circle payment-link stock alert. Admin recipient: '+recipient);
+  require_(sent,'Test stock alert email could not be sent.');
+  return {ok:true,to:recipient,quotaBefore:quota,sentAt:isoNow_()};
 }
 
 function getAvailablePaymentLinkStockCount_(denomination){
@@ -142,30 +205,49 @@ function getAvailablePaymentLinkStockCount_(denomination){
 }
 
 function maybeAlertPaymentLinkStockLow_(denomination,context){
-  var d=Number(denomination||0),count=getAvailablePaymentLinkStockCount_(d);
-  if(paymentLinkStockDenominations_().indexOf(d)<0||count>=TC_STOCK_ALERT_THRESHOLD)return false;
+  var d=Number(denomination||0);
+  if(paymentLinkStockDenominations_().indexOf(d)<0)return false;
+
+  var count=getAvailablePaymentLinkStockCount_(d);
+  // Alerts are generated only after a stock row has been consumed. The caller
+  // invokes this function immediately after changing RESERVED -> USED.
+  if(count>=TC_STOCK_ALERT_THRESHOLD)return false;
 
   ensurePaymentLinkStockAlertSheet_();
   var recentCutoff=Date.now()-30*60*1000;
   var recent=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS).some(function(r){
     var created=new Date(r.CreatedAt||0).getTime();
+    var reason=String(r.Reason||'').toUpperCase();
     return Number(r.Denomination||0)===d &&
-      String(r.Reason||'').toUpperCase()==='LOW_STOCK' &&
+      reason==='LOW_STOCK' &&
       Number(r.AvailableStock||-1)===count &&
       created>recentCutoff;
   });
   if(recent)return false;
 
-  return sendPaymentLinkStockAlert_({
-    denomination:d,
-    requestedAmount:Number(context&&context.requestedAmount||d),
-    orderId:context&&context.orderId||'',
-    userId:context&&context.userId||'',
-    userEmail:context&&context.userEmail||'',
-    userName:context&&context.userName||'',
-    reason:count===0?'STOCK_EXHAUSTED':'LOW_STOCK',
-    availableStock:count
-  });
+  try{
+    return sendPaymentLinkStockAlert_({
+      denomination:d,
+      requestedAmount:Number(context&&context.requestedAmount||d),
+      orderId:context&&context.orderId||'',
+      userId:context&&context.userId||'',
+      userEmail:context&&context.userEmail||'',
+      userName:context&&context.userName||'',
+      reason:count===0?'STOCK_EXHAUSTED':'LOW_STOCK',
+      availableStock:count
+    });
+  }catch(err){
+    // Do not hide the failure: keep the order/payment flow successful, but
+    // persist the reason so the admin can diagnose why the alert was not sent.
+    try{
+      appendAudit_('', 'PAYMENT_LINK_STOCK_ALERT_FAILED', 'PaymentLinkStock', String(d), {
+        availableStock:count,
+        orderId:String(context&&context.orderId||''),
+        error:String(err&&err.message||err)
+      });
+    }catch(ignore){}
+    return false;
+  }
 }
 
 function notifyPaymentLinkStockUnavailable_(context){
