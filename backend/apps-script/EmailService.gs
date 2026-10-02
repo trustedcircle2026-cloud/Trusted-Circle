@@ -83,7 +83,7 @@ function adminEmailButton_(url,label,bg){
 }
 function sendAdminOrderActionEmailOnce_(order,user,link,label){
  ensureAdminEmailActionSheet_();
- var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){return String(r.OrderID)===String(order.OrderID);});
+ var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){return String(r.OrderID)===String(order.OrderID)&&String(r.Status||'').toUpperCase()==='ACTIVE'&&new Date(r.ExpiresAt||0).getTime()>Date.now();});
  if(existing)return false;
  return sendAdminOrderActionEmail_(order,user,link,label);
 }
