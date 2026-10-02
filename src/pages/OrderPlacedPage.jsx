@@ -42,7 +42,6 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         if(status){
           if(status==='PAID'){setPaymentState('PAID')
           }else if(status==='CANCELLED'){setPaymentState('CANCELLED')
-          }else if(paymentRequested){setPaymentState('PAYMENT_PROCESSING')
           }else{setPaymentState(status)}
           if(status==='PAID'){
             setDeliveryOpen(true)
