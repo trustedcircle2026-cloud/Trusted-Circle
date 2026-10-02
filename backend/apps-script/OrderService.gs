@@ -147,5 +147,6 @@ function markPaymentLinkStockUsedForOrder_(orderId,now){
  ensurePaymentLinkStockSheet_();
  var rows=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK).filter(function(r){return String(r.OrderID)===String(orderId)&&String(r.Status||'').toUpperCase()==='RESERVED';});
  rows.forEach(function(r){updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',r.PaymentLinkStockID,{Status:'USED',ReservedAt:'',ExpiresAt:'',UpdatedAt:now});});
+ rows.forEach(function(stock){try{var denomination=Number(stock.Denomination||0);if(typeof maybeAlertPaymentLinkStockLow_==='function')maybeAlertPaymentLinkStockLow_(denomination,{requestedAmount:denomination,orderId:orderId});}catch(alertIgnore){}});
  try{getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){return String(r.OrderID)===String(orderId)&&String(r.Status||'').toUpperCase()==='ACTIVE';}).forEach(function(r){updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINKS,'PaymentLinkID',r.PaymentLinkID,{Status:'USED',UpdatedAt:now});});}catch(ignore){}
 }
