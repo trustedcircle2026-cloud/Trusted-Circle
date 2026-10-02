@@ -42,7 +42,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in again.')
-      try { await api.paymentCheckRequested(token, orderRef) } catch (_) {}
       let latest = null
       for (let attempt = 0; attempt < 6; attempt += 1) {
         latest = await api.orderDetails(token, orderRef)
