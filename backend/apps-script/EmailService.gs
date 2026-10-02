@@ -19,7 +19,7 @@ function orderEmailDetails_(order,user,items){var lines=orderEmailItems_(items),
 function sendOrderPlacedEmails_(){return false;}
 function sendPaymentStatusEmails_(){return false;}
 function sendPaymentLinkRequestEmails_(){return false;}
-function sendPaymentLinkEmails_(order,user,link,label){var safeLink=emailEscape_(link),html=orderEmailDetails_(order,user,[])+'<div style="padding:0 24px 24px"><div style="padding:18px;border:1px solid #dce9e0;border-radius:14px;background:#f5fbf7"><h2 style="margin:0 0 8px">Your payment link is ready</h2><p style="margin:0 0 16px">Hi '+emailEscape_(user&&user.Name||'there')+', your payment link for this order is ready.</p><a href="'+safeLink+'" style="display:inline-block;padding:13px 20px;background:#173c2a;color:#fff;text-decoration:none;border-radius:10px;font-weight:700">'+emailEscape_(label||'Make Payment')+'</a></div></div>',text='Hi '+(user&&user.Name||'there')+', your Trusted Circle payment link is ready: '+link;return sendDualTransactionalEmail_('Your payment link is ready · '+order.OrderNumber,html,text,user.Email);}
+function sendPaymentLinkEmails_(order,user,link,label){return{userSent:false,infoSent:false};}
 function enqueueOtpEmail_(otpId,email,subject,htmlBody,textBody){
  var sheet=ensureSheet_(TC_CONFIG.SHEETS.EMAIL_QUEUE,['EmailQueueID','Type','OrderID','UserID','Email','Link','Label','Subject','HtmlBody','TextBody','Status','Attempts','LastError','CreatedAt','UpdatedAt','SentAt']);
  ensureColumns_(TC_CONFIG.SHEETS.EMAIL_QUEUE,['EmailQueueID','Type','OrderID','UserID','Email','Link','Label','Subject','HtmlBody','TextBody','Status','Attempts','LastError','CreatedAt','UpdatedAt','SentAt']);
@@ -27,27 +27,28 @@ function enqueueOtpEmail_(otpId,email,subject,htmlBody,textBody){
  appendRowObject_(TC_CONFIG.SHEETS.EMAIL_QUEUE,{EmailQueueID:newId_('TCEMQ'),Type:'OTP',OrderID:'',UserID:'',Email:email,Link:'',Label:otpId,Subject:subject,HtmlBody:htmlBody,TextBody:textBody,Status:'QUEUED',Attempts:0,LastError:'',CreatedAt:now,UpdatedAt:now,SentAt:''});
  return true;
 }
-function enqueuePaymentLinkEmail_(order,user,link,label){var sheet=ensureSheet_(TC_CONFIG.SHEETS.EMAIL_QUEUE,['EmailQueueID','Type','OrderID','UserID','Email','Link','Label','Status','Attempts','LastError','CreatedAt','UpdatedAt','SentAt']);ensureColumns_(TC_CONFIG.SHEETS.EMAIL_QUEUE,['EmailQueueID','Type','OrderID','UserID','Email','Link','Label','Status','Attempts','LastError','CreatedAt','UpdatedAt','SentAt']);var now=isoNow_();appendRowObject_(TC_CONFIG.SHEETS.EMAIL_QUEUE,{EmailQueueID:newId_('TCEMQ'),Type:'PAYMENT_LINK',OrderID:order.OrderID,UserID:user.UserID,Email:user.Email,Link:link,Label:label||'Make Payment',Status:'QUEUED',Attempts:0,LastError:'',CreatedAt:now,UpdatedAt:now,SentAt:''});return true;}
+function enqueuePaymentLinkEmail_(order,user,link,label){return false;}
 function ensureEmailQueueTrigger_(){var triggers=ScriptApp.getProjectTriggers();var exists=triggers.some(function(t){return t.getHandlerFunction()==='processEmailQueue_';});if(!exists)ScriptApp.newTrigger('processEmailQueue_').timeBased().everyMinutes(1).create();}
 function processEmailQueue_(){
  var lock=LockService.getScriptLock();if(!lock.tryLock(1000))return;
  try{
   var rows=getRows_(TC_CONFIG.SHEETS.EMAIL_QUEUE).filter(function(r){return String(r.Status||'').toUpperCase()==='QUEUED';}).slice(0,10);
   rows.forEach(function(row){
-   var attempts=Number(row.Attempts||0)+1,now=isoNow_;
+   var type=String(row.Type||'').toUpperCase(),now=isoNow_();
+   if(type==='PAYMENT_LINK'){
+    updateRowById_(TC_CONFIG.SHEETS.EMAIL_QUEUE,'EmailQueueID',row.EmailQueueID,{Status:'CANCELLED',LastError:'Payment-link emails disabled.',UpdatedAt:now});
+    return;
+   }
+   var attempts=Number(row.Attempts||0)+1;
    updateRowById_(TC_CONFIG.SHEETS.EMAIL_QUEUE,'EmailQueueID',row.EmailQueueID,{Status:'PROCESSING',Attempts:attempts,UpdatedAt:now});
    try{
-    var type=String(row.Type||'').toUpperCase();
     if(type==='OTP'){
       require_(row.Email&&row.Subject&&row.HtmlBody&&row.TextBody,'OTP email queue data is incomplete.');
       var userSent=sendTransactionalEmail_(row.Email,row.Subject,row.HtmlBody,row.TextBody);
       var infoSent=sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] OTP requested · '+row.Email,row.HtmlBody,row.TextBody);
       require_(userSent&&infoSent,'One or more OTP emails could not be sent.');
     }else{
-      var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',row.OrderID),user=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',row.UserID);
-      require_(order&&user,'Email queue order/user not found.');
-      var result=sendPaymentLinkEmails_(order,user,row.Link,row.Label);
-      require_(result.userSent&&result.infoSent,'One or more payment-link emails could not be sent.');
+      throw new Error('Unsupported queued email type: '+type);
     }
     updateRowById_(TC_CONFIG.SHEETS.EMAIL_QUEUE,'EmailQueueID',row.EmailQueueID,{Status:'SENT',LastError:'',UpdatedAt:isoNow_(),SentAt:isoNow_()});
    }catch(e){
