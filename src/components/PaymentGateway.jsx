@@ -210,7 +210,13 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     // about:blank document in a tiny desktop viewport. Use the current tab on
     // phones so the payment provider opens in the full mobile viewport.
     let popup = null
-    if (!isMobileViewport) {
+    if (isMobileViewport) {
+      // IMPORTANT: reserve a real browser tab synchronously from the user's
+      // tap. The payment URL is only assigned after Apps Script has returned
+      // a valid link, so the original Trusted Circle tab keeps its session and
+      // the customer can return to the order-confirmation popup.
+      popup = window.open('about:blank', '_blank')
+    } else {
       const popupWidth = 500
       const popupHeight = 620
       const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
@@ -288,15 +294,10 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         setPaymentCheckMessage('Payment status will update automatically after you return from the payment page.')
       }
 
-      if (isMobileViewport) {
-        // Keep mobile payment in the current full-screen tab. This avoids the
-        // tiny about:blank viewport shown by some Android Chrome builds.
-        api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
-        if (!orderId && typeof onCreateOrder === 'function') {
-          onCreateOrder(result)
-        }
-        window.location.assign(link)
-      } else if (popup && !popup.closed) {
+      if (popup && !popup.closed) {
+        // The tab was opened by the original user gesture. Keep the temporary
+        // Trusted Circle loading screen visible until the real payment URL has
+        // been generated, then navigate that same tab to the provider.
         popup.location.replace(link)
         popup.focus()
         api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
@@ -304,7 +305,14 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           onCreateOrder(result)
         }
       } else {
-        setLinkRequest({ link, expiresAt, orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId, error: 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.' })
+        setLinkRequest({
+          link,
+          expiresAt,
+          orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId,
+          error: isMobileViewport
+            ? 'Payment tab was blocked. Allow pop-ups for Trusted Circle and tap Make Payment again.'
+            : 'Your browser blocked the payment window. Use the Open payment page button below, or allow popups for Trusted Circle.'
+        })
       }
     } catch (error) {
       if (popup && !popup.closed) popup.close()
