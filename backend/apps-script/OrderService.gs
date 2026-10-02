@@ -108,7 +108,7 @@ function getOrder_(userId,orderId){
  var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);
  require_(order&&String(order.UserID)===String(userId),'Order not found.');
  var items=getRows_(TC_CONFIG.SHEETS.ORDER_ITEMS).filter(function(r){return String(r.OrderID)===String(orderId);}),payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===String(orderId);}),links=[];
- try{links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){return String(r.OrderID)===String(orderId)&&String(r.Status||'ACTIVE').toUpperCase()!=='DISABLED'&&String(r.Status||'ACTIVE').toUpperCase()!=='EXPIRED';});}catch(ignore){}
+ try{links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){var status=String(r.Status||'ACTIVE').toUpperCase();return String(r.OrderID)===String(orderId)&&['DISABLED','EXPIRED','RELEASED','CANCELLED'].indexOf(status)<0;});}catch(ignore){}
  return{order:order,items:items,payment:payments.length?payments[payments.length-1]:null,paymentLink:links.length?links[links.length-1]:null};
 }
 function requestPaymentLink_(data){
