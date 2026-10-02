@@ -220,6 +220,5 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
       </div>
     </div>
   </div>
-  </div>
   </>
 }
