@@ -145,10 +145,10 @@ Payment has been verified. Please send my digital voucher.`
   </section></main>
 
   return <main className="page-shell order-placed-page"><section className="order-success order-success-rich">
-    <div className={`success-ring success-pop status-${statusTone}`}><CheckCircle2 size={42}/></div>
-    <span className="eyebrow">{paymentState==='PAID'?'PAYMENT VERIFIED':'ORDER RECEIVED'}</span>
-    <h1>{paymentState==='PAID'?'Payment verified':'Order received'}</h1>
-    <p className="success-lead">{paymentState==='PAID'?'Your payment is verified.':'Sit back and relax — your order is with us.'}</p>
+    <div className={`success-ring success-pop status-${statusTone}`}>{paymentFailed?<X size={42}/>:<CheckCircle2 size={42}/>}</div>
+    <span className="eyebrow">{paymentState==='PAID'?'PAYMENT VERIFIED':paymentFailed?'PAYMENT FAILED':'ORDER RECEIVED'}</span>
+    <h1>{paymentState==='PAID'?'Payment verified':paymentFailed?'Payment was not received':'Order received'}</h1>
+    <p className="success-lead">{paymentState==='PAID'?'Your payment is verified.':paymentFailed?'The previous payment attempt was not received. You can retry the payment below.':'Sit back and relax — your order is with us.'}</p>
 
     {order?.order&&<div className="success-order"><div><small>ORDER</small><strong>{orderNumber}</strong></div><div><small>TOTAL</small><strong>{money(order.order.Total)}</strong></div><div className={`success-status ${statusTone}`}><small>STATUS</small><strong>{statusLabel}</strong></div></div>}
 
