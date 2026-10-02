@@ -162,3 +162,17 @@
 .header-tool .header-count-badge.header-badge-pulse{animation:headerBadgePulse .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
 .header-tool.header-count-bump{animation:headerToolCountBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
 .header-tool.header-count-bump svg{animation:headerToolIconBump .65s cubic-bezier(.2,.8,.2,1);transform-origin:center}
+
+
+/* Payment-link-first order state */
+.payment-link-ready-panel{margin-top:18px;padding:22px;border:1px solid #d7e8de;border-radius:20px;background:linear-gradient(135deg,#f3fbf6,#fff);display:flex;align-items:center;justify-content:space-between;gap:22px;box-shadow:0 14px 34px rgba(25,90,55,.06)}
+.payment-link-ready-copy{min-width:0}
+.payment-link-ready-copy h2{font-size:22px;letter-spacing:-.03em;margin:6px 0 8px}
+.payment-link-ready-copy p{font-size:12px;color:var(--tc-muted);line-height:1.6;margin:0;max-width:600px}
+.payment-link-ready-actions{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;min-width:300px}
+.payment-link-open-btn,.payment-link-retry-btn{min-height:50px;border-radius:13px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:850;text-decoration:none;cursor:pointer;transition:.2s;box-sizing:border-box}
+.payment-link-open-btn{background:#16834f;color:#fff;box-shadow:0 10px 24px rgba(22,131,79,.2)}
+.payment-link-open-btn:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(22,131,79,.25)}
+.payment-link-retry-btn{background:#fff;border:1px solid #dbe4df;color:#26312c}
+.payment-link-retry-btn:hover{border-color:#b8cfc3;background:#f8fbf9}
+.payment-link-retry-btn:disabled{opacity:.6;cursor:not-allowed}
