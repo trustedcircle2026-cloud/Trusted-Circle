@@ -23,7 +23,7 @@ const extractPaymentLink = value => {
   return ''
 }
 
-export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, onBack, onCreateOrder, orderId = '' }) {
+export default function PaymentGateway({ mode = 'checkout', user, items = [], total, cashback = 0, logoUrl, onBack, onCreateOrder, onOrders, orderId = '' }) {
   const [linkRequest, setLinkRequest] = useState(null)
   const [linkWaitSeconds, setLinkWaitSeconds] = useState(0)
   const [linkValidSeconds, setLinkValidSeconds] = useState(0)
@@ -31,44 +31,113 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [paymentCheck, setPaymentCheck] = useState('idle')
   const [paymentCheckMessage, setPaymentCheckMessage] = useState('')
   const [paymentCheckLoading, setPaymentCheckLoading] = useState(false)
+  const [verificationStartedAt, setVerificationStartedAt] = useState(0)
+  const [verificationSeconds, setVerificationSeconds] = useState(0)
+  const [verified, setVerified] = useState(false)
+  const [latestOrder, setLatestOrder] = useState(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
   const orderRef = linkRequest?.orderId || orderId
-  const checkPayment = async () => {
-    if (!orderRef || paymentCheckLoading) return
+  const readPaymentStatus = async ({showResult=true}={}) => {
+    if (!orderRef || paymentCheckLoading) return false
     setPaymentCheckLoading(true)
-    setPaymentCheck('checking')
-    setPaymentCheckMessage('Checking the latest payment status…')
+    if (showResult) {
+      setPaymentCheck('checking')
+      setPaymentCheckMessage('Checking the latest payment status…')
+    }
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in again.')
-      let latest = null
-      for (let attempt = 0; attempt < 6; attempt += 1) {
-        latest = await api.orderDetails(token, orderRef)
-        const status = String(latest?.payment?.Status || latest?.order?.PaymentStatus || '').toUpperCase()
-        const orderStatus = String(latest?.order?.Status || '').toUpperCase()
-        if (['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)) {
-          setPaymentCheck('paid')
-          setPaymentCheckMessage('Payment received. Your order status has been updated.')
-          return
-        }
-        if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 3000))
+      const latest = await api.orderDetails(token, orderRef)
+      const status = String(latest?.payment?.Status || latest?.order?.PaymentStatus || '').toUpperCase()
+      const orderStatus = String(latest?.order?.Status || '').toUpperCase()
+      if (latest?.order) setLatestOrder(latest.order)
+      const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
+      if (paid) {
+        setPaymentCheck('paid')
+        setPaymentCheckMessage('Payment received. Your order status has been updated.')
+        setVerified(true)
+        setVerificationStartedAt(0)
+        setVerificationSeconds(0)
+        return true
       }
-      setPaymentCheck('pending')
-      setPaymentCheckMessage('Payment is still pending verification. If you have completed payment, please check again shortly.')
+      if (status === 'NOT_RECEIVED') {
+        setPaymentCheck('retry')
+        setPaymentCheckMessage('The previous payment attempt was not received. You can create a fresh payment link.')
+        return false
+      }
+      if (showResult) {
+        setPaymentCheck('pending')
+        setPaymentCheckMessage('Payment is still pending verification. The status will update automatically.')
+      }
+      return false
     } catch (error) {
-      setPaymentCheck('retry')
-      setPaymentCheckMessage(error.message || 'We could not check the payment status. Please try again.')
+      if (showResult) {
+        setPaymentCheck('retry')
+        setPaymentCheckMessage(error.message || 'We could not check the payment status. Please try again.')
+      }
+      return false
     } finally {
       setPaymentCheckLoading(false)
     }
   }
+  const checkPayment = async () => {
+    let paid = false
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      paid = await readPaymentStatus()
+      if (paid) return
+      if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 3000))
+    }
+  }
+
+  const shareOrder = () => {
+    const number = latestOrder?.OrderNumber || linkRequest?.orderNumber || orderId || 'your Trusted Circle order'
+    const amount = money(latestOrder?.Total || total)
+    const text = `Trusted Circle order confirmed ✓\\nOrder: ${number}\\nAmount: ${amount}\\nThank you for shopping with Trusted Circle.`
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
+  }
+
   const sharePaymentLink = kind => {
     if (!linkRequest?.link) return
     const text = 'Trusted Circle payment link — ' + money(total) + '\n' + linkRequest.link
     if (kind === 'whatsapp') window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
     else window.location.href = 'mailto:' + encodeURIComponent(user?.email || '') + '?subject=' + encodeURIComponent('Trusted Circle payment link') + '&body=' + encodeURIComponent(text)
   }
+
+  useEffect(() => {
+    if (!verificationStartedAt || !orderRef || verified) return undefined
+    const tick = () => {
+      const remaining = Math.max(0, 120 - Math.floor((Date.now() - verificationStartedAt) / 1000))
+      setVerificationSeconds(remaining)
+    }
+    tick()
+    const timer = window.setInterval(() => {
+      tick()
+      if (Date.now() - verificationStartedAt >= 120000) {
+        window.clearInterval(timer)
+      }
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [verificationStartedAt, orderRef, verified])
+
+  useEffect(() => {
+    if (!verificationStartedAt || !orderRef || verified) return undefined
+    let active = true
+    let timer = null
+    const poll = async () => {
+      if (!active) return
+      const paid = await readPaymentStatus({showResult:false})
+      if (!active || paid) return
+      if (Date.now() - verificationStartedAt < 120000) {
+        timer = window.setTimeout(poll, 5000)
+      }
+    }
+    poll()
+    return () => {
+      active = false
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [verificationStartedAt, orderRef, verified])
 
   useEffect(() => {
     if (!linkLoading && !linkRequest?.link) return undefined
@@ -143,27 +212,34 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in first.')
       let result
-      if (mode === 'checkout') {
+      if (orderId) {
+        result = await api.requestPaymentLink(token, orderId)
+      } else {
         if (!items.length) throw new Error('Your cart is empty.')
         result = await api.placeOrder(token, 'link')
-      } else {
-        if (!orderId) throw new Error('Order could not be found.')
-        result = await api.requestPaymentLink(token, orderId)
       }
 
       const link = extractPaymentLink(result)
       if (!link) throw new Error('Payment link was not returned. Please try again.')
       const expiresAt = result?.expiresAt || result?.paymentLink?.ExpiresAt || ''
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
-      setLinkRequest({ link, expiresAt, orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId })
+      const resolvedOrderId = result?.order?.order?.OrderID || result?.order?.OrderID || orderId
+      setLinkRequest({ link, expiresAt, orderId: resolvedOrderId, orderNumber: result?.order?.order?.OrderNumber || result?.order?.OrderNumber || '' })
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
+      if (resolvedOrderId) {
+        const started = Date.now()
+        setVerificationStartedAt(started)
+        setVerificationSeconds(120)
+        setPaymentCheck('checking')
+        setPaymentCheckMessage('Payment status will update automatically after you return from the payment page.')
+      }
 
       if (isMobileViewport) {
         // Keep mobile payment in the current full-screen tab. This avoids the
         // tiny about:blank viewport shown by some Android Chrome builds.
         api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
-        if (mode === 'checkout' && typeof onCreateOrder === 'function') {
+        if (!orderId && typeof onCreateOrder === 'function') {
           onCreateOrder(result)
         }
         window.location.assign(link)
@@ -171,7 +247,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         popup.location.replace(link)
         popup.focus()
         api.paymentLinkOpened(token, result?.order?.order?.OrderID || result?.order?.OrderID || orderId).catch(()=>{})
-        if (mode === 'checkout' && typeof onCreateOrder === 'function') {
+        if (!orderId && typeof onCreateOrder === 'function') {
           onCreateOrder(result)
         }
       } else {
@@ -190,18 +266,18 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   return (
     <div className={`payment-gateway payment-gateway-${mode}`}>
       <div className="gateway-shell">
-        {mode === 'checkout' && <aside className="gateway-summary">
+        <aside className="gateway-summary">
           <div className="gateway-summary-brand">
             <div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div>
             <div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div>
           </div>
           <div className="gateway-stepper">
-            <span className="done">1</span><div><b>Cart</b><small>{items.length} item{items.length === 1 ? '' : 's'}</small></div>
+            <span className="done">1</span><div><b>{orderId ? 'Order' : 'Cart'}</b><small>{orderId ? (latestOrder?.OrderNumber || 'Existing order') : `${items.length} item${items.length === 1 ? '' : 's'}`}</small></div>
             <span className="active">2</span><div><b>Payment</b><small>Secure payment</small></div>
           </div>
           <div className="gateway-price-label">PAY NOW</div>
           <div className="gateway-total">{money(total)}</div>
-          <div className="gateway-account-pill"><CheckCircle2 size={15} /><span>{user?.email || 'Signed in'}</span></div>
+          <div className="gateway-account-pill"><CheckCircle2 size={15} /><span>{user?.email || 'Trusted Circle account'}</span></div>
           <div className="gateway-order-lines">
             <div><span>Voucher value</span><b>{money(total)}</b></div>
             <div><span>Cashback</span><b className="gateway-green">+ {money(cashback)}</b></div>
@@ -212,7 +288,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
         <section className="gateway-payment">
           <div className="gateway-payment-head">
-            <div><span className="gateway-kicker">PAYMENT</span><h1>{mode === 'checkout' ? 'Payment' : 'Pay pending order'}</h1></div>
+            <div><span className="gateway-kicker">PAYMENT</span><h1>Secure Payment</h1><p>{orderId ? 'Complete payment for your pending order.' : 'Complete your order securely.'}</p></div>
             <button className="gateway-close" onClick={onBack} aria-label="Close payment"><X size={16} /></button>
           </div>
 
@@ -229,16 +305,29 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
             {linkRequest?.error && <div className="gateway-error"><X size={15} /><span>{linkRequest.error}</span></div>}
             {linkRequest?.link && linkRequest?.error && <a className="gateway-pay-button gateway-fallback-link" href={linkRequest.link} target="_blank" rel="noopener noreferrer" onClick={()=>{const token=localStorage.getItem('tc_session');const id=linkRequest?.orderId||orderId;if(token&&id)api.paymentLinkOpened(token,id).catch(()=>{})}}><Link2 size={17} /> Open payment page <ChevronRight size={17} /></a>}
-            {activeLink && paymentCheck === 'idle' && <div className="gateway-payment-actions">
+            {activeLink && !verified && paymentCheck !== 'paid' && <div className="gateway-payment-actions">
               <button className="gateway-secondary-action" type="button" onClick={checkPayment} disabled={paymentCheckLoading}><CheckCircle2 size={16}/> I completed payment — Check status</button>
-              <div className="gateway-share-row"><span>Send payment link</span><button type="button" onClick={()=>sharePaymentLink('whatsapp')}><MessageCircle size={15}/> WhatsApp</button><button type="button" onClick={()=>sharePaymentLink('email')}><Mail size={15}/> Email</button></div>
+              <div className="gateway-share-row"><span>Send payment link</span><button type="button" onClick={()=>sharePaymentLink('whatsapp')}><MessageCircle size={15}/> WhatsApp</button></div>
             </div>}
             {paymentCheck !== 'idle' && <div className={'gateway-payment-check gateway-payment-check-' + paymentCheck}>
               {paymentCheck === 'checking' ? <Clock3 size={20}/> : paymentCheck === 'paid' ? <CheckCircle2 size={20}/> : <ShieldCheck size={20}/>}
               <div><strong>{paymentCheck === 'checking' ? 'Checking payment…' : paymentCheck === 'paid' ? 'Payment received' : paymentCheck === 'pending' ? 'Payment still pending' : 'Payment check needs a retry'}</strong><span>{paymentCheckMessage}</span></div>
               {paymentCheck !== 'paid' && <button type="button" onClick={paymentCheck === 'pending' ? checkPayment : requestPayment} disabled={paymentCheckLoading}>{paymentCheck === 'pending' ? 'Check again' : 'Retry payment'} <ChevronRight size={15}/></button>}
             </div>}
-            {activeLink && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return to My Orders to see the updated payment status. Cashback is added only after payment verification.</span></div></div>}
+            {verificationStartedAt > 0 && !verified && <div className="payment-verification-card">
+              <div className="payment-verification-icon"><ShieldCheck size={20}/></div>
+              <div className="payment-verification-copy">
+                <strong>Payment status checking</strong>
+                <span>{verificationSeconds > 0 ? `We are checking the payment automatically for up to 2 minutes. ${verificationSeconds}s remaining.` : 'Automatic checking window ended. You can check the status again.'}</span>
+                <div className="payment-verification-bar"><span style={{width:`${Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}} /></div>
+              </div>
+              <div className="payment-verification-live"><i/> LIVE</div>
+            </div>}
+            {verified && <div className="payment-verification-card payment-verification-card-success">
+              <div className="payment-verification-icon"><CheckCircle2 size={20}/></div>
+              <div className="payment-verification-copy"><strong>Payment verified</strong><span>Your payment has been confirmed by Trusted Circle.</span></div>
+            </div>}
+            {activeLink && !verified && <div className="gateway-return-card"><Clock3 size={17} /><div><strong>After payment</strong><span>Return here. We will check the order automatically using the latest server payment status.</span></div></div>}
           </div>
 
           <div className="gateway-amount-bar">
@@ -249,7 +338,22 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         </section>
       </div>
 
-
+      {verified && <div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
+        <div className="payment-verified-modal">
+          <span className="verified-confetti confetti-one"/>
+          <span className="verified-confetti confetti-two"/>
+          <span className="verified-confetti confetti-three"/>
+          <div className="verified-hero-ring"><div className="verified-hero-check"><CheckCircle2 size={72}/></div></div>
+          <span className="eyebrow">PAYMENT VERIFIED</span>
+          <h2>Payment successful</h2>
+          <p>Your payment has been confirmed and the order is now moving to the next stage.</p>
+          <div className="verified-order-pill"><span>{latestOrder?.OrderNumber || linkRequest?.orderNumber || orderId}</span><strong>{money(latestOrder?.Total || total)}</strong></div>
+          <div className="verified-actions">
+            <button className="verified-share-btn" type="button" onClick={shareOrder}><MessageCircle size={17}/> Share Order</button>
+            <button className="verified-orders-btn" type="button" onClick={()=>{setVerified(false);if(typeof onOrders==='function')onOrders();else onBack?.()}}>View Orders</button>
+          </div>
+        </div>
+      </div>}
     </div>
   )
 }
