@@ -7,6 +7,11 @@ const money=value=>`₹${Number(value||0).toLocaleString('en-IN',{maximumFractio
 const UPI_APPS_URL='upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&tn=Verified%20Paytm%20Account'
 
 export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRetryPayment}){
+  const goToOrders=()=>{
+    clearHandoff()
+    if(typeof onOrders==='function'){onOrders();return}
+    window.location.hash='#/orders'
+  }
   const items=order?.snapshot?.items||[]
   const orderNumber=order?.order?.OrderNumber||order?.OrderNumber||'Your order'
   const orderId=order?.order?.OrderID||order?.OrderID||''
@@ -227,7 +232,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         <button className="failed-retry-btn" type="button" onClick={()=>{setPaymentFailedOpen(false);retry()}} disabled={retrying}>
           <RefreshCw size={18}/>{retrying?'Preparing…':'Retry Payment'}
         </button>
-        <button className="failed-orders-btn" type="button" onClick={()=>{setPaymentFailedOpen(false);clearHandoff();onOrders()}}>
+        <button className="failed-orders-btn" type="button" onClick={()=>{setPaymentFailedOpen(false);goToOrders()}}>
           <PackageCheck size={18}/> View Orders
         </button>
       </div>
