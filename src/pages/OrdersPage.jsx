@@ -95,7 +95,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
 }
 
 export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome, logoUrl }) {
-  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [olderLoading, setOlderLoading] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
+  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [olderOrders, setOlderOrders] = useState([]), [olderLoading, setOlderLoading] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
 
   const pending = order => !cancelled.has(order.OrderID) && ['PENDING','NOT_RECEIVED'].includes(String(order.PaymentStatus || 'PENDING').toUpperCase()) && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
@@ -141,17 +141,18 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     } finally { setDetailsLoading('') }
   }
 
-  const loadOlderOrders = async olderOrders => {
-    if (olderLoading || !olderOrders.length) {
-      if (!olderOrders.length) setShowOlder(true)
-      return
-    }
+  const loadOlderOrders = async () => {
+    if (olderLoading) return
     setOlderLoading(true)
     setInvoiceError('')
     try {
       const token = localStorage.getItem('tc_session')
-      const results = await Promise.all(olderOrders.map(async order => {
-        if (details[order.OrderID]) return [order.OrderID, details[order.OrderID]]
+      const result = await api.orders(token, 50, 4)
+      const fetched = Array.isArray(result?.items) ? result.items : []
+      const list = fetched.slice(0, 50)
+      setOlderOrders(list)
+
+      const results = await Promise.all(list.map(async order => {
         try {
           const result = await api.orderDetails(token, order.OrderID)
           return [order.OrderID, result]
@@ -159,17 +160,17 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
           if (/API request failed \(404\)/i.test(String(error?.message || ''))) {
             return [order.OrderID, { order, payment: { Status: order.PaymentStatus || 'PENDING' }, items: [], legacyFallback: true }]
           }
-          throw error
+          return [order.OrderID, null]
         }
       }))
       setDetails(previous => {
         const next = { ...previous }
-        results.forEach(([id, result]) => { next[id] = result })
+        results.forEach(([id, result]) => { if (result) next[id] = result })
         return next
       })
       setShowOlder(true)
     } catch (error) {
-      setInvoiceError(error.message || 'Could not load older order details.')
+      setInvoiceError(error.message || 'Could not load older orders.')
     } finally {
       setOlderLoading(false)
     }
@@ -213,7 +214,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     <div className="page-shell">
       <div className="page-banner compact"><span className="eyebrow">MY ORDERS</span><h1>Your orders</h1><p>Open an order to view its latest status.</p></div>
       {invoiceError && <div className="invoice-error"><FileText size={16}/><span>{invoiceError}</span><button onClick={() => setInvoiceError('')}><X size={14}/></button></div>}
-      {loading ? <div className="empty-panel"><PackageCheck size={30}/><h3>Loading your orders…</h3><p>Please wait.</p></div> : orders.length ? (() => { const orderedOrders=[...orders].sort((a,b)=>{const da=Date.parse(a.CreatedAt||'')||0;const db=Date.parse(b.CreatedAt||'')||0;return db-da}); const recentOrders=orderedOrders.slice(0,4); const olderOrders=orderedOrders.slice(4); const visibleOrders=showOlder?orderedOrders:recentOrders; return <><div className="orders-list">{visibleOrders.map(order => {
+      {loading ? <div className="empty-panel"><PackageCheck size={30}/><h3>Loading your orders…</h3><p>Please wait.</p></div> : orders.length ? (() => { const recentOrders=[...orders].sort((a,b)=>{const da=Date.parse(a.CreatedAt||'')||0;const db=Date.parse(b.CreatedAt||'')||0;return db-da}).slice(0,4); const loadedOlderOrders=[...olderOrders].sort((a,b)=>{const da=Date.parse(a.CreatedAt||'')||0;const db=Date.parse(b.CreatedAt||'')||0;return db-da}); const visibleOrders=showOlder?[...recentOrders,...loadedOlderOrders]:recentOrders; return <><div className="orders-list">{visibleOrders.map(order => {
         const expanded = open === order.OrderID
         const detail = details[order.OrderID]
         const displayOrder = detail?.order || order
@@ -228,10 +229,10 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
           <button className="order-main" onClick={() => viewOrder(order)}><div className="order-icon"><PackageCheck size={20}/></div><div className="order-copy"><span>{order.OrderNumber}</span><h3>{isCancelled ? 'Cancelled' : failedPayment ? 'Failed Payment' : String(displayOrder.Status || 'ORDER').replaceAll('_', ' ')}</h3><small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small></div><div className="order-right"><strong>{money(order.Total)}</strong><span className={`payment-state ${stateClass}`}>{stateLabel}</span></div><ChevronDown size={17} className="order-chevron"/></button>
           {expanded && <div className="order-details"><OrderDetails order={order} detail={detail} detailsLoading={detailsLoading} paymentPending={paymentPending} isCancelled={isCancelled} ready={ready} invoiceLoading={invoiceLoading} cancelLoading={cancelLoading} downloadInvoice={downloadInvoice} setPay={setPay} onCancel={setCancelTarget} onCheckPayment={checkPayment} paymentCheckLoading={paymentCheckLoading} paymentNotice={paymentNotice} onRetryPayment={order => setPay({...order, items: details[order.OrderID]?.items || []})}/></div>}
         </article>
-      })}</div>{olderOrders.length>0 && <div className="older-orders-action">
+      })}</div>{(showOlder ? loadedOlderOrders.length > 0 : true) && <div className="older-orders-action">
   {showOlder
     ? <button className="btn-quiet" onClick={()=>{setShowOlder(false);window.scrollTo({top:0,behavior:'smooth'})}}>Show recent 4 orders</button>
-    : <button className="btn-quiet" onClick={()=>loadOlderOrders(olderOrders)} disabled={olderLoading}>
+    : <button className="btn-quiet" onClick={loadOlderOrders} disabled={olderLoading}>
         {olderLoading ? 'Loading older orders…' : 'View Older Orders'} <ChevronDown size={16}/>
       </button>}
 </div>}</>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
