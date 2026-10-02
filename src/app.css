@@ -359,3 +359,148 @@
   color:#16834f;
   box-shadow:0 0 0 10px rgba(39,165,107,.06);
 }
+
+
+/* ============================================================
+   TRUSTED CIRCLE — PREMIUM PAYMENT / ORDER UI SYSTEM
+   Shared visual language for checkout, verification and success.
+   ============================================================ */
+
+:root{
+  --tc-premium-green:#16834f;
+  --tc-premium-green-2:#20a966;
+  --tc-premium-soft:#eaf8f0;
+  --tc-premium-border:#d5e9de;
+  --tc-premium-ink:#17241e;
+  --tc-premium-muted:#6d7973;
+}
+
+.tc-premium-surface{
+  background:linear-gradient(145deg,#ffffff 0%,#fbfefc 72%,#f3faf6 100%);
+  border:1px solid var(--tc-premium-border);
+  border-radius:28px;
+  box-shadow:0 24px 70px rgba(19,70,45,.10);
+}
+
+.tc-premium-check-ring{
+  width:132px;height:132px;border-radius:50%;
+  display:grid;place-items:center;
+  background:radial-gradient(circle,#e9faef 0 54%,#d7f5e3 55% 65%,rgba(39,165,107,.07) 66% 100%);
+  box-shadow:0 0 0 13px rgba(39,165,107,.045),0 20px 45px rgba(25,130,76,.13);
+  animation:tcPremiumRingIn .7s cubic-bezier(.2,.9,.2,1);
+}
+.tc-premium-check-ring>span{
+  width:84px;height:84px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--tc-premium-green);
+  color:#fff;
+  box-shadow:0 13px 30px rgba(22,131,79,.25);
+  animation:tcPremiumCheckPop .75s cubic-bezier(.17,.89,.32,1.35) .1s both;
+}
+.tc-premium-check-ring svg{stroke-width:2.4}
+
+.tc-premium-verification{
+  width:100%;
+  box-sizing:border-box;
+  padding:20px 21px;
+  border:1px solid #cfe7d9;
+  border-radius:20px;
+  background:linear-gradient(135deg,#f2fcf6 0%,#ffffff 78%);
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  box-shadow:0 15px 38px rgba(22,131,79,.075);
+}
+.tc-premium-verification-icon{
+  width:46px;height:46px;border-radius:15px;
+  display:grid;place-items:center;
+  color:var(--tc-premium-green);
+  background:#e4f7ec;
+}
+.tc-premium-verification-copy{
+  display:grid;gap:5px;min-width:0;
+}
+.tc-premium-verification-copy strong{
+  color:#1b2c24;font-size:14px;font-weight:850;
+}
+.tc-premium-verification-copy p{
+  margin:0;color:#718079;font-size:10px;line-height:1.55;
+}
+.tc-premium-progress{
+  width:100%;height:8px;margin-top:5px;
+  border-radius:999px;background:#deeee5;overflow:hidden;
+}
+.tc-premium-progress>span{
+  display:block;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,#16834f,#35bd7d,#16834f);
+  background-size:180% 100%;
+  transition:width .9s linear;
+  animation:tcPremiumProgressGlow 1.7s linear infinite;
+}
+.tc-premium-live{
+  display:flex;align-items:center;gap:6px;
+  color:var(--tc-premium-green);
+  font-size:9px;font-weight:950;letter-spacing:.13em;
+}
+.tc-premium-live i{
+  width:8px;height:8px;border-radius:50%;
+  background:#20a966;
+  box-shadow:0 0 0 5px rgba(32,169,102,.11);
+  animation:tcPremiumLive 1.15s ease-in-out infinite;
+}
+
+.tc-premium-status{
+  padding:17px 19px;
+  border-radius:17px;
+  border:1px solid #d9e8e0;
+  background:#f8fcfa;
+  display:flex;align-items:center;gap:12px;
+}
+.tc-premium-status.success{
+  background:#effaf4;border-color:#c5e4d1;color:#176f49;
+}
+.tc-premium-status.failed{
+  background:#fff5f3;border-color:#efd0cb;color:#ad443b;
+}
+.tc-premium-status .status-icon{
+  width:40px;height:40px;border-radius:13px;
+  display:grid;place-items:center;
+  background:#e5f7ed;flex:none;
+}
+.tc-premium-status.failed .status-icon{background:#ffe9e5}
+
+@keyframes tcPremiumRingIn{
+  from{opacity:0;transform:scale(.45) rotate(-22deg)}
+  to{opacity:1;transform:scale(1) rotate(0)}
+}
+@keyframes tcPremiumCheckPop{
+  0%{opacity:0;transform:scale(.2)}
+  65%{opacity:1;transform:scale(1.1)}
+  100%{opacity:1;transform:scale(1)}
+}
+@keyframes tcPremiumLive{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.38;transform:scale(.8)}
+}
+@keyframes tcPremiumProgressGlow{
+  0%{background-position:0 0}
+  100%{background-position:180% 0}
+}
+
+@media(max-width:680px){
+  .tc-premium-verification{
+    grid-template-columns:auto minmax(0,1fr);
+    padding:17px;
+  }
+  .tc-premium-live{grid-column:2}
+  .tc-premium-check-ring{width:112px;height:112px}
+  .tc-premium-check-ring>span{width:72px;height:72px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .tc-premium-check-ring,
+  .tc-premium-check-ring>span,
+  .tc-premium-live i,
+  .tc-premium-progress>span{animation:none}
+}
