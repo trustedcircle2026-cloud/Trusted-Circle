@@ -32,10 +32,10 @@ function markPaymentLinkStockUsedForOrder_(orderId,now){
     links.forEach(function(l){
       updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',l.PaymentLinkStockID,{Status:'USED',OrderID:orderId,PaymentLinkID:l.PaymentLinkID,UpdatedAt:now||isoNow_()});
       var stock=findOne_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',l.PaymentLinkStockID);
+      try{
+        var denomination=Number(stock&&stock.Denomination||0);
+        if(typeof maybeAlertPaymentLinkStockLow_==='function')maybeAlertPaymentLinkStockLow_(denomination,{requestedAmount:denomination,orderId:orderId});
+      }catch(alertIgnore){}
     });
-    try{
-      var denomination=Number(stock.Denomination||0);
-      if(typeof maybeAlertPaymentLinkStockLow_==='function')maybeAlertPaymentLinkStockLow_(denomination,{requestedAmount:denomination,orderId:orderId});
-    }catch(alertIgnore){}
   }catch(ignore){}
 }
