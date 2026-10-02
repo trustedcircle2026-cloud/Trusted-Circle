@@ -39,7 +39,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
         <div><span className="eyebrow">ORDER</span><h3>{detailedOrder.OrderNumber}</h3><small className="detail-live-label">Latest status checked just now</small></div>
         <div className="order-detail-actions">
           {paymentPending && !failedPayment && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}
-          {failedPayment && <button className="retry-payment-btn" onClick={() => onRetryPayment(order)} disabled={retryPaymentLoading === order.OrderID}><Link2 size={15}/> {retryPaymentLoading === order.OrderID ? 'Retrying…' : 'Retry payment'}</button>}
+          {failedPayment && !isCancelled && <button className="retry-payment-btn" onClick={() => onRetryPayment(order)} disabled={retryPaymentLoading === order.OrderID}><Link2 size={15}/> {retryPaymentLoading === order.OrderID ? 'Retrying…' : 'Retry payment'}</button>}
           {paymentPending && <button className="check-payment-btn" onClick={() => onCheckPayment(order)} disabled={paymentCheckLoading === order.OrderID}><PackageCheck size={15}/> {paymentCheckLoading === order.OrderID ? 'Checking…' : 'Check payment status'}</button>}
           {canCancel && <button className="cancel-order-mini" onClick={() => onCancel(order)} disabled={cancelLoading === order.OrderID}><X size={14}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel'}</button>}
           {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(detailedOrder)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
@@ -65,7 +65,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
           </div>
         )) : <p>Item details will appear here.</p>}
       </div>
-      {failedPayment && (
+      {failedPayment && !isCancelled && (
         <div className="orders-failed-payment-panel">
           <div className="orders-failed-payment-copy">
             <span>PAYMENT FAILED</span>
