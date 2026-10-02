@@ -504,3 +504,140 @@
   .tc-premium-live i,
   .tc-premium-progress>span{animation:none}
 }
+
+/* Animated failed-payment popup — mirrors the successful-payment experience */
+.payment-failed-overlay{
+  position:fixed;inset:0;z-index:1200;
+  display:grid;place-items:center;
+  padding:24px;
+  background:rgba(12,25,19,.72);
+  backdrop-filter:blur(12px);
+  animation:failedOverlayIn .24s ease-out;
+}
+.payment-failed-modal{
+  position:relative;
+  width:min(620px,94vw);
+  box-sizing:border-box;
+  padding:42px 42px 34px;
+  text-align:center;
+  overflow:hidden;
+  animation:failedModalIn .48s cubic-bezier(.18,.9,.25,1.15);
+}
+.payment-failed-modal:before{
+  content:"";
+  position:absolute;inset:-80px -100px auto;
+  height:260px;
+  background:radial-gradient(circle,rgba(229,79,65,.10),transparent 68%);
+  pointer-events:none;
+}
+.failed-hero-ring{
+  position:relative;
+  width:126px;height:126px;
+  margin:0 auto 25px;
+  border-radius:50%;
+  display:grid;place-items:center;
+  background:radial-gradient(circle,#fff2f0 0 52%,#ffe5e1 53% 65%,rgba(220,71,58,.055) 66% 100%);
+  box-shadow:0 0 0 13px rgba(220,71,58,.045),0 20px 45px rgba(180,55,43,.12);
+  animation:failedRingIn .6s cubic-bezier(.2,.9,.2,1);
+}
+.failed-hero-icon{
+  width:80px;height:80px;border-radius:50%;
+  display:grid;place-items:center;
+  background:#d73e30;color:#fff;
+  box-shadow:0 13px 30px rgba(180,55,43,.24);
+  animation:failedIconPop .7s cubic-bezier(.17,.89,.32,1.35) .08s both;
+}
+.failed-hero-icon svg{stroke-width:2.7}
+.payment-failed-modal .eyebrow{color:#a84a41}
+.payment-failed-modal h2{
+  position:relative;
+  margin:9px 0 9px;
+  color:#17241e;
+  font-size:clamp(28px,4vw,43px);
+  line-height:1.08;
+  letter-spacing:-.045em;
+}
+.payment-failed-modal>p{
+  position:relative;
+  max-width:500px;
+  margin:0 auto;
+  color:#748079;
+  font-size:12px;
+  line-height:1.65;
+}
+.failed-order-pill{
+  position:relative;
+  width:min(390px,100%);
+  margin:22px auto 24px;
+  padding:13px 17px;
+  box-sizing:border-box;
+  border:1px solid #e7deda;
+  border-radius:14px;
+  background:#fbf9f8;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.failed-order-pill span{font-size:10px;color:#6f7974;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.failed-order-pill strong{font-size:14px;color:#25312c}
+.failed-actions{
+  position:relative;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:11px;
+  max-width:430px;
+  margin:0 auto;
+}
+.failed-actions button{
+  min-height:49px;
+  border-radius:13px;
+  padding:0 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font:inherit;
+  font-size:12px;
+  font-weight:850;
+  cursor:pointer;
+  transition:transform .16s,box-shadow .16s,background .16s;
+}
+.failed-actions button:hover{transform:translateY(-1px)}
+.failed-retry-btn{
+  border:0;
+  background:#16834f;
+  color:#fff;
+  box-shadow:0 12px 28px rgba(22,131,79,.22);
+}
+.failed-retry-btn:hover{box-shadow:0 15px 32px rgba(22,131,79,.28)}
+.failed-orders-btn{
+  border:1px solid #dbe5e0;
+  background:#fff;
+  color:#35413c;
+}
+@keyframes failedOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes failedModalIn{
+  from{opacity:0;transform:translateY(22px) scale(.94)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes failedRingIn{
+  from{opacity:0;transform:scale(.4) rotate(-18deg)}
+  to{opacity:1;transform:scale(1) rotate(0)}
+}
+@keyframes failedIconPop{
+  0%{opacity:0;transform:scale(.15)}
+  65%{opacity:1;transform:scale(1.1)}
+  100%{opacity:1;transform:scale(1)}
+}
+@media(max-width:600px){
+  .payment-failed-overlay{padding:14px}
+  .payment-failed-modal{padding:34px 20px 25px;border-radius:23px}
+  .failed-hero-ring{width:108px;height:108px;margin-bottom:21px}
+  .failed-hero-icon{width:70px;height:70px}
+  .payment-failed-modal h2{font-size:30px}
+  .failed-actions{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .payment-failed-overlay,.payment-failed-modal,.failed-hero-ring,.failed-hero-icon{animation:none}
+}
