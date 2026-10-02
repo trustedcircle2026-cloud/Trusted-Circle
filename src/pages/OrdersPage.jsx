@@ -20,7 +20,7 @@ function downloadBase64Pdf(base64, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancelled, ready, invoiceLoading, cancelLoading, downloadInvoice, setPay, onCancel, onCheckPayment, paymentCheckLoading, paymentDoneLoading, paymentNotice }) {
+function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancelled, ready, invoiceLoading, cancelLoading, downloadInvoice, setPay, onCancel, onCheckPayment, paymentCheckLoading, paymentNotice }) {
   if (detailsLoading === order.OrderID && !detail) {
     return <div className="empty-panel"><PackageCheck size={24}/><h3>Refreshing order…</h3><p>Checking the latest order and payment status.</p></div>
   }
@@ -39,7 +39,6 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
         <div className="order-detail-actions">
           {paymentPending && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}
           {paymentPending && <button className="check-payment-btn" onClick={() => onCheckPayment(order)} disabled={paymentCheckLoading === order.OrderID}><PackageCheck size={15}/> {paymentCheckLoading === order.OrderID ? 'Checking…' : 'Check payment status'}</button>}
-          {paymentPending && <button className="mark-payment-btn" onClick={() => onCheckPayment(order, true)} disabled={paymentDoneLoading === order.OrderID}><FileText size={15}/> {paymentDoneLoading === order.OrderID ? 'Sending…' : 'Mark payment done'}</button>}
           {canCancel && <button className="cancel-order-mini" onClick={() => onCancel(order)} disabled={cancelLoading === order.OrderID}><X size={14}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel'}</button>}
           {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(detailedOrder)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
         </div>
@@ -128,29 +127,22 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     } finally { setDetailsLoading('') }
   }
 
-  const checkPayment = async (order, markDone = false) => {
+  const checkPayment = async order => {
     const id = order.OrderID
     setPaymentNotice(null)
-    if (markDone) setPaymentDoneLoading(id)
-    else setPaymentCheckLoading(id)
+    setPaymentCheckLoading(id)
     try {
       const token = localStorage.getItem('tc_session')
-      if (markDone) {
-        const result = await api.paymentCheckRequested(token, id)
-        setPaymentNotice({orderId:id,type:'success',message:result?.sent ? 'Payment confirmation sent to Trusted Circle admin. The admin will verify the payment and update your order.' : 'Payment confirmation has already been sent. Please wait for admin verification.'})
-      } else {
-        const result = await api.orderDetails(token, id)
-        setDetails(previous => ({...previous,[id]:result}))
-        const status = String(result?.payment?.Status || result?.order?.PaymentStatus || 'PENDING').toUpperCase()
-        const orderStatus = String(result?.order?.Status || '').toUpperCase()
-        const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
-        setPaymentNotice({orderId:id,type:paid?'success':'pending',message:paid ? 'Payment is confirmed. Your order status is updated.' : 'Payment is still pending verification. If you have completed payment, use “Mark payment done” to notify the admin.'})
-      }
+      const result = await api.orderDetails(token, id)
+      setDetails(previous => ({...previous,[id]:result}))
+      const status = String(result?.payment?.Status || result?.order?.PaymentStatus || 'PENDING').toUpperCase()
+      const orderStatus = String(result?.order?.Status || '').toUpperCase()
+      const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
+      setPaymentNotice({orderId:id,type:paid?'success':'pending',message:paid ? 'Payment is confirmed. Your order status is updated.' : 'Payment is still pending verification. Trusted Circle will update the order automatically when payment is verified.'})
     } catch(error) {
-      setPaymentNotice({orderId:id,type:'error',message:error.message || (markDone ? 'Could not send payment confirmation.' : 'Could not check payment status.')})
+      setPaymentNotice({orderId:id,type:'error',message:error.message || 'Could not check payment status.'})
     } finally {
       setPaymentCheckLoading('')
-      setPaymentDoneLoading('')
     }
   }
 
