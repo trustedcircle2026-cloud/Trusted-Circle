@@ -79,8 +79,8 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
       )}
       {detail.paymentLink?.Link && status === 'PENDING_PAYMENT' && !failedPayment && (
         <div className="saved-payment-link">
-          <div><span>PAYMENT LINK</span><b>{detail.paymentLink.Label || 'Pay online'}</b></div>
-          <a href={detail.paymentLink.Link} target="_blank" rel="noreferrer">Pay online <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/></a>
+          <div><span>PAYMENT LINK</span><b>{detail.paymentLink.Label || 'Secure payment'}</b></div>
+          <button type="button" onClick={() => setPay({...order, items})}>Make payment <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/></button>
         </div>
       )}
       {ready && (
@@ -200,6 +200,6 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
 
     {cancelTarget && <div className="cancel-confirm-backdrop" onClick={() => setCancelTarget(null)}><div className="cancel-confirm-modal" onClick={event => event.stopPropagation()}><div className="cancel-warning-icon"><AlertTriangle size={22}/></div><span className="eyebrow">CANCEL ORDER</span><h2>Cancel this order?</h2><p>This payment-pending order will be cancelled. You can create a new order later.</p><div className="cancel-confirm-actions"><button className="btn-quiet" onClick={() => setCancelTarget(null)}>Keep order</button><button className="cancel-confirm-btn" disabled={cancelLoading === cancelTarget.OrderID} onClick={() => cancel(cancelTarget)}>{cancelLoading === cancelTarget.OrderID ? 'Cancelling…' : 'Yes, cancel order'}</button></div></div></div>}
 
-    {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}><div className="order-pay-modal" onClick={event => event.stopPropagation()}><PaymentGateway mode="checkout" items={pay.items || []} total={pay.Total} cashback={pay.Discount} orderId={pay.OrderID} onBack={() => setPay(null)} /></div></div>}
+    {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}><div className="order-pay-modal" onClick={event => event.stopPropagation()}><PaymentGateway mode="checkout" items={pay.items || []} total={pay.Total} cashback={pay.Discount} orderId={pay.OrderID} onBack={() => setPay(null)} onOrders={() => { setPay(null); viewOrder(pay) }} /></div></div>}
   </main>
 }
