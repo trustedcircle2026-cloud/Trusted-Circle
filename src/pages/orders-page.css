@@ -94,3 +94,51 @@
   .orders-failed-retry{width:100%}
   .order-detail-actions .retry-payment-btn{grid-column:1/-1;width:100%}
 }
+
+/* Single payment gateway modal — never nest a second modal around PaymentGateway */
+.order-pay-overlay{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:grid;
+  place-items:center;
+  padding:14px;
+  box-sizing:border-box;
+  background:rgba(13,18,16,.72);
+  backdrop-filter:blur(8px);
+  animation:fadeIn .18s ease;
+}
+.order-pay-overlay>div{
+  width:min(1080px,96vw);
+  max-height:94vh;
+  overflow:auto;
+  border-radius:20px;
+  box-shadow:0 30px 100px rgba(0,0,0,.30);
+  background:#fff;
+  animation:modalRise .25s ease;
+}
+.order-pay-overlay .payment-gateway{
+  min-height:0;
+  width:100%;
+  background:#f5f7f8;
+  border-radius:20px;
+}
+.order-pay-overlay .gateway-shell{
+  margin:0 auto;
+  border-radius:20px;
+  box-shadow:none;
+}
+.order-pay-overlay .gateway-payment{
+  min-height:610px;
+}
+@media(max-width:760px){
+  .order-pay-overlay{padding:10px}
+  .order-pay-overlay>div{
+    width:calc(100vw - 20px);
+    max-height:96vh;
+    border-radius:16px;
+  }
+  .order-pay-overlay .payment-gateway,
+  .order-pay-overlay .gateway-shell{border-radius:16px}
+  .order-pay-overlay .gateway-payment{min-height:0}
+}
