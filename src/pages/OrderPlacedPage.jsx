@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,Link2,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
+import { CheckCircle2,ChevronRight,Link2,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
@@ -14,10 +14,13 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   const [launching,setLaunching]=useState(false)
   const [paymentState,setPaymentState]=useState(String(order?.order?.Status||'PENDING_PAYMENT').toUpperCase())
   const [latestOrder,setLatestOrder]=useState(order?.order||order||null)
+  const [latestPaymentLink,setLatestPaymentLink]=useState(order?.paymentLink||order?.order?.paymentLink||null)
   const [deliveryOpen,setDeliveryOpen]=useState(false)
-  const [sentChannel,setSentChannel]=useState('')
   const [retrying,setRetrying]=useState(false)
-  const paymentLink=order?.paymentLink||order?.order?.paymentLink||null
+  const [retryError,setRetryError]=useState('')
+  const [verificationStartedAt,setVerificationStartedAt]=useState(()=>Number(sessionStorage.getItem('tc_payment_verification_started_at')||0))
+  const [verificationSeconds,setVerificationSeconds]=useState(()=>{const started=Number(sessionStorage.getItem('tc_payment_verification_started_at')||0);return started?Math.max(0,120-Math.floor((Date.now()-started)/1000)):0})
+  const paymentLink=latestPaymentLink||order?.paymentLink||order?.order?.paymentLink||null
   const paymentLinkUrl=paymentLink?.Link||paymentLink?.link||''
   const handoff=sessionStorage.getItem('tc_upi_handoff')==='1'&&!returned
 
@@ -50,6 +53,9 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
           }else if(status==='NOT_RECEIVED'){setPaymentState('NOT_RECEIVED');setLatestPaymentLink(null)
           }else{setPaymentState(status)}
           if(status==='PAID'){
+            sessionStorage.removeItem('tc_payment_verification_started_at')
+            setVerificationStartedAt(0)
+            setVerificationSeconds(0)
             setDeliveryOpen(true)
             return
           }
@@ -64,6 +70,14 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     refresh()
     return()=>{active=false;if(timer)window.clearTimeout(timer)}
   },[token,orderId])
+
+  useEffect(()=>{
+    if(!verificationStartedAt)return undefined
+    const tick=()=>{const remaining=Math.max(0,120-Math.floor((Date.now()-verificationStartedAt)/1000));setVerificationSeconds(remaining)}
+    tick()
+    const timer=window.setInterval(tick,1000)
+    return()=>window.clearInterval(timer)
+  },[verificationStartedAt])
 
   useEffect(()=>{
     if(!handoff)return undefined
@@ -90,37 +104,37 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     sessionStorage.removeItem('tc_upi_returned')
   }
 
+  const startPaymentVerification=()=>{
+    const started=Date.now()
+    sessionStorage.setItem('tc_payment_verification_started_at',String(started))
+    setVerificationStartedAt(started)
+    setVerificationSeconds(120)
+    if(token&&orderId)api.paymentLinkOpened(token,orderId).catch(()=>{})
+  }
+
   const retry=async()=>{
     if(retrying||!onRetryPayment)return
     setRetrying(true)
     setRetryError('')
-    try{await onRetryPayment(orderId);setPaymentState('PENDING_PAYMENT')}catch(error){setPaymentError(String(error?.message||'Unable to reopen payment.'))}finally{setRetrying(false)}
+    try{
+      const result=await onRetryPayment(orderId)
+      const nextLink=result?.paymentLink||result?.order?.paymentLink||null
+      if(nextLink)setLatestPaymentLink(nextLink)
+      setPaymentState('PENDING_PAYMENT')
+      startPaymentVerification()
+    }catch(error){setRetryError(String(error?.message||'Unable to reopen payment.'))}finally{setRetrying(false)}
   }
 
-  const sendOrder=channel=>{
-    const email=order?.snapshot?.user?.email||''
+  const shareOrderOnWhatsApp=()=>{
     const customer=order?.snapshot?.user?.name||'Trusted Circle Member'
-    const text=`Hello Trusted Circle,
-
-Order Number: ${orderNumber}
-Customer: ${customer}
-Email: ${email}
-
-${items.map(i=>`• ${i.brand} — ${i.title} × ${i.quantity} — ${money(i.total)}`).join('\n')}
-
-Total: ${money(order?.snapshot?.total||order?.order?.Total)}
-
-Payment has been verified. Please send my digital voucher.`
-    const emailHref=`mailto:info@trustedcircle.in?subject=${encodeURIComponent(`Trusted Circle Order ${orderNumber}`)}&body=${encodeURIComponent(text)}`
-    const whatsappHref=`https://wa.me/919442456039?text=${encodeURIComponent(text)}`
-    setSentChannel(channel)
-    window.setTimeout(()=>{
-      if(channel==='whatsapp')window.open(whatsappHref,'_blank','noopener,noreferrer')
-      else window.location.href=emailHref
-    },650)
+    const text='🎉 Trusted Circle Order Confirmed!\n\nOrder Number: '+orderNumber+'\nCustomer: '+customer+'\nTotal: '+money(order?.snapshot?.total||order?.order?.Total)+'\n\n✅ Payment verified successfully.\nThank you for shopping with Trusted Circle!'
+    const whatsappHref='https://wa.me/?text='+encodeURIComponent(text)
+    window.open(whatsappHref,'_blank','noopener,noreferrer')
   }
 
   const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='NOT_RECEIVED'?'PAYMENT FAILED':paymentState==='PAYMENT_PROCESSING'?'PAYMENT PROCESSING':paymentLinkUrl?'PAYMENT LINK READY':'PAYMENT PENDING'
+  const verificationActive=paymentState!=='PAID'&&paymentState!=='CANCELLED'&&!paymentFailed&&verificationStartedAt>0
+  const verificationProgress=verificationStartedAt?Math.min(100,((120-verificationSeconds)/120)*100):0
   const statusTone=paymentState==='PAID'?'paid':paymentState==='CANCELLED'?'rejected':paymentState==='NOT_RECEIVED'?'failed':paymentState==='PAYMENT_PROCESSING'?'checking':'pending'
   const rejected=paymentState==='CANCELLED'
   const paymentFailed=paymentState==='NOT_RECEIVED'
@@ -154,22 +168,27 @@ Payment has been verified. Please send my digital voucher.`
 
     {paymentState!=='PAID'&&<div className={'payment-link-ready-panel '+(paymentFailed?'payment-link-failed-panel':'')}>
       <div className="payment-link-ready-copy">
-        <span className="eyebrow">{paymentFailed?'PAYMENT UPDATE':'SECURE PAYMENT'}</span>
-        <h2>{paymentFailed?'Payment was not received':'Your payment link is ready'}</h2>
-        <p>{paymentFailed
-          ? 'Admin has marked the previous payment attempt as not received. That payment link has been returned to available stock, so you can retry now. Your next payment link will reuse the same link.'
-          : paymentLinkUrl
-            ? 'The secure payment page has been opened. Complete the payment there. Trusted Circle will verify the payment automatically — you do not need to mark it as “Payment Done”.'
-            : 'We could not keep the payment link active. You can request a fresh payment link below.'}</p>
+        <span className="eyebrow">{paymentFailed?'PAYMENT UPDATE':'ORDER CONFIRMATION'}</span>
+        <h2>{paymentFailed?'Payment was not received':'Your order is successfully placed'}</h2>
+        <p>{paymentFailed?'Admin has marked the previous payment attempt as not received. The payment link is available again for retry.':'Your order has been received successfully. Complete the secure payment and we will verify it automatically.'}</p>
       </div>
       <div className="payment-link-ready-actions">
         {paymentFailed&&<div className="payment-failed-badge">Payment attempt failed</div>}
-        {paymentLinkUrl&&<a className="payment-link-open-btn" href={paymentLinkUrl} target="_blank" rel="noopener noreferrer"><Link2 size={18}/> Open payment link</a>}
-        <button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Reactivating…':paymentFailed?'Retry with same link':'Generate new link'}</button>
+        {paymentLinkUrl&&<a className="payment-link-open-btn" href={paymentLinkUrl} target="_blank" rel="noopener noreferrer" onClick={startPaymentVerification}><Link2 size={18}/> Open payment link</a>}
+        {paymentFailed&&<button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Retry payment'}</button>}
+        {!paymentFailed&&!paymentLinkUrl&&<button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Generate payment link'}</button>}
       </div>
+      {!paymentFailed&&verificationActive&&<div className="payment-verification-card">
+        <div className="payment-verification-icon"><ShieldCheck size={20}/></div>
+        <div className="payment-verification-copy">
+          <strong>Payment verification is in process</strong>
+          <span>{verificationSeconds>0?'We are checking automatically for up to 2 minutes. '+Math.floor(verificationSeconds/60)+':'+String(verificationSeconds%60).padStart(2,'0')+' remaining.':'Verification is taking a little longer than expected. We are still checking automatically.'}</span>
+          <div className="payment-verification-bar"><span style={{width:verificationProgress+'%'}}></span></div>
+        </div>
+        <div className="payment-verification-live"><i></i>LIVE</div>
+      </div>}
       {retryError&&<div className="payment-link-retry-error" role="alert">{retryError}</div>}
-    </div>}
-
+    </div>
     {paymentState==='PAYMENT_PROCESSING'&&<div className="order-waiting-screen">
       <img className="waiting-logo" src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"/>
       <strong>Sit back and relax</strong>
@@ -186,8 +205,19 @@ Payment has been verified. Please send my digital voucher.`
     {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onHome()}}><Home size={17}/> Home</button></div>}
   </section>
 
-  {deliveryOpen&&<div className="delivery-modal-backdrop" role="dialog" aria-modal="true"><div className="delivery-modal">
-    {!sentChannel?<><button className="delivery-close" onClick={()=>setDeliveryOpen(false)} aria-label="Close"><X size={18}/></button><div className="delivery-success-mark"><CheckCircle2 size={30}/></div><span className="eyebrow">PAYMENT VERIFIED</span><h2>How should we send your voucher?</h2><p>Your payment is verified. Choose a delivery option and Trusted Circle will open it for you.</p><div className="delivery-choice-grid"><button className="delivery-choice whatsapp-choice" onClick={()=>sendOrder('whatsapp')}><span className="delivery-icon whatsapp-icon"><MessageCircle size={24}/></span><span><strong>Send via WhatsApp</strong><small>Open WhatsApp with your order ready</small></span><ChevronRight size={18}/></button><button className="delivery-choice email-choice" onClick={()=>sendOrder('email')}><span className="delivery-icon gmail-icon"><Mail size={24}/></span><span><strong>Send via Email</strong><small>Open Gmail / your email app</small></span><ChevronRight size={18}/></button></div><div className="delivery-note"><ShieldCheck size={16}/> Order details are pre-filled for faster delivery.</div></>:<div className="order-sent-animation"><div className="sent-orbit"><span></span></div><div className="sent-check"><CheckCircle2 size={52}/></div><span className="eyebrow">DELIVERY REQUESTED</span><h2>Order sent successfully!</h2><p>{sentChannel==='whatsapp'?'WhatsApp is opening with your order details.':'Your email app is opening with your order details.'}</p><div className="sent-progress"><span></span></div><div className="sent-final-actions"><button type="button" className="btn-primary" onClick={()=>{setDeliveryOpen(false);setSentChannel('');clearHandoff();onOrders()}}><PackageCheck size={17}/> View order</button><button type="button" className="btn-quiet" onClick={()=>{setDeliveryOpen(false);setSentChannel('');clearHandoff();onHome()}}><Home size={17}/> Home</button></div></div>}
-  </div></div>}
+  {deliveryOpen&&<div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
+    <div className="payment-verified-modal">
+      <div className="verified-confetti confetti-one"></div><div className="verified-confetti confetti-two"></div><div className="verified-confetti confetti-three"></div>
+      <div className="verified-hero-ring"><div className="verified-hero-check"><CheckCircle2 size={78}/></div></div>
+      <span className="eyebrow">PAYMENT VERIFIED</span>
+      <h2>🎉 Your order is successfully placed!</h2>
+      <p>Your payment has been received and verified successfully.</p>
+      <div className="verified-order-pill"><span>{orderNumber}</span><strong>{money(orderTotal)}</strong></div>
+      <div className="verified-actions">
+        <button className="verified-share-btn" onClick={shareOrderOnWhatsApp}><MessageCircle size={19}/> Share Order</button>
+        <button className="verified-orders-btn" onClick={()=>{setDeliveryOpen(false);clearHandoff();onOrders()}}><PackageCheck size={19}/> View Orders</button>
+      </div>
+    </div>
+  </div>
   </main>
 }
