@@ -128,7 +128,7 @@ function sendPaymentLinkStockAlert_(payload){
     availableStock:payload.availableStock
   },token);
 
-  var subject='[Action Required] Payment-link stock · '+emailMoney_(denomination);
+  var subject=(String(payload.reason||'LOW_STOCK')==='STOCK_EXHAUSTED'?'[URGENT] Payment-link stock exhausted · ':'[Action Required] Payment-link stock · ')+emailMoney_(denomination);
   return sendTransactionalEmail_(getAdminEmail_(),subject,html,
     'Payment-link stock action required for '+emailMoney_(denomination)+'. Use the secure stock form to add the link.');
 }
@@ -163,7 +163,7 @@ function maybeAlertPaymentLinkStockLow_(denomination,context){
     userId:context&&context.userId||'',
     userEmail:context&&context.userEmail||'',
     userName:context&&context.userName||'',
-    reason:'LOW_STOCK',
+    reason:count===0?'STOCK_EXHAUSTED':'LOW_STOCK',
     availableStock:count
   });
 }
