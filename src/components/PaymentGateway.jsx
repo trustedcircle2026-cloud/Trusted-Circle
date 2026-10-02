@@ -314,14 +314,14 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
               <div><strong>{paymentCheck === 'checking' ? 'Checking payment…' : paymentCheck === 'paid' ? 'Payment received' : paymentCheck === 'pending' ? 'Payment still pending' : 'Payment check needs a retry'}</strong><span>{paymentCheckMessage}</span></div>
               {paymentCheck !== 'paid' && <button type="button" onClick={paymentCheck === 'pending' ? checkPayment : requestPayment} disabled={paymentCheckLoading}>{paymentCheck === 'pending' ? 'Check again' : 'Retry payment'} <ChevronRight size={15}/></button>}
             </div>}
-            {verificationStartedAt > 0 && !verified && <div className="payment-verification-card">
-              <div className="payment-verification-icon"><ShieldCheck size={20}/></div>
-              <div className="payment-verification-copy">
+            {verificationStartedAt > 0 && !verified && <div className="payment-verification-card tc-premium-verification">
+              <div className="payment-verification-icon tc-premium-verification-icon"><ShieldCheck size={20}/></div>
+              <div className="payment-verification-copy tc-premium-verification-copy">
                 <strong>Payment status checking</strong>
                 <span>{verificationSeconds > 0 ? `We are checking the payment automatically for up to 2 minutes. ${verificationSeconds}s remaining.` : 'Automatic checking window ended. You can check the status again.'}</span>
-                <div className="payment-verification-bar"><span style={{width:`${Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}} /></div>
+                <div className="payment-verification-bar tc-premium-progress"><span style={{width:`${Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}} /></div>
               </div>
-              <div className="payment-verification-live"><i/> LIVE</div>
+              <div className="payment-verification-live tc-premium-live"><i/> LIVE</div>
             </div>}
             {verified && <div className="payment-verification-card payment-verification-card-success">
               <div className="payment-verification-icon"><CheckCircle2 size={20}/></div>
@@ -339,7 +339,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       </div>
 
       {verified && <div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
-        <div className="payment-verified-modal">
+        <div className="payment-verified-modal tc-premium-surface">
           <span className="verified-confetti confetti-one"/>
           <span className="verified-confetti confetti-two"/>
           <span className="verified-confetti confetti-three"/>
