@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X, RefreshCw, Home, PackageCheck } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X, RefreshCw, Home, PackageCheck, AlertCircle, Ban } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
 
@@ -35,6 +35,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [verificationSeconds, setVerificationSeconds] = useState(0)
   const [verified, setVerified] = useState(false)
   const [orderPlacedOpen, setOrderPlacedOpen] = useState(false)
+  const [gatewayOutcome, setGatewayOutcome] = useState('pending')
   const [latestOrder, setLatestOrder] = useState(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
@@ -57,12 +58,23 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (paid) {
         setPaymentCheck('paid')
         setPaymentCheckMessage('Payment received. Your order status has been updated.')
+        setGatewayOutcome('received')
         setVerified(true)
         setVerificationStartedAt(0)
         setVerificationSeconds(0)
         return true
       }
+      if (orderStatus === 'CANCELLED') {
+        setGatewayOutcome('cancelled')
+        setPaymentCheck('cancelled')
+        setPaymentCheckMessage('This order was cancelled by Trusted Circle. Please create a new order to continue.')
+        setVerificationStartedAt(0)
+        setVerificationSeconds(0)
+        setVerified(false)
+        return false
+      }
       if (status === 'NOT_RECEIVED') {
+        setGatewayOutcome('not_received')
         setPaymentCheck('retry')
         setPaymentCheckMessage('The previous payment attempt was not received. You can create a fresh payment link.')
         return false
@@ -230,6 +242,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkWaitSeconds(0)
       if (resolvedOrderId) {
         setOrderPlacedOpen(true)
+        setGatewayOutcome('pending')
         const started = Date.now()
         setVerificationStartedAt(started)
         setVerificationSeconds(120)
@@ -344,31 +357,81 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         </section>
       </div>
 
-      {orderPlacedOpen && <div className="order-placed-gateway-overlay" role="dialog" aria-modal="true">
+      {orderPlacedOpen && <div className={`order-placed-gateway-overlay gateway-outcome-${gatewayOutcome}`} role="dialog" aria-modal="true">
         <div className="order-placed-gateway-modal tc-premium-surface">
           <button className="order-placed-gateway-refresh" type="button" onClick={refreshPaymentStatus} disabled={paymentCheckLoading} aria-label="Refresh payment status" title="Refresh payment status">
             <RefreshCw size={18} className={paymentCheckLoading ? 'is-spinning' : ''}/>
           </button>
-          <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
-          <span className="eyebrow">ORDER CONFIRMATION</span>
-          <h2>🎉 Your order is successfully placed!</h2>
-          <p>Your order has been received. Complete the payment and we will verify the payment status automatically.</p>
+
+          {gatewayOutcome === 'received' ? (
+            <>
+              <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
+              <span className="eyebrow">PAYMENT RECEIVED</span>
+              <h2>🎉 Your order is successfully placed!</h2>
+              <p>Your payment has been received and verified successfully.</p>
+            </>
+          ) : gatewayOutcome === 'not_received' ? (
+            <>
+              <div className="order-placed-gateway-ring outcome-failed"><div><AlertCircle size={70}/></div></div>
+              <span className="eyebrow">PAYMENT NOT RECEIVED</span>
+              <h2>Payment was not received</h2>
+              <p>The previous payment attempt was not received. Please retry the payment to complete your order.</p>
+            </>
+          ) : gatewayOutcome === 'cancelled' ? (
+            <>
+              <div className="order-placed-gateway-ring outcome-cancelled"><div><Ban size={66}/></div></div>
+              <span className="eyebrow">ORDER CANCELLED</span>
+              <h2>This order has been cancelled</h2>
+              <p>The payment attempt was cancelled by Trusted Circle. Please create a new order if you would like to continue.</p>
+            </>
+          ) : (
+            <>
+              <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
+              <span className="eyebrow">ORDER CONFIRMATION</span>
+              <h2>🎉 Your order is successfully placed!</h2>
+              <p>Your order has been received. We are checking the payment status automatically.</p>
+            </>
+          )}
+
           <div className="order-placed-gateway-pill">
             <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
             <strong>{money(latestOrder?.Total || total)}</strong>
           </div>
-          <div className="tc-premium-verification order-placed-gateway-verification">
-            <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
-            <div className="tc-premium-verification-copy">
-              <strong>{verified ? 'Payment verified successfully' : 'Checking payment status'}</strong>
-              <p>{verified ? 'Payment has been received and verified by Trusted Circle.' : verificationSeconds > 0 ? 'LIVE · Checking automatically for 2 minutes. ' + Math.floor(verificationSeconds/60) + ':' + String(verificationSeconds%60).padStart(2,'0') + ' remaining.' : 'The 2-minute automatic checking window has ended. Use refresh to check again.'}</p>
-              <div className="tc-premium-progress"><span style={{width:`${verified ? 100 : Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}}/></div>
+
+          {gatewayOutcome === 'pending' || gatewayOutcome === 'received' ? (
+            <div className="tc-premium-verification order-placed-gateway-verification">
+              <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
+              <div className="tc-premium-verification-copy">
+                <strong>{gatewayOutcome === 'received' ? 'Payment verified successfully' : 'Checking payment status'}</strong>
+                <p>{gatewayOutcome === 'received' ? 'Payment has been received and verified by Trusted Circle.' : verificationSeconds > 0 ? 'LIVE · Checking automatically for 2 minutes. ' + Math.floor(verificationSeconds/60) + ':' + String(verificationSeconds%60).padStart(2,'0') + ' remaining.' : 'The 2-minute automatic checking window has ended. Use refresh to check again.'}</p>
+                <div className="tc-premium-progress"><span style={{width:`${gatewayOutcome === 'received' ? 100 : Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}}/></div>
+              </div>
+              {gatewayOutcome !== 'received' && <div className="tc-premium-live"><i/> LIVE</div>}
             </div>
-            {!verified && <div className="tc-premium-live"><i/> LIVE</div>}
-          </div>
+          ) : (
+            <div className={`tc-premium-status ${gatewayOutcome === 'not_received' ? 'failed' : 'success'} order-outcome-status`}>
+              <div className="status-icon">{gatewayOutcome === 'not_received' ? <AlertCircle size={19}/> : <Ban size={19}/>}</div>
+              <div>
+                <strong>{gatewayOutcome === 'not_received' ? 'Payment attempt failed' : 'Order cancelled'}</strong>
+                <p>{gatewayOutcome === 'not_received' ? 'A fresh payment link can be created for retry.' : 'This order cannot be paid again.'}</p>
+              </div>
+            </div>
+          )}
+
           <div className="order-placed-gateway-actions">
-            <button type="button" className="order-placed-home-btn" onClick={onBack}><Home size={17}/> Home</button>
-            <button type="button" className="order-placed-orders-btn" onClick={onOrders || onBack}><PackageCheck size={17}/> View Orders</button>
+            {gatewayOutcome === 'not_received' ? (
+              <>
+                <button type="button" className="order-placed-orders-btn" onClick={requestPayment} disabled={linkLoading}>
+                  <RefreshCw size={17}/>{linkLoading ? 'Preparing…' : 'Retry Payment'}
+                </button>
+                <button type="button" className="order-placed-home-btn" onClick={onOrders || onBack}><PackageCheck size={17}/> View Orders</button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="order-placed-home-btn" onClick={onBack}><Home size={17}/> Home</button>
+                <button type="button" className="order-placed-orders-btn" onClick={onOrders || onBack}><PackageCheck size={17}/> View Orders</button>
+              </>
+            )}
           </div>
         </div>
       </div>}
