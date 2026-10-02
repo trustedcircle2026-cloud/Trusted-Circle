@@ -182,3 +182,40 @@
  .payment-link-ready-actions{min-width:0;justify-content:stretch;display:grid;grid-template-columns:1fr}
  .payment-link-open-btn,.payment-link-retry-btn{width:100%}
 }
+
+
+/* Payment link retry / not-received state */
+.payment-link-ready-panel.payment-link-failed-panel{
+  border-color:#f0c8c5;
+  background:linear-gradient(135deg,#fffafa 0%,#fff 70%);
+}
+.payment-link-failed-panel .payment-link-ready-copy h2{color:#b42318}
+.payment-failed-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:42px;
+  padding:0 14px;
+  border:1px solid #f0c8c5;
+  border-radius:10px;
+  background:#fff4f2;
+  color:#b42318;
+  font-size:13px;
+  font-weight:800;
+}
+.payment-link-retry-error{
+  width:100%;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid #f0c8c5;
+  border-radius:10px;
+  background:#fff4f2;
+  color:#b42318;
+  font-size:13px;
+  line-height:1.45;
+}
+.success-ring.status-failed{
+  color:#b42318;
+  border-color:#f0c8c5;
+  background:#fff4f2;
+}
