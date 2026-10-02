@@ -125,7 +125,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       const face = Number(item.faceValue || item.denomination || item.Denomination || item.FaceValue || 0)
       const lineTotal = Number(item.total || item.Total || face * qty)
       return `${index + 1}. ${title} × ${qty} — ${money(lineTotal)}`
-    }).join('\\n')
+    }).join('\n')
     const text = [
       '🎉 TRUSTED CIRCLE — ORDER DETAILS',
       '',
@@ -142,7 +142,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       `Total Paid: ${amount}`,
       '',
       'Payment verified by Trusted Circle.' 
-    ].join('\\n')
+    ].join('\n')
     window.open('https://wa.me/919442456039?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 
