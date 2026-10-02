@@ -52,10 +52,12 @@ var OrderService={
   expirePaymentLinkReservations_();
   var rows=getRows_(TC_CONFIG.SHEETS.ORDERS).filter(function(r){return String(r.UserID)===String(user.UserID);});
   rows.sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();});
-  return{items:rows.slice(0,50).map(function(order){
+  var limit=Math.min(50,Math.max(1,Number(data.limit||4)));
+  var offset=Math.max(0,Number(data.offset||0));
+  return{items:rows.slice(offset,offset+limit).map(function(order){
    var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===String(order.OrderID);}),payment=payments.length?payments[payments.length-1]:null;
    return Object.assign({},order,{PaymentStatus:payment?String(payment.Status||'PENDING').toUpperCase():'PENDING'});
-  })};
+  }),totalCount:rows.length,offset:offset,limit:limit,hasMore:offset+limit<rows.length};
  },
  getOrderDetails:function(data){
   var user=authenticate_(data.token),orderId=cleanText_(data.orderId,100);
