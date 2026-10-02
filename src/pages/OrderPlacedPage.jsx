@@ -219,6 +219,6 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         <button className="verified-orders-btn" onClick={()=>{setDeliveryOpen(false);clearHandoff();onOrders()}}><PackageCheck size={19}/> View Orders</button>
       </div>
     </div>
-  </div>
+  </div>}
   </>
 }
