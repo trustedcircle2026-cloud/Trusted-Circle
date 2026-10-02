@@ -373,7 +373,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         </div>
       </div>}
 
-      {verified && <div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
+      {verified && !orderPlacedOpen && <div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
         <div className="payment-verified-modal tc-premium-surface">
           <span className="verified-confetti confetti-one"/>
           <span className="verified-confetti confetti-two"/>
