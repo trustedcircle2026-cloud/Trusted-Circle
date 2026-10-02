@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
+import { CheckCircle2,ChevronRight,Link2,Mail,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
@@ -12,14 +12,13 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   const orderId=order?.order?.OrderID||order?.OrderID||''
   const [returned,setReturned]=useState(()=>sessionStorage.getItem('tc_upi_returned')==='1')
   const [launching,setLaunching]=useState(false)
-  const [paymentRequested,setPaymentRequested]=useState(false)
-  const [paymentRequesting,setPaymentRequesting]=useState(false)
   const [paymentState,setPaymentState]=useState(String(order?.order?.Status||'PENDING_PAYMENT').toUpperCase())
   const [latestOrder,setLatestOrder]=useState(order?.order||order||null)
-  const [paymentError,setPaymentError]=useState('')
   const [deliveryOpen,setDeliveryOpen]=useState(false)
   const [sentChannel,setSentChannel]=useState('')
   const [retrying,setRetrying]=useState(false)
+  const paymentLink=order?.paymentLink||order?.order?.paymentLink||null
+  const paymentLinkUrl=paymentLink?.Link||paymentLink?.link||''
   const handoff=sessionStorage.getItem('tc_upi_handoff')==='1'&&!returned
 
   useEffect(()=>{
@@ -59,7 +58,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     }
     refresh()
     return()=>{active=false;if(timer)window.clearTimeout(timer)}
-  },[token,orderId,paymentRequested])
+  },[token,orderId])
 
   useEffect(()=>{
     if(!handoff)return undefined
@@ -84,23 +83,6 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     sessionStorage.removeItem('tc_upi_handoff')
     sessionStorage.removeItem('tc_upi_started_at')
     sessionStorage.removeItem('tc_upi_returned')
-  }
-
-  const requestPaymentCheck=async()=>{
-    if(paymentRequesting||!token||!orderId)return
-    setPaymentRequesting(true)
-    setPaymentError('')
-    try{
-      const result=await api.paymentCheckRequested(token,orderId)
-      if(result?.requested){
-        setPaymentRequested(true)
-        setPaymentState('PAYMENT_PROCESSING')
-      }else setPaymentError('We could not send the payment check request. Please try again.')
-    }catch(error){
-      setPaymentError(String(error?.message||'Payment check could not be requested.'))
-    }finally{
-      setPaymentRequesting(false)
-    }
   }
 
   const retry=async()=>{
@@ -133,7 +115,7 @@ Payment has been verified. Please send my digital voucher.`
     },650)
   }
 
-  const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='PAYMENT_PROCESSING'?'CHECKING PAYMENT':'PAYMENT PENDING'
+  const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='PAYMENT_PROCESSING'?'PAYMENT PROCESSING':paymentLinkUrl?'PAYMENT LINK READY':'PAYMENT PENDING'
   const statusTone=paymentState==='PAID'?'paid':paymentState==='CANCELLED'?'rejected':paymentState==='PAYMENT_PROCESSING'?'checking':'pending'
   const rejected=paymentState==='CANCELLED'
   const orderTotal=latestOrder?.Total||order?.order?.Total||order?.Total
@@ -164,7 +146,17 @@ Payment has been verified. Please send my digital voucher.`
 
     {order?.order&&<div className="success-order"><div><small>ORDER</small><strong>{orderNumber}</strong></div><div><small>TOTAL</small><strong>{money(order.order.Total)}</strong></div><div className={`success-status ${statusTone}`}><small>STATUS</small><strong>{statusLabel}</strong></div></div>}
 
-    {paymentState!=='PAID'&&<div className="payment-action-panel"><div><span className="eyebrow">PAYMENT</span><h2>Select payment status</h2></div><div className="payment-action-buttons"><button className="payment-done-btn" onClick={requestPaymentCheck} disabled={paymentRequesting||paymentState==='PAYMENT_PROCESSING'}><CheckCircle2 size={19}/>{paymentRequesting?'Sending…':paymentState==='PAYMENT_PROCESSING'?'Checking…':'Payment Done'}</button><button className="payment-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={18}/>{retrying?'Opening…':'Payment Failed · Retry'}</button></div>{paymentError&&<div className="payment-action-error">{paymentError}</div>}</div>}
+    {paymentState!=='PAID'&&<div className="payment-link-ready-panel">
+      <div className="payment-link-ready-copy">
+        <span className="eyebrow">SECURE PAYMENT</span>
+        <h2>{paymentLinkUrl?'Your payment link is ready':'Payment link unavailable'}</h2>
+        <p>{paymentLinkUrl?'The secure payment page has been opened. Complete the payment there. Trusted Circle will verify the payment automatically — you do not need to mark it as “Payment Done”.':'We could not keep the payment link active. You can request a fresh payment link below.'}</p>
+      </div>
+      <div className="payment-link-ready-actions">
+        {paymentLinkUrl&&<a className="payment-link-open-btn" href={paymentLinkUrl} target="_blank" rel="noopener noreferrer"><Link2 size={18}/> Open payment link</a>}
+        <button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Generate new link'}</button>
+      </div>
+    </div>}
 
     {paymentState==='PAYMENT_PROCESSING'&&<div className="order-waiting-screen">
       <img className="waiting-logo" src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"/>
