@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X, RefreshCw, Home, PackageCheck } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
 
@@ -34,6 +34,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [verificationStartedAt, setVerificationStartedAt] = useState(0)
   const [verificationSeconds, setVerificationSeconds] = useState(0)
   const [verified, setVerified] = useState(false)
+  const [orderPlacedOpen, setOrderPlacedOpen] = useState(false)
   const [latestOrder, setLatestOrder] = useState(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
@@ -228,6 +229,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
       if (resolvedOrderId) {
+        setOrderPlacedOpen(true)
         const started = Date.now()
         setVerificationStartedAt(started)
         setVerificationSeconds(120)
@@ -261,6 +263,10 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     } finally {
       setLinkLoading(false)
     }
+  }
+
+  const refreshPaymentStatus = async () => {
+    await readPaymentStatus({showResult:true})
   }
 
   return (
@@ -337,6 +343,35 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           <p className="gateway-disclaimer"><LockKeyhole size={12} /> Payment is handled on the provider page. Never share your OTP, card number, CVV or UPI PIN.</p>
         </section>
       </div>
+
+      {orderPlacedOpen && <div className="order-placed-gateway-overlay" role="dialog" aria-modal="true">
+        <div className="order-placed-gateway-modal tc-premium-surface">
+          <button className="order-placed-gateway-refresh" type="button" onClick={refreshPaymentStatus} disabled={paymentCheckLoading} aria-label="Refresh payment status" title="Refresh payment status">
+            <RefreshCw size={18} className={paymentCheckLoading ? 'is-spinning' : ''}/>
+          </button>
+          <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
+          <span className="eyebrow">ORDER CONFIRMATION</span>
+          <h2>🎉 Your order is successfully placed!</h2>
+          <p>Your order has been received. Complete the payment and we will verify the payment status automatically.</p>
+          <div className="order-placed-gateway-pill">
+            <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
+            <strong>{money(latestOrder?.Total || total)}</strong>
+          </div>
+          <div className="tc-premium-verification order-placed-gateway-verification">
+            <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
+            <div className="tc-premium-verification-copy">
+              <strong>{verified ? 'Payment verified successfully' : 'Checking payment status'}</strong>
+              <p>{verified ? 'Payment has been received and verified by Trusted Circle.' : verificationSeconds > 0 ? 'LIVE · Checking automatically for 2 minutes. ' + Math.floor(verificationSeconds/60) + ':' + String(verificationSeconds%60).padStart(2,'0') + ' remaining.' : 'The 2-minute automatic checking window has ended. Use refresh to check again.'}</p>
+              <div className="tc-premium-progress"><span style={{width:`${verified ? 100 : Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}}/></div>
+            </div>
+            {!verified && <div className="tc-premium-live"><i/> LIVE</div>}
+          </div>
+          <div className="order-placed-gateway-actions">
+            <button type="button" className="order-placed-home-btn" onClick={onBack}><Home size={17}/> Home</button>
+            <button type="button" className="order-placed-orders-btn" onClick={onOrders || onBack}><PackageCheck size={17}/> View Orders</button>
+          </div>
+        </div>
+      </div>}
 
       {verified && <div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
         <div className="payment-verified-modal tc-premium-surface">
