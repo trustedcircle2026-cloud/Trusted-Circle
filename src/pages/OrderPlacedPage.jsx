@@ -25,6 +25,8 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     const initial=String(order?.order?.Status||order?.Status||'PENDING_PAYMENT').toUpperCase()
     setPaymentState(initial)
     setLatestOrder(order?.order||order||null)
+    setLatestPaymentLink(order?.paymentLink||order?.order?.paymentLink||null)
+    setRetryError('')
     if(initial==='PAID')setDeliveryOpen(true)
   },[order])
 
@@ -38,10 +40,14 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         if(!active)return
         const fresh=data?.order||null
         if(fresh)setLatestOrder(fresh)
-        const status=String(fresh?.Status||'').toUpperCase()
+        if(data?.paymentLink)setLatestPaymentLink(data.paymentLink)
+        const orderStatus=String(fresh?.Status||'').toUpperCase()
+        const paymentStatus=String(data?.payment?.Status||'').toUpperCase()
+        const status=paymentStatus==='NOT_RECEIVED'?'NOT_RECEIVED':orderStatus
         if(status){
           if(status==='PAID'){setPaymentState('PAID')
           }else if(status==='CANCELLED'){setPaymentState('CANCELLED')
+          }else if(status==='NOT_RECEIVED'){setPaymentState('NOT_RECEIVED');setLatestPaymentLink(null)
           }else{setPaymentState(status)}
           if(status==='PAID'){
             setDeliveryOpen(true)
@@ -87,7 +93,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   const retry=async()=>{
     if(retrying||!onRetryPayment)return
     setRetrying(true)
-    setPaymentError('')
+    setRetryError('')
     try{await onRetryPayment(orderId);setPaymentState('PENDING_PAYMENT')}catch(error){setPaymentError(String(error?.message||'Unable to reopen payment.'))}finally{setRetrying(false)}
   }
 
@@ -114,9 +120,10 @@ Payment has been verified. Please send my digital voucher.`
     },650)
   }
 
-  const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='PAYMENT_PROCESSING'?'PAYMENT PROCESSING':paymentLinkUrl?'PAYMENT LINK READY':'PAYMENT PENDING'
-  const statusTone=paymentState==='PAID'?'paid':paymentState==='CANCELLED'?'rejected':paymentState==='PAYMENT_PROCESSING'?'checking':'pending'
+  const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='NOT_RECEIVED'?'PAYMENT FAILED':paymentState==='PAYMENT_PROCESSING'?'PAYMENT PROCESSING':paymentLinkUrl?'PAYMENT LINK READY':'PAYMENT PENDING'
+  const statusTone=paymentState==='PAID'?'paid':paymentState==='CANCELLED'?'rejected':paymentState==='NOT_RECEIVED'?'failed':paymentState==='PAYMENT_PROCESSING'?'checking':'pending'
   const rejected=paymentState==='CANCELLED'
+  const paymentFailed=paymentState==='NOT_RECEIVED'
   const orderTotal=latestOrder?.Total||order?.order?.Total||order?.Total
 
   if(handoff&&!returned)return <main className="page-shell order-placed-page payment-return-page"><section className="order-success payment-handoff-card"><div className="success-ring pulse"><Smartphone size={38}/></div><span className="eyebrow">PAYMENT</span><h1>Opening UPI…</h1><p>Complete the payment in your UPI app, then return here.</p><div className="handoff-steps"><div className="handoff-step done"><span>✓</span><div><b>Order created</b><small>Payment pending</small></div></div><ChevronRight/><div className="handoff-step active"><span>2</span><div><b>Pay in UPI</b><small>Use your app</small></div></div><ChevronRight/><div className="handoff-step"><span>3</span><div><b>Return</b><small>See your order</small></div></div></div><div className="upi-launch-card"><div className="upi-hero-mark"><span>UPI</span></div><div><strong>{money(order?.order?.Total)}</strong><small>Pay using UPI</small></div><a href={UPI_APPS_URL} onClick={event=>{event.preventDefault();setLaunching(true);window.location.href=UPI_APPS_URL}}><Smartphone size={17}/> {launching?'Opening…':'Open UPI App'}</a></div><div className="order-payment-note"><ShieldCheck size={17}/><span>Payment is confirmed only after verified payment data is received.</span></div></section></main>
@@ -145,16 +152,22 @@ Payment has been verified. Please send my digital voucher.`
 
     {order?.order&&<div className="success-order"><div><small>ORDER</small><strong>{orderNumber}</strong></div><div><small>TOTAL</small><strong>{money(order.order.Total)}</strong></div><div className={`success-status ${statusTone}`}><small>STATUS</small><strong>{statusLabel}</strong></div></div>}
 
-    {paymentState!=='PAID'&&<div className="payment-link-ready-panel">
+    {paymentState!=='PAID'&&<div className={'payment-link-ready-panel '+(paymentFailed?'payment-link-failed-panel':'')}>
       <div className="payment-link-ready-copy">
-        <span className="eyebrow">SECURE PAYMENT</span>
-        <h2>{paymentLinkUrl?'Your payment link is ready':'Payment link unavailable'}</h2>
-        <p>{paymentLinkUrl?'The secure payment page has been opened. Complete the payment there. Trusted Circle will verify the payment automatically — you do not need to mark it as “Payment Done”.':'We could not keep the payment link active. You can request a fresh payment link below.'}</p>
+        <span className="eyebrow">{paymentFailed?'PAYMENT UPDATE':'SECURE PAYMENT'}</span>
+        <h2>{paymentFailed?'Payment was not received':'Your payment link is ready'}</h2>
+        <p>{paymentFailed
+          ? 'Admin has marked the previous payment attempt as not received. That payment link has been returned to available stock, so you can retry now. Your next payment link will reuse the same link.'
+          : paymentLinkUrl
+            ? 'The secure payment page has been opened. Complete the payment there. Trusted Circle will verify the payment automatically — you do not need to mark it as “Payment Done”.'
+            : 'We could not keep the payment link active. You can request a fresh payment link below.'}</p>
       </div>
       <div className="payment-link-ready-actions">
+        {paymentFailed&&<div className="payment-failed-badge">Payment attempt failed</div>}
         {paymentLinkUrl&&<a className="payment-link-open-btn" href={paymentLinkUrl} target="_blank" rel="noopener noreferrer"><Link2 size={18}/> Open payment link</a>}
-        <button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Generate new link'}</button>
+        <button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Reactivating…':paymentFailed?'Retry with same link':'Generate new link'}</button>
       </div>
+      {retryError&&<div className="payment-link-retry-error" role="alert">{retryError}</div>}
     </div>}
 
     {paymentState==='PAYMENT_PROCESSING'&&<div className="order-waiting-screen">
