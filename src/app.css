@@ -641,3 +641,111 @@
 @media(prefers-reduced-motion:reduce){
   .payment-failed-overlay,.payment-failed-modal,.failed-hero-ring,.failed-hero-icon{animation:none}
 }
+
+/* Order confirmation lives inside the payment gateway */
+.order-placed-gateway-overlay{
+  position:fixed;inset:0;z-index:1300;
+  display:grid;place-items:center;
+  padding:24px;
+  background:rgba(12,25,19,.76);
+  backdrop-filter:blur(13px);
+  animation:tcOrderOverlayIn .24s ease-out;
+}
+.order-placed-gateway-modal{
+  position:relative;
+  width:min(650px,94vw);
+  box-sizing:border-box;
+  padding:42px 42px 34px;
+  text-align:center;
+  overflow:hidden;
+  animation:tcOrderModalIn .5s cubic-bezier(.18,.9,.25,1.12);
+}
+.order-placed-gateway-modal:before{
+  content:"";position:absolute;inset:-120px -80px auto;height:300px;
+  background:radial-gradient(circle,rgba(39,165,107,.13),transparent 68%);
+  pointer-events:none;
+}
+.order-placed-gateway-refresh{
+  position:absolute;top:18px;right:18px;
+  width:42px;height:42px;border:1px solid #dce9e2;
+  border-radius:12px;background:#fff;color:#53615a;
+  display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 7px 20px rgba(22,70,46,.07);
+}
+.order-placed-gateway-refresh:hover{color:#16834f;border-color:#b9d9c8}
+.order-placed-gateway-refresh:disabled{opacity:.55;cursor:wait}
+.order-placed-gateway-refresh .is-spinning{animation:tcRefreshSpin .75s linear infinite}
+.order-placed-gateway-ring{
+  position:relative;
+  width:126px;height:126px;margin:0 auto 23px;
+  border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(circle,#e9faef 0 53%,#d7f5e3 54% 65%,rgba(39,165,107,.055) 66% 100%);
+  box-shadow:0 0 0 13px rgba(39,165,107,.045),0 20px 45px rgba(25,130,76,.13);
+  animation:tcOrderRingIn .65s cubic-bezier(.2,.9,.2,1);
+}
+.order-placed-gateway-ring>div{
+  width:82px;height:82px;border-radius:50%;
+  display:grid;place-items:center;background:#16834f;color:#fff;
+  box-shadow:0 13px 30px rgba(22,131,79,.25);
+  animation:tcOrderCheckPop .7s cubic-bezier(.17,.89,.32,1.35) .08s both;
+}
+.order-placed-gateway-ring svg{stroke-width:2.5}
+.order-placed-gateway-modal .eyebrow{color:#16834f}
+.order-placed-gateway-modal h2{
+  position:relative;margin:9px auto 10px;
+  max-width:560px;color:#17241e;
+  font-size:clamp(28px,4vw,43px);
+  line-height:1.08;letter-spacing:-.045em;
+}
+.order-placed-gateway-modal>p{
+  position:relative;max-width:510px;margin:0 auto;
+  color:#748079;font-size:12px;line-height:1.65;
+}
+.order-placed-gateway-pill{
+  position:relative;width:min(410px,100%);
+  margin:21px auto 20px;padding:13px 17px;
+  box-sizing:border-box;border:1px solid #d6e8de;
+  border-radius:14px;background:#f6fbf8;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.order-placed-gateway-pill span{font-size:10px;color:#66756d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order-placed-gateway-pill strong{font-size:14px;color:#16834f}
+.order-placed-gateway-verification{
+  position:relative;text-align:left;
+  margin:0 auto 22px;
+}
+.order-placed-gateway-actions{
+  position:relative;display:grid;grid-template-columns:1fr 1fr;
+  gap:11px;max-width:430px;margin:0 auto;
+}
+.order-placed-gateway-actions button{
+  min-height:49px;border-radius:13px;
+  padding:0 16px;display:flex;align-items:center;
+  justify-content:center;gap:8px;font:inherit;font-size:12px;
+  font-weight:850;cursor:pointer;transition:transform .16s,box-shadow .16s;
+}
+.order-placed-gateway-actions button:hover{transform:translateY(-1px)}
+.order-placed-home-btn{
+  border:1px solid #dbe5e0;background:#fff;color:#35413c;
+}
+.order-placed-orders-btn{
+  border:0;background:#16834f;color:#fff;
+  box-shadow:0 12px 28px rgba(22,131,79,.22);
+}
+@keyframes tcOrderOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes tcOrderModalIn{from{opacity:0;transform:translateY(25px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes tcOrderRingIn{from{opacity:0;transform:scale(.4) rotate(-20deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes tcOrderCheckPop{0%{opacity:0;transform:scale(.15)}65%{opacity:1;transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}
+@keyframes tcRefreshSpin{to{transform:rotate(360deg)}}
+@media(max-width:600px){
+  .order-placed-gateway-overlay{padding:14px}
+  .order-placed-gateway-modal{padding:34px 20px 25px;border-radius:23px}
+  .order-placed-gateway-refresh{top:13px;right:13px}
+  .order-placed-gateway-ring{width:108px;height:108px;margin-bottom:20px}
+  .order-placed-gateway-ring>div{width:70px;height:70px}
+  .order-placed-gateway-modal h2{font-size:30px}
+  .order-placed-gateway-actions{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .order-placed-gateway-overlay,.order-placed-gateway-modal,.order-placed-gateway-ring,.order-placed-gateway-ring>div,.order-placed-gateway-refresh .is-spinning{animation:none}
+}
