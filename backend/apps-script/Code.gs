@@ -40,7 +40,5 @@ function paymentCheckRequested_(data){
  require_(String(order.Status||'').toUpperCase()==='PENDING_PAYMENT','This order is no longer awaiting payment.');
  var links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(l){return String(l.OrderID)===orderId&&['ACTIVE','USED'].indexOf(String(l.Status||'').toUpperCase())>=0;});
  require_(links.length>0,'Payment link not found.');
- var link=links[links.length-1];
- var sent=typeof sendAdminOrderActionEmailOnce_==='function'?sendAdminOrderActionEmailOnce_(order,user,link.Link,link.Label||'Pay securely'):false;
- return{requested:true,sent:sent};
+ return{requested:false,automatic:true,message:'Payment status is checked automatically. Admin was notified when the payment link was generated.'};
 }
