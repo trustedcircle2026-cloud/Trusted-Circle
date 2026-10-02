@@ -20,7 +20,7 @@ function paymentLinkStockDenominations_(){
 function ensurePaymentLinkStockAlertSheet_(){
   var headers=[
     'AlertID','TokenHash','Denomination','RequestedAmount','OrderID','UserID','UserEmail',
-    'UserName','Reason','Status','ExpiresAt','CreatedAt','UsedAt','UsedBy'
+    'UserName','Reason','AvailableStock','Status','ExpiresAt','CreatedAt','UsedAt','UsedBy'
   ];
   var sheetName=TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS;
   ensureSheet_(sheetName,headers);
@@ -42,6 +42,7 @@ function createPaymentLinkStockAlertToken_(payload){
     UserEmail:normalizeEmail_(payload.userEmail||''),
     UserName:String(payload.userName||''),
     Reason:String(payload.reason||'LOW_STOCK'),
+    AvailableStock:Number(payload.availableStock||0),
     Status:'ACTIVE',
     ExpiresAt:expires,
     CreatedAt:now,
@@ -52,12 +53,10 @@ function createPaymentLinkStockAlertToken_(payload){
 }
 
 function paymentLinkStockAlertUrl_(token){
-  var base='';
-  try{base=ScriptApp.getService().getUrl()||'';}catch(ignore){}
-  if(!base){
-    base='https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec';
-  }
-  return base+'?stockAction=ADD_PAYMENT_LINK&token='+encodeURIComponent(token);
+  // Admin replenishment is intentionally handled only by the hidden Trusted Circle UI.
+  // The token remains useful as an audit reference, but the page requires the ERP
+  // admin session before any stock mutation is accepted.
+  return 'https://www.trustedcircle.in/#/Adminlinkadd';
 }
 
 function paymentLinkStockAlertHtml_(payload,token){
@@ -88,13 +87,13 @@ function paymentLinkStockAlertHtml_(payload,token){
           '<tr><td style="padding:8px 0;color:#68736d">Order ID</td><td style="padding:8px 0;text-align:right">'+order+'</td></tr>'+
         '</table>'+
         '<div style="margin:0 0 14px">'+
-          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN SECURE STOCK FORM</a>'+
-          '<p style="margin:10px 0 0;color:#68736d;font-size:12px;line-height:1.5">This browser form is the reliable option when your mail app blocks interactive HTML email forms.</p>'+
+          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN TRUSTED CIRCLE STOCK PAGE</a>'+
+          '<p style="margin:10px 0 0;color:#68736d;font-size:12px;line-height:1.5">Use the Trusted Circle stock page to add one or many payment links at once.</p>'+
         '</div>'+
         '<div style="padding:18px;background:#f5fbf7;border:1px solid #dce9e0;border-radius:14px">'+
           '<div style="font-weight:800;margin-bottom:8px">Add the payment link from the secure browser form</div>'+
           '<p style="margin:0;color:#68736d;font-size:13px;line-height:1.5">Gmail does not allow interactive forms inside emails. Open the secure Apps Script page below, then paste the new payment link there.</p>'+
-          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;margin-top:14px;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN SECURE STOCK FORM</a>'+
+          '<a href="'+emailEscape_(actionUrl)+'" style="display:inline-block;margin-top:14px;padding:13px 20px;border-radius:10px;background:#173c2a;color:#fff;text-decoration:none;font-weight:800;font-size:14px">OPEN TRUSTED CIRCLE STOCK PAGE</a>'+
         '</div>'+
         '<p style="font-size:12px;color:#7a847e;line-height:1.5;margin:16px 0 0">This one-time action expires automatically and cannot be reused after a successful add.</p>'+
       '</div>'+
@@ -152,6 +151,7 @@ function maybeAlertPaymentLinkStockLow_(denomination,context){
     var created=new Date(r.CreatedAt||0).getTime();
     return Number(r.Denomination||0)===d &&
       String(r.Reason||'').toUpperCase()==='LOW_STOCK' &&
+      Number(r.AvailableStock||-1)===count &&
       created>recentCutoff;
   });
   if(recent)return false;
@@ -169,29 +169,9 @@ function maybeAlertPaymentLinkStockLow_(denomination,context){
 }
 
 function notifyPaymentLinkStockUnavailable_(context){
-  var d=Number(context&&context.denomination||0);
-  require_(paymentLinkStockDenominations_().indexOf(d)>=0,'Unsupported payment-link denomination.');
-  ensurePaymentLinkStockAlertSheet_();
-
-  var orderId=String(context&&context.orderId||'');
-  var recent=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK_ALERTS).some(function(r){
-    return Number(r.Denomination||0)===d &&
-      String(r.OrderID||'')===orderId &&
-      String(r.Reason||'').toUpperCase()==='USER_REQUEST' &&
-      String(r.Status||'').toUpperCase()==='ACTIVE';
-  });
-  if(recent)return false;
-
-  return sendPaymentLinkStockAlert_({
-    denomination:d,
-    requestedAmount:Number(context&&context.requestedAmount||d),
-    orderId:orderId,
-    userId:context&&context.userId||'',
-    userEmail:context&&context.userEmail||'',
-    userName:context&&context.userName||'',
-    reason:'USER_REQUEST',
-    availableStock:0
-  });
+  // Stock alerts are intentionally sent only after a payment-link stock item
+  // is actually USED. Customer-side unavailable requests do not trigger email.
+  return false;
 }
 
 function validatePaymentLinkStockAlertToken_(token){
@@ -334,7 +314,6 @@ function paymentLinkStockEmailResultHtml_(title,message,orderId,remaining,isErro
 }
 
 function sendLowStockAlertsForAllPaymentLinkDenominations_(){
-  paymentLinkStockDenominations_().forEach(function(d){
-    try{maybeAlertPaymentLinkStockLow_(d,{requestedAmount:d});}catch(err){console.error('Low-stock alert failed for '+d+': '+String(err&&err.message||err));}
-  });
+  // Disabled by design: alerts are event-driven from actual stock usage only.
+  return false;
 }
