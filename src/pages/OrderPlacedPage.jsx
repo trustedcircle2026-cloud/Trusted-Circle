@@ -179,14 +179,14 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         {paymentFailed&&<button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Retry payment'}</button>}
         {!paymentFailed&&!paymentLinkUrl&&<button className="payment-link-retry-btn" onClick={retry} disabled={retrying}><RefreshCw size={17}/>{retrying?'Preparing…':'Generate payment link'}</button>}
       </div>
-      {!paymentFailed&&verificationActive&&<div className="payment-verification-card">
-        <div className="payment-verification-icon"><ShieldCheck size={20}/></div>
-        <div className="payment-verification-copy">
+      {!paymentFailed&&verificationActive&&<div className="payment-verification-card tc-premium-verification">
+        <div className="payment-verification-icon tc-premium-verification-icon"><ShieldCheck size={20}/></div>
+        <div className="payment-verification-copy tc-premium-verification-copy">
           <strong>Payment verification is in process</strong>
           <span>{verificationSeconds>0?'We are checking automatically for up to 2 minutes. '+Math.floor(verificationSeconds/60)+':'+String(verificationSeconds%60).padStart(2,'0')+' remaining.':'Verification is taking a little longer than expected. We are still checking automatically.'}</span>
-          <div className="payment-verification-bar"><span style={{width:verificationProgress+'%'}}></span></div>
+          <div className="payment-verification-bar tc-premium-progress"><span style={{width:verificationProgress+'%'}}></span></div>
         </div>
-        <div className="payment-verification-live"><i></i>LIVE</div>
+        <div className="payment-verification-live tc-premium-live"><i></i>LIVE</div>
       </div>}
       {retryError&&<div className="payment-link-retry-error" role="alert">{retryError}</div>}
     </div>}
@@ -207,7 +207,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   </section></main>
 
   {deliveryOpen&&<div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
-    <div className="payment-verified-modal">
+    <div className="payment-verified-modal tc-premium-surface">
       <div className="verified-confetti confetti-one"></div><div className="verified-confetti confetti-two"></div><div className="verified-confetti confetti-three"></div>
       <div className="verified-hero-ring"><div className="verified-hero-check"><CheckCircle2 size={78}/></div></div>
       <span className="eyebrow">PAYMENT VERIFIED</span>
