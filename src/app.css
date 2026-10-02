@@ -176,3 +176,9 @@
 .payment-link-retry-btn{background:#fff;border:1px solid #dbe4df;color:#26312c}
 .payment-link-retry-btn:hover{border-color:#b8cfc3;background:#f8fbf9}
 .payment-link-retry-btn:disabled{opacity:.6;cursor:not-allowed}
+
+@media(max-width:760px){
+ .payment-link-ready-panel{display:grid;grid-template-columns:1fr;gap:16px}
+ .payment-link-ready-actions{min-width:0;justify-content:stretch;display:grid;grid-template-columns:1fr}
+ .payment-link-open-btn,.payment-link-retry-btn{width:100%}
+}
