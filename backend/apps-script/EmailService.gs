@@ -121,7 +121,11 @@ function adminEmailActionResponse_(e){
    if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(order.OrderID,now);
   }else if(action==='NOT_RECEIVED'){
    require_(['PENDING_PAYMENT','PAYMENT_PROCESSING','PROCESSING'].indexOf(current)>=0,'This order is no longer awaiting payment.');
-   appendAudit_('', 'ADMIN_EMAIL_NOT_RECEIVED', 'Orders', order.OrderID, {orderNumber:order.OrderNumber});
+   var paymentsNotReceived=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(order.OrderID);});
+   var paymentNotReceived=paymentsNotReceived.length?paymentsNotReceived[paymentsNotReceived.length-1]:null;
+   require_(paymentNotReceived,'Payment record not found.');
+   updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',paymentNotReceived.PaymentID,{Status:'NOT_RECEIVED',Provider:'ADMIN_EMAIL_NOT_RECEIVED',UpdatedAt:now});
+   appendAudit_('', 'ADMIN_EMAIL_NOT_RECEIVED', 'Orders', order.OrderID, {orderNumber:order.OrderNumber,paymentId:paymentNotReceived.PaymentID});
   }else{
 
    require_(current==='PENDING_PAYMENT','Only a pending-payment order can be cancelled.');
