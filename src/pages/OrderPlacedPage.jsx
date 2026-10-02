@@ -130,8 +130,15 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
 
   const shareOrderOnWhatsApp=()=>{
     const customer=order?.snapshot?.user?.name||'Trusted Circle Member'
-    const text='🎉 Trusted Circle Order Confirmed!\n\nOrder Number: '+orderNumber+'\nCustomer: '+customer+'\nTotal: '+money(order?.snapshot?.total||order?.order?.Total)+'\n\n✅ Payment verified successfully.\nThank you for shopping with Trusted Circle!'
-    const whatsappHref='https://wa.me/?text='+encodeURIComponent(text)
+    const snapshotItems=Array.isArray(order?.snapshot?.items)?order.snapshot.items:[]
+    const itemLines=snapshotItems.map((item,index)=>{
+      const name=item.title||item.name||item.productName||item.brand||'Gift Voucher'
+      const qty=Number(item.quantity||1)
+      const lineTotal=Number(item.total||item.lineTotal||item.faceValue*qty||0)
+      return (index+1)+'. '+name+' × '+qty+' — '+money(lineTotal)
+    }).join('\n')
+    const text='🎉 Trusted Circle Order Confirmed!\n\nOrder Number: '+orderNumber+'\nCustomer: '+customer+'\n\n🎁 GIFT CARD:\n'+(itemLines||'Gift Voucher')+'\n\nTotal: '+money(order?.snapshot?.total||order?.order?.Total)+'\n\n✅ Payment verified successfully.\nThank you for shopping with Trusted Circle!'
+    const whatsappHref='https://wa.me/919442456039?text='+encodeURIComponent(text)
     window.open(whatsappHref,'_blank','noopener,noreferrer')
   }
 
