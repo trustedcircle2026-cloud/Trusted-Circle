@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,Link2,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X,Mail } from 'lucide-react'
+import { CheckCircle2,ChevronRight,Link2,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X,Mail,AlertCircle } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
@@ -16,6 +16,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   const [latestOrder,setLatestOrder]=useState(order?.order||order||null)
   const [latestPaymentLink,setLatestPaymentLink]=useState(order?.paymentLink||order?.order?.paymentLink||null)
   const [deliveryOpen,setDeliveryOpen]=useState(false)
+  const [paymentFailedOpen,setPaymentFailedOpen]=useState(false)
   const [retrying,setRetrying]=useState(false)
   const [retryError,setRetryError]=useState('')
   const [verificationStartedAt,setVerificationStartedAt]=useState(()=>Number(sessionStorage.getItem('tc_payment_verification_started_at')||0))
@@ -31,6 +32,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     setLatestPaymentLink(order?.paymentLink||order?.order?.paymentLink||null)
     setRetryError('')
     if(initial==='PAID')setDeliveryOpen(true)
+    if(initial==='NOT_RECEIVED')setPaymentFailedOpen(true)
   },[order])
 
   useEffect(()=>{
@@ -50,7 +52,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         if(status){
           if(status==='PAID'){setPaymentState('PAID')
           }else if(status==='CANCELLED'){setPaymentState('CANCELLED')
-          }else if(status==='NOT_RECEIVED'){setPaymentState('NOT_RECEIVED');setLatestPaymentLink(null)
+          }else if(status==='NOT_RECEIVED'){setPaymentState('NOT_RECEIVED');setLatestPaymentLink(null);setPaymentFailedOpen(true)
           }else{setPaymentState(status)}
           if(status==='PAID'){
             sessionStorage.removeItem('tc_payment_verification_started_at')
@@ -121,6 +123,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
       const nextLink=result?.paymentLink||result?.order?.paymentLink||null
       if(nextLink)setLatestPaymentLink(nextLink)
       setPaymentState('PENDING_PAYMENT')
+      setPaymentFailedOpen(false)
       startPaymentVerification()
     }catch(error){setRetryError(String(error?.message||'Unable to reopen payment.'))}finally{setRetrying(false)}
   }
@@ -205,6 +208,24 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
 
     {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onHome()}}><Home size={17}/> Home</button></div>}
   </section></main>
+
+  {paymentFailedOpen&&paymentFailed&&<div className="delivery-modal-backdrop payment-failed-overlay" role="dialog" aria-modal="true">
+    <div className="payment-failed-modal tc-premium-surface">
+      <div className="failed-hero-ring"><div className="failed-hero-icon"><AlertCircle size={66}/></div></div>
+      <span className="eyebrow">PAYMENT FAILED</span>
+      <h2>Payment was not received</h2>
+      <p>The previous payment attempt was not received. Please retry the payment to complete your order.</p>
+      <div className="failed-order-pill"><span>{orderNumber}</span><strong>{money(orderTotal)}</strong></div>
+      <div className="failed-actions">
+        <button className="failed-retry-btn" type="button" onClick={()=>{setPaymentFailedOpen(false);retry()}} disabled={retrying}>
+          <RefreshCw size={18}/>{retrying?'Preparing…':'Retry Payment'}
+        </button>
+        <button className="failed-orders-btn" type="button" onClick={()=>{setPaymentFailedOpen(false);clearHandoff();onOrders()}}>
+          <PackageCheck size={18}/> View Orders
+        </button>
+      </div>
+    </div>
+  </div>}
 
   {deliveryOpen&&<div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
     <div className="payment-verified-modal tc-premium-surface">
