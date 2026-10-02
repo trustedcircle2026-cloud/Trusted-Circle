@@ -49,3 +49,48 @@
 .payment-action-notice.pending{background:#fff9ec;border:1px solid #eeddb5;color:#7b5d17}
 .payment-action-notice.error{background:#fff4f4;border:1px solid #eed0d0;color:#a33b3b}
 @media(max-width:700px){.order-detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.order-detail-actions .make-payment-btn{grid-column:1/-1}.check-payment-btn,.mark-payment-btn{width:100%;font-size:11px;padding:0 8px}}
+
+
+/* Failed payment state */
+.payment-state.failed-payment{
+  color:#b42318;
+  background:#fff3f1;
+  border-color:#f0c9c5;
+}
+.retry-payment-btn{
+  min-height:42px;
+  padding:0 14px;
+  border-radius:11px;
+  border:1px solid #e2c2bd;
+  background:#fff4f2;
+  color:#b42318;
+  font-weight:800;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  cursor:pointer;
+}
+.retry-payment-btn:hover{background:#ffece9;border-color:#dfb3ad}
+.retry-payment-btn:disabled{opacity:.6;cursor:wait}
+.orders-failed-payment-panel{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid #f0c9c5;
+  border-radius:14px;
+  background:linear-gradient(135deg,#fff9f8 0%,#fff 75%);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+}
+.orders-failed-payment-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.orders-failed-payment-copy span{font-size:9px;font-weight:900;letter-spacing:.14em;color:#b42318}
+.orders-failed-payment-copy strong{font-size:14px;color:#26332d}
+.orders-failed-payment-copy p{margin:2px 0 0;color:#707a75;font-size:11px;line-height:1.55}
+.orders-failed-retry{flex:none;min-width:135px}
+@media(max-width:700px){
+  .orders-failed-payment-panel{align-items:stretch;flex-direction:column}
+  .orders-failed-retry{width:100%}
+  .order-detail-actions .retry-payment-btn{grid-column:1/-1;width:100%}
+}
