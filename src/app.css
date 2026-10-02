@@ -749,3 +749,53 @@
 @media(prefers-reduced-motion:reduce){
   .order-placed-gateway-overlay,.order-placed-gateway-modal,.order-placed-gateway-ring,.order-placed-gateway-ring>div,.order-placed-gateway-refresh .is-spinning{animation:none}
 }
+
+/* Unified admin-action outcomes inside the payment gateway */
+.gateway-outcome-not_received .order-placed-gateway-modal:before{
+  background:radial-gradient(circle,rgba(220,71,58,.11),transparent 68%);
+}
+.gateway-outcome-cancelled .order-placed-gateway-modal:before{
+  background:radial-gradient(circle,rgba(112,121,116,.11),transparent 68%);
+}
+.order-placed-gateway-ring.outcome-failed{
+  background:radial-gradient(circle,#fff2f0 0 53%,#ffe5e1 54% 65%,rgba(220,71,58,.055) 66% 100%);
+  box-shadow:0 0 0 13px rgba(220,71,58,.045),0 20px 45px rgba(180,55,43,.12);
+}
+.order-placed-gateway-ring.outcome-failed>div{
+  background:#d73e30;
+  box-shadow:0 13px 30px rgba(180,55,43,.24);
+}
+.order-placed-gateway-ring.outcome-cancelled{
+  background:radial-gradient(circle,#f2f4f3 0 53%,#e6eae8 54% 65%,rgba(91,104,97,.05) 66% 100%);
+  box-shadow:0 0 0 13px rgba(91,104,97,.04),0 20px 45px rgba(48,62,55,.10);
+}
+.order-placed-gateway-ring.outcome-cancelled>div{
+  background:#5c6963;
+  box-shadow:0 13px 30px rgba(48,62,55,.18);
+}
+.gateway-outcome-not_received .order-placed-gateway-modal .eyebrow{
+  color:#b4483e;
+}
+.gateway-outcome-cancelled .order-placed-gateway-modal .eyebrow{
+  color:#5c6963;
+}
+.order-outcome-status{
+  text-align:left;
+  margin:0 auto 22px;
+}
+.order-outcome-status p{
+  margin:3px 0 0;
+  font-size:10px;
+  line-height:1.45;
+  color:#76827c;
+}
+.gateway-outcome-not_received .order-placed-orders-btn{
+  background:#16834f;
+}
+.gateway-outcome-cancelled .order-placed-orders-btn{
+  background:#16834f;
+}
+@media(prefers-reduced-motion:reduce){
+  .order-placed-gateway-ring.outcome-failed,
+  .order-placed-gateway-ring.outcome-cancelled{animation:none}
+}
