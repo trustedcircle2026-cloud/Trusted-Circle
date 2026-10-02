@@ -352,3 +352,10 @@
   .verified-actions{grid-template-columns:1fr}
   .verified-order-pill{width:100%;box-sizing:border-box}
 }
+
+
+.order-success-rich .success-ring.status-pending{
+  background:#e9f9ef;
+  color:#16834f;
+  box-shadow:0 0 0 10px rgba(39,165,107,.06);
+}
