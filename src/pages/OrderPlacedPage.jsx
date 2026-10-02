@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { CheckCircle2,ChevronRight,Link2,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X } from 'lucide-react'
+import { CheckCircle2,ChevronRight,Link2,MessageCircle,PackageCheck,RefreshCw,ShieldCheck,ShoppingBag,Home,Smartphone,X,Mail } from 'lucide-react'
 import BrandLogo from '../components/BrandLogo'
 import { api } from '../api'
 
@@ -188,7 +188,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
         <div className="payment-verification-live"><i></i>LIVE</div>
       </div>}
       {retryError&&<div className="payment-link-retry-error" role="alert">{retryError}</div>}
-    </div>
+    </div>}
     {paymentState==='PAYMENT_PROCESSING'&&<div className="order-waiting-screen">
       <img className="waiting-logo" src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"/>
       <strong>Sit back and relax</strong>
