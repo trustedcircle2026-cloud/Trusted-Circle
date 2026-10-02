@@ -158,7 +158,8 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     <div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onHome()}}><Home size={17}/> Home</button></div>
   </section></main>
 
-  return <main className="page-shell order-placed-page"><section className="order-success order-success-rich">
+  return <>
+  <main className="page-shell order-placed-page"><section className="order-success order-success-rich">
     <div className={`success-ring success-pop status-${statusTone}`}>{paymentFailed?<X size={42}/>:<CheckCircle2 size={42}/>}</div>
     <span className="eyebrow">{paymentState==='PAID'?'PAYMENT VERIFIED':paymentFailed?'PAYMENT FAILED':'ORDER RECEIVED'}</span>
     <h1>{paymentState==='PAID'?'Payment verified':paymentFailed?'Payment was not received':'Order received'}</h1>
@@ -203,7 +204,7 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
     </div><div className="confirmation-side"><div className="next-card"><strong>{paymentState==='PAID'?'Ready to send':'Payment status'}</strong><span>{paymentState==='PAID'?'Choose a delivery option.':'Update the payment status above.'}</span></div><div className="customer-card"><span className="eyebrow">CUSTOMER</span><strong>{order?.snapshot?.user?.name||'Trusted Circle Member'}</strong><span>{order?.snapshot?.user?.email||'—'}</span></div></div></div>
 
     {paymentState==='PAID'&&<div className="success-actions final-order-actions"><button className="btn-primary" onClick={()=>{clearHandoff();onShop()}}><ShoppingBag size={17}/> Shop more</button><button className="btn-quiet" onClick={()=>{clearHandoff();onHome()}}><Home size={17}/> Home</button></div>}
-  </section>
+  </section></main>
 
   {deliveryOpen&&<div className="delivery-modal-backdrop payment-verified-overlay" role="dialog" aria-modal="true">
     <div className="payment-verified-modal">
@@ -219,5 +220,6 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
       </div>
     </div>
   </div>
-  </main>
+  </div>
+  </>
 }
