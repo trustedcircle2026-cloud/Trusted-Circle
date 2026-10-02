@@ -39,7 +39,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
         <div><span className="eyebrow">ORDER</span><h3>{detailedOrder.OrderNumber}</h3><small className="detail-live-label">Latest status checked just now</small></div>
         <div className="order-detail-actions">
           {paymentPending && !failedPayment && <button className="make-payment-btn" onClick={() => setPay(order)}><Link2 size={15}/> Make payment</button>}
-          {failedPayment && !isCancelled && <button className="retry-payment-btn" onClick={() => onRetryPayment(order)} disabled={retryPaymentLoading === order.OrderID}><Link2 size={15}/> {retryPaymentLoading === order.OrderID ? 'Retrying…' : 'Retry payment'}</button>}
+          {failedPayment && !isCancelled && <button className="retry-payment-btn" onClick={() => onRetryPayment(order)}><Link2 size={15}/> Retry payment</button>}
           {paymentPending && <button className="check-payment-btn" onClick={() => onCheckPayment(order)} disabled={paymentCheckLoading === order.OrderID}><PackageCheck size={15}/> {paymentCheckLoading === order.OrderID ? 'Checking…' : 'Check payment status'}</button>}
           {canCancel && <button className="cancel-order-mini" onClick={() => onCancel(order)} disabled={cancelLoading === order.OrderID}><X size={14}/> {cancelLoading === order.OrderID ? 'Cancelling…' : 'Cancel'}</button>}
           {ready && <button className="invoice-download-btn" disabled={invoiceLoading === order.OrderID} onClick={() => downloadInvoice(detailedOrder)}><Download size={15}/> {invoiceLoading === order.OrderID ? 'Preparing…' : 'Download PDF'}</button>}
@@ -72,8 +72,8 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
             <strong>Payment was not received</strong>
             <p>The previous payment attempt was marked as not received. The payment link has been returned to available stock and can be reused.</p>
           </div>
-          <button className="retry-payment-btn orders-failed-retry" onClick={() => onRetryPayment(order)} disabled={retryPaymentLoading === order.OrderID}>
-            <Link2 size={15}/>{retryPaymentLoading === order.OrderID ? 'Retrying…' : 'Retry payment'}
+          <button className="retry-payment-btn orders-failed-retry" onClick={() => onRetryPayment(order)}>
+            <Link2 size={15}/>Retry payment
           </button>
         </div>
       )}
@@ -95,7 +95,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
 }
 
 export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome }) {
-  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [retryPaymentLoading, setRetryPaymentLoading] = useState(''), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
+  const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
 
   const pending = order => !cancelled.has(order.OrderID) && ['PENDING','NOT_RECEIVED'].includes(String(order.PaymentStatus || 'PENDING').toUpperCase()) && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
@@ -160,29 +160,6 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     }
   }
 
-  const retryPayment = async order => {
-    const id = order.OrderID
-    setRetryPaymentLoading(id)
-    setPaymentNotice(null)
-    try {
-      const token = localStorage.getItem('tc_session')
-      const popup = window.open('about:blank', '_blank')
-      const result = await api.requestPaymentLink(token, id)
-      const link = result?.paymentLink?.Link || result?.paymentLink?.link || ''
-      if (!link) throw new Error('Payment link is not available right now.')
-      if (popup) popup.location.replace(link)
-      else window.location.assign(link)
-      api.paymentLinkOpened(token, id).catch(() => {})
-      const refreshed = await api.orderDetails(token, id)
-      setDetails(previous => ({...previous, [id]: refreshed}))
-      setPaymentNotice({orderId:id,type:'success',message:'A payment link is ready again. Complete the payment to continue your order.'})
-    } catch (error) {
-      setPaymentNotice({orderId:id,type:'error',message:error.message || 'Could not retry payment.'})
-    } finally {
-      setRetryPaymentLoading('')
-    }
-  }
-
   const cancel = async order => {
     setCancelLoading(order.OrderID)
     try {
@@ -215,7 +192,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
         const stateClass = isCancelled ? 'cancelled' : failedPayment ? 'failed-payment' : paymentPending ? 'pending' : ready ? 'delivered' : detailPaymentStatus === 'PAID' || detailPaymentStatus === 'VERIFIED' ? 'paid' : 'checking'
         return <article className={`order-card order-card-rich ${expanded ? 'expanded' : ''}`} key={order.OrderID}>
           <button className="order-main" onClick={() => viewOrder(order)}><div className="order-icon"><PackageCheck size={20}/></div><div className="order-copy"><span>{order.OrderNumber}</span><h3>{isCancelled ? 'Cancelled' : failedPayment ? 'Failed Payment' : String(displayOrder.Status || 'ORDER').replaceAll('_', ' ')}</h3><small>{order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : ''}</small></div><div className="order-right"><strong>{money(order.Total)}</strong><span className={`payment-state ${stateClass}`}>{stateLabel}</span></div><ChevronDown size={17} className="order-chevron"/></button>
-          {expanded && <div className="order-details"><OrderDetails order={order} detail={detail} detailsLoading={detailsLoading} paymentPending={paymentPending} isCancelled={isCancelled} ready={ready} invoiceLoading={invoiceLoading} cancelLoading={cancelLoading} downloadInvoice={downloadInvoice} setPay={setPay} onCancel={setCancelTarget} onCheckPayment={checkPayment} paymentCheckLoading={paymentCheckLoading} paymentNotice={paymentNotice} onRetryPayment={retryPayment} retryPaymentLoading={retryPaymentLoading}/></div>}
+          {expanded && <div className="order-details"><OrderDetails order={order} detail={detail} detailsLoading={detailsLoading} paymentPending={paymentPending} isCancelled={isCancelled} ready={ready} invoiceLoading={invoiceLoading} cancelLoading={cancelLoading} downloadInvoice={downloadInvoice} setPay={setPay} onCancel={setCancelTarget} onCheckPayment={checkPayment} paymentCheckLoading={paymentCheckLoading} paymentNotice={paymentNotice} onRetryPayment={order => setPay({...order, items: details[order.OrderID]?.items || []})}/></div>}
         </article>
       })}</div>{olderOrders.length>0 && <div className="older-orders-action">{showOlder ? <button className="btn-quiet" onClick={()=>{setShowOlder(false);window.scrollTo({top:0,behavior:'smooth'})}}>Show recent 4 orders</button> : <button className="btn-quiet" onClick={()=>setShowOlder(true)}>View Older orders <ChevronDown size={16}/></button>}</div>}</>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
       <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
@@ -223,6 +200,6 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
 
     {cancelTarget && <div className="cancel-confirm-backdrop" onClick={() => setCancelTarget(null)}><div className="cancel-confirm-modal" onClick={event => event.stopPropagation()}><div className="cancel-warning-icon"><AlertTriangle size={22}/></div><span className="eyebrow">CANCEL ORDER</span><h2>Cancel this order?</h2><p>This payment-pending order will be cancelled. You can create a new order later.</p><div className="cancel-confirm-actions"><button className="btn-quiet" onClick={() => setCancelTarget(null)}>Keep order</button><button className="cancel-confirm-btn" disabled={cancelLoading === cancelTarget.OrderID} onClick={() => cancel(cancelTarget)}>{cancelLoading === cancelTarget.OrderID ? 'Cancelling…' : 'Yes, cancel order'}</button></div></div></div>}
 
-    {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}><div className="order-pay-modal" onClick={event => event.stopPropagation()}><PaymentGateway mode="order" total={pay.Total} cashback={pay.Discount} orderId={pay.OrderID} qrUrl="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/UPIQR.jpg" onBack={() => setPay(null)} /></div></div>}
+    {pay && <div className="order-pay-overlay" onClick={() => setPay(null)}><div className="order-pay-modal" onClick={event => event.stopPropagation()}><PaymentGateway mode="checkout" items={pay.items || []} total={pay.Total} cashback={pay.Discount} orderId={pay.OrderID} onBack={() => setPay(null)} /></div></div>}
   </main>
 }
