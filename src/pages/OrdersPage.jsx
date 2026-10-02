@@ -84,7 +84,7 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
 export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome }) {
   const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentDoneLoading, setPaymentDoneLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
 
-  const pending = order => !cancelled.has(order.OrderID) && String(order.PaymentStatus || 'PENDING').toUpperCase() === 'PENDING' && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
+  const pending = order => !cancelled.has(order.OrderID) && ['PENDING','NOT_RECEIVED'].includes(String(order.PaymentStatus || 'PENDING').toUpperCase()) && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
 
   const downloadInvoice = async order => {
     setInvoiceError('')
