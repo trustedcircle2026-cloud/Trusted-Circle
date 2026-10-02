@@ -26,18 +26,6 @@ var OrderService={
    if(paymentMethod==='link'){
     stock=reservePaymentLinkForAmount_(subtotal);
     if(!stock){
-      try{
-        if(typeof notifyPaymentLinkStockUnavailable_==='function'){
-          notifyPaymentLinkStockUnavailable_({
-            denomination:Number(subtotal),
-            requestedAmount:Number(subtotal),
-            userId:user.UserID,
-            userEmail:user.Email,
-            userName:user.Name,
-            reason:'USER_REQUEST'
-          });
-        }
-      }catch(alertError){console.error('Payment-link stock alert failed: '+String(alertError&&alertError.message||alertError));}
       require_(false,'Payment link stock is not available for this order value.');
     }
    }
@@ -50,17 +38,6 @@ var OrderService={
     var plId=newId_('TCPL'),expiresAt=new Date(Date.now()+TC_PAYMENT_LINK_TTL_MS).toISOString();
     appendRowObject_(TC_CONFIG.SHEETS.PAYMENT_LINKS,{PaymentLinkID:plId,OrderID:orderId,Link:stock.Link,Label:stock.Label||'Pay securely',Status:'ACTIVE',PaymentLinkStockID:stock.PaymentLinkStockID,ProviderLinkID:stock.ProviderLinkID||'',CreatedAt:now,UpdatedAt:now});
     updateRowById_(TC_CONFIG.SHEETS.PAYMENT_LINK_STOCK,'PaymentLinkStockID',stock.PaymentLinkStockID,{Status:'RESERVED',OrderID:orderId,PaymentLinkID:plId,ReservedAt:now,ExpiresAt:expiresAt,UpdatedAt:now});
-    try{
-      if(typeof maybeAlertPaymentLinkStockLow_==='function'){
-        maybeAlertPaymentLinkStockLow_(Number(stock.Denomination||subtotal),{
-          requestedAmount:Number(stock.Denomination||subtotal),
-          orderId:orderId,
-          userId:user.UserID,
-          userEmail:user.Email,
-          userName:user.Name
-        });
-      }
-    }catch(alertError){console.error('Payment-link low-stock alert failed: '+String(alertError&&alertError.message||alertError));}
     var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(r){return String(r.OrderID)===orderId;});
     if(!payments.length)appendRowObject_(TC_CONFIG.SHEETS.PAYMENTS,{PaymentID:newId_('TCPAY'),OrderID:orderId,Provider:'PAYMENT_LINK',ProviderOrderID:orderNumber,ProviderPaymentID:'',Amount:subtotal,Currency:'INR',Status:'PENDING',VerifiedAt:'',CreatedAt:now,UpdatedAt:now});
     var createdOrder=getOrder_(user.UserID,orderId);
