@@ -238,7 +238,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
   </> : <button className="btn-quiet" onClick={()=>loadOlderOrders(4)} disabled={olderLoading}>
     {olderLoading ? 'Loading…' : 'View Older Orders'} <ChevronDown size={16}/>
   </button>}
-</div></div></>})()>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
+</div></>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
       <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
     </div>
 
