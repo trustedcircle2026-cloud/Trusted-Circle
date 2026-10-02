@@ -133,11 +133,11 @@ export default function OrderPlacedPage({order,token,onOrders,onShop,onHome,onRe
   }
 
   const statusLabel=paymentState==='PAID'?'PAYMENT VERIFIED':paymentState==='CANCELLED'?'ORDER REJECTED':paymentState==='NOT_RECEIVED'?'PAYMENT FAILED':paymentState==='PAYMENT_PROCESSING'?'PAYMENT PROCESSING':paymentLinkUrl?'PAYMENT LINK READY':'PAYMENT PENDING'
+  const paymentFailed=paymentState==='NOT_RECEIVED'
   const verificationActive=paymentState!=='PAID'&&paymentState!=='CANCELLED'&&!paymentFailed&&verificationStartedAt>0
   const verificationProgress=verificationStartedAt?Math.min(100,((120-verificationSeconds)/120)*100):0
   const statusTone=paymentState==='PAID'?'paid':paymentState==='CANCELLED'?'rejected':paymentState==='NOT_RECEIVED'?'failed':paymentState==='PAYMENT_PROCESSING'?'checking':'pending'
   const rejected=paymentState==='CANCELLED'
-  const paymentFailed=paymentState==='NOT_RECEIVED'
   const orderTotal=latestOrder?.Total||order?.order?.Total||order?.Total
 
   if(handoff&&!returned)return <main className="page-shell order-placed-page payment-return-page"><section className="order-success payment-handoff-card"><div className="success-ring pulse"><Smartphone size={38}/></div><span className="eyebrow">PAYMENT</span><h1>Opening UPI…</h1><p>Complete the payment in your UPI app, then return here.</p><div className="handoff-steps"><div className="handoff-step done"><span>✓</span><div><b>Order created</b><small>Payment pending</small></div></div><ChevronRight/><div className="handoff-step active"><span>2</span><div><b>Pay in UPI</b><small>Use your app</small></div></div><ChevronRight/><div className="handoff-step"><span>3</span><div><b>Return</b><small>See your order</small></div></div></div><div className="upi-launch-card"><div className="upi-hero-mark"><span>UPI</span></div><div><strong>{money(order?.order?.Total)}</strong><small>Pay using UPI</small></div><a href={UPI_APPS_URL} onClick={event=>{event.preventDefault();setLaunching(true);window.location.href=UPI_APPS_URL}}><Smartphone size={17}/> {launching?'Opening…':'Open UPI App'}</a></div><div className="order-payment-note"><ShieldCheck size={17}/><span>Payment is confirmed only after verified payment data is received.</span></div></section></main>
