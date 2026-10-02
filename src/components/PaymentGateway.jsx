@@ -111,10 +111,39 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   }
 
   const shareOrder = () => {
-    const number = latestOrder?.OrderNumber || linkRequest?.orderNumber || orderId || 'your Trusted Circle order'
-    const amount = money(latestOrder?.Total || total)
-    const text = `Trusted Circle order confirmed ✓\\nOrder: ${number}\\nAmount: ${amount}\\nThank you for shopping with Trusted Circle.`
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
+    const order = latestOrder || {}
+    const number = order.OrderNumber || linkRequest?.orderNumber || orderId || 'N/A'
+    const paymentStatus = String(order.PaymentStatus || (gatewayOutcome === 'received' ? 'PAID / VERIFIED' : gatewayOutcome === 'not_received' ? 'PAYMENT FAILED' : 'PENDING')).replaceAll('_', ' ')
+    const orderStatus = String(order.Status || (gatewayOutcome === 'received' ? 'ORDER PLACED' : 'PENDING PAYMENT')).replaceAll('_', ' ')
+    const amount = money(order.Total || total)
+    const subtotal = money(order.Subtotal || total)
+    const cashbackAmount = money(order.Discount || cashback)
+    const createdAt = order.CreatedAt ? new Date(order.CreatedAt).toLocaleString('en-IN') : new Date().toLocaleString('en-IN')
+    const itemLines = (items || []).map((item, index) => {
+      const title = item.title || item.Title || item.product?.Title || item.BrandName || item.Brand || 'Gift Voucher'
+      const qty = Number(item.quantity || item.Quantity || 1)
+      const face = Number(item.faceValue || item.denomination || item.Denomination || item.FaceValue || 0)
+      const lineTotal = Number(item.total || item.Total || face * qty)
+      return `${index + 1}. ${title} × ${qty} — ${money(lineTotal)}`
+    }).join('\\n')
+    const text = [
+      '🎉 TRUSTED CIRCLE — ORDER DETAILS',
+      '',
+      `Order Number: ${number}`,
+      `Order Status: ${orderStatus}`,
+      `Payment Status: ${paymentStatus}`,
+      `Order Date: ${createdAt}`,
+      '',
+      'ITEMS:',
+      itemLines || 'Gift Voucher order',
+      '',
+      `Subtotal: ${subtotal}`,
+      `Cashback: ${cashbackAmount}`,
+      `Total Paid: ${amount}`,
+      '',
+      'Payment verified by Trusted Circle.' 
+    ].join('\\n')
+    window.open('https://wa.me/919442456039?text=' + encodeURIComponent(text), '_blank', 'noopener,noreferrer')
   }
 
   const sharePaymentLink = kind => {
