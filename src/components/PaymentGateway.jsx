@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, Mail, MessageCircle, ShieldCheck, X } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
 
@@ -268,7 +268,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       <div className="gateway-shell">
         <aside className="gateway-summary">
           <div className="gateway-summary-brand">
-            <div className="gateway-logo"><img src={logoUrl} alt="Trusted Circle" /></div>
+            <div className="gateway-logo">{logoUrl && <img src={logoUrl} alt="Trusted Circle" />}</div>
             <div><strong>Trusted Circle</strong><small>Gift Vouchers</small></div>
           </div>
           <div className="gateway-stepper">
@@ -284,7 +284,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           </div>
           {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Order limit is ₹2,000. Remove items to continue.</div>}
           <div className="gateway-summary-footer"><ShieldCheck size={16} /><span>Cashback is added after payment verification.</span></div>
-        </aside>}
+        </aside>
 
         <section className="gateway-payment">
           <div className="gateway-payment-head">
