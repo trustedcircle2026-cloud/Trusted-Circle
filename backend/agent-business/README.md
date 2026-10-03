@@ -76,7 +76,7 @@ For a fresh database based on the current `AGENT_BUSINESS.SHEETS` schema, the re
 3. Recreate the current headers and Settings defaults.
 4. Preserve no old Agent, AgentUser, Client, Payment, Card, Cashback, Ledger, Settlement, Expense, Notification, or Audit records.
 
-Current schema version: `1.3.0`.
+Current schema version: `1.3.0` (PaymentRequests now includes `PolicyID`).
 
 After a fresh reset, create AgentUsers again because the agent login now requires a mobile number and 4-digit password.
 
@@ -108,7 +108,7 @@ Both functions read `AGENT_BUSINESS_SHEET_ID` from Script Properties when no arg
 Do not expose database-reset operations through the public web-app endpoint. Database reset is an administrative Apps Script operation only.
 
 
-## Current version 1.3.0 — Fast Agent Portal backend
+## Current version 1.3.0 — Fast policy-first Agent Portal backend
 
 Agent login is mobile number + 4-digit password. Passwords are stored as SHA-256 hashes in AgentUsers.PasswordHash; the raw password is never stored.
 
