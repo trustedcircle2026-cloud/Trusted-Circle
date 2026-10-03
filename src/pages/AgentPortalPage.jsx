@@ -60,7 +60,7 @@ export default function AgentPortalPage(){
   <div className="agent-login-shell">
    <div className="agent-login-orbit orbit-one"></div><div className="agent-login-orbit orbit-two"></div>
    <div className="agent-login-card">
-    <div className="agent-login-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>LIC Agent Portal</small></div></div>
+    <div className="agent-login-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal</small></div></div>
     <div className="agent-login-icon"><ShieldCheck size={25}/></div>
     <span className="ap-eyebrow">SECURE AGENT ACCESS</span>
     <h1>Welcome back 👋</h1>
@@ -76,11 +76,15 @@ export default function AgentPortalPage(){
 
  return <div className="agent-portal-page">
   {loading&&<LoadingOverlay text={loadingText}/>}
-  <header className="ap-header">
-   <div className="ap-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>LIC Agent Portal</small></div></div>
-   <div className="ap-agent"><div><b>{agent.AgentName}</b><small>Agent Account · LIC</small></div><button onClick={logout}><LogOut size={15}/>Logout</button></div>
-  </header>
   <main className="ap-main">
+   <div className="ap-command-menu">
+    <div className="ap-command-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal · {agent.AgentName}</small></div></div>
+    <div className="ap-command-actions">
+     <button className="ap-command-box" onClick={()=>load(session)} disabled={loading}><RefreshCw size={16} className={loading?'spin':''}/><span>Refresh</span><small>Sync workspace</small></button>
+     <button className="ap-command-box ap-command-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={16}/><span>New Request</span><small>Add client & policy</small></button>
+     <button className="ap-command-box ap-command-danger" onClick={logout}><LogOut size={16}/><span>Sign Out</span><small>End session</small></button>
+    </div>
+   </div>
    <section className="ap-page-head">
     <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage client submissions and payment requests.</p></div>
     <button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>New Payment Request</button>
@@ -102,8 +106,8 @@ export default function AgentPortalPage(){
    </div>
 
    {activeTab==='clients'?<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Submit only the client name, LIC policy number and date of birth.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Client & Policy</button></div>
-    {clients.length?<div className="ap-client-grid">{clients.map(r=><div className="ap-client-card" key={r.ClientID}><div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div><div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><WalletCards size={13}/>{r.PolicyType||'LIC Policy'}</span></div><div className="ap-client-bottom"><span>Payment request <b>Awaiting Admin</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'PENDING').toLowerCase()}>{r.RequestStatus||'PENDING'}</span></div></div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>No client submissions yet</b><span>Add the client and policy together to create a payment request.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Start First Submission</button></div>}
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Submit only the client name, policy number and date of birth.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Client & Policy</button></div>
+    {clients.length?<div className="ap-client-grid">{clients.map(r=><div className="ap-client-card" key={r.ClientID}><div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div><div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><WalletCards size={13}/>{r.PolicyType||'Policy'}</span></div><div className="ap-client-bottom"><span>Payment request <b>Awaiting Admin</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'PENDING').toLowerCase()}>{r.RequestStatus||'PENDING'}</span></div></div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>No client submissions yet</b><span>Add the client and policy together to create a payment request.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Start First Submission</button></div>}
    </section>:<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">ADMIN WORKFLOW</span><h2>Payment Requests</h2><p>Requests are sent to Trusted Circle Admin for review and payment processing.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
     {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}><div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber} · Awaiting Admin verification</span><small>Submitted {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div><span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span><ChevronRight size={17}/></div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Add a client and policy to send the first request.</span></div>}
@@ -112,11 +116,11 @@ export default function AgentPortalPage(){
 
   {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
    <button className="ap-close" onClick={()=>!loading&&setShowForm(false)}><X/></button>
-   <div className="ap-wizard-head"><span className="ap-eyebrow">NEW PAYMENT REQUEST</span><h2>Client Details</h2><p>Only the three details required to process the LIC premium payment are collected here.</p></div>
+   <div className="ap-wizard-head"><span className="ap-eyebrow">NEW PAYMENT REQUEST</span><h2>Client Details</h2><p>Only the three details required to process the premium payment are collected here.</p></div>
    <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Admin</small></div>
    <div className="ap-form-grid ap-three-fields">
     <label>Client Name<input value={clientForm.ClientName} onChange={e=>setClientForm({...clientForm,ClientName:e.target.value})} placeholder="Full name"/></label>
-    <label>Policy Number<input value={clientForm.PolicyNumber} onChange={e=>setClientForm({...clientForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="LIC policy number"/></label>
+    <label>Policy Number<input value={clientForm.PolicyNumber} onChange={e=>setClientForm({...clientForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
     <label>Date of Birth<input type="date" value={clientForm.DateOfBirth} onChange={e=>setClientForm({...clientForm,DateOfBirth:e.target.value})}/></label>
    </div>
    <div className="ap-info-note"><ShieldCheck size={15}/><span>Trusted Circle Admin will verify the policy and obtain the premium/payment details. No premium amount or other policy information is required from the agent.</span></div>
