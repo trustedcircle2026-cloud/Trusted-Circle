@@ -184,6 +184,7 @@ function agentBusinessRoute_(p){
   if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
+  if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
   if(action==='createAgent') return adminCreateAgent_(p);
   if(action==='setAgentPassword') return adminSetAgentPassword_(p);
   throw new Error('Unknown Agent Business action: '+action);
