@@ -87,7 +87,6 @@ export default function AgentPortalPage(){
    </div>
    <section className="ap-page-head">
     <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage client submissions and payment requests.</p></div>
-    <button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>New Payment Request</button>
    </section>
 
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
