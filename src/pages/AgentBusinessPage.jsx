@@ -45,7 +45,7 @@ export default function AgentBusinessPage(){
    </aside>
 
    <main className="ab-main">
-    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><a href="#/home"><ArrowLeft size={16}/>Shopping</a></div></header>
+    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
 
     {error&&<div className="ab-error"><X size={17}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
 
