@@ -56,7 +56,7 @@ export default function AgentBusinessPage(){
     {notice&&<div className="ab-success"><CheckCircle2 size={17}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
 
     {module==='__dashboard'?<section className="ab-content">
-      <div className="ab-hero"><div><span className="ab-eyebrow">BUSINESS OVERVIEW</span><h2>One place to manage agents, payments & cashback.</h2><p>Operate the complete agent payment workflow from request to reconciliation.</p></div><div className="ab-hero-mark"><Activity size={34}/></div></div>
+      <div className="ab-welcome-strip"><div><span className="ab-eyebrow">TRUSTED CIRCLE · OPERATIONS</span><h2>Good to see you, Admin 👋</h2><p>Manage agents, payment requests, cards, cashback and settlements from one workspace.</p></div><div className="ab-live-chip"><span></span>LIVE WORKSPACE</div></div>
       <div className="ab-metrics">
        <Metric label="Payment Volume" value={money(metrics.paymentVolume)} icon={CircleDollarSign}/>
        <Metric label="Customer Collected" value={money(metrics.customerCollected)} icon={WalletCards}/>
