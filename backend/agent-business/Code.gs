@@ -11,6 +11,7 @@
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
+  ADMIN_PASSWORD_HASH_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD_HASH',
   DISCOUNT_RATE: 0.02,
   SETUP_VERSION: '1.2.0',
   SESSION_TTL_SECONDS: 21600,
@@ -37,8 +38,8 @@ var AGENT_BUSINESS = {
 };
 
 function resetAgentBusinessDatabase(spreadsheetId){
-  var id=String(spreadsheetId||'').trim();
-  if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
+  var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
+  if(!id) throw new Error('Agent Business Sheet ID is not configured in Apps Script Properties.');
 
   var ss=SpreadsheetApp.openById(id);
   var managed=Object.keys(AGENT_BUSINESS.SHEETS);
@@ -60,7 +61,7 @@ function resetAgentBusinessDatabase(spreadsheetId){
 
 function freshSetupAgentBusinessSheets(spreadsheetId){
   var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
-  if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
+  if(!id) throw new Error('Agent Business Sheet ID is not configured in Apps Script Properties.');
 
   var ss=SpreadsheetApp.openById(id);
   PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY,id);
@@ -182,7 +183,7 @@ function hashAdminPassword_(password){
 function setAdminPassword(password){
   password=String(password||'');
   if(password.length<8) throw new Error('Admin password must be at least 8 characters.');
-  PropertiesService.getScriptProperties().setProperty('AGENT_BUSINESS_ADMIN_PASSWORD_HASH',hashAdminPassword_(password));
+  PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.ADMIN_PASSWORD_HASH_PROPERTY,hashAdminPassword_(password));
   return {ok:true,message:'Admin password configured.'};
 }
 function adminSession_(token){
@@ -194,8 +195,8 @@ function adminSession_(token){
 }
 function adminLogin_(p){
   var password=String(p.password||'');
-  var stored=PropertiesService.getScriptProperties().getProperty('AGENT_BUSINESS_ADMIN_PASSWORD_HASH');
-  if(!stored) throw new Error('Admin password is not configured. Run setAdminPassword() in Apps Script first.');
+  var stored=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.ADMIN_PASSWORD_HASH_PROPERTY);
+  if(!stored) throw new Error('Admin password is not configured in Apps Script Properties. Run setAdminPassword() in Apps Script once.');
   if(hashAdminPassword_(password)!==stored) throw new Error('Invalid admin password.');
   var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
   CacheService.getScriptCache().put(adminSessionKey_(token),JSON.stringify({role:'ADMIN',createdAt:new Date().toISOString()}),AGENT_BUSINESS.SESSION_TTL_SECONDS);
@@ -326,7 +327,7 @@ function createAgentUser(agentId,mobile,password){
 }
 function agentBusinessSpreadsheet_(){
   var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
-  if(!id) throw new Error('Agent Business database is not configured. Run freshSetupAgentBusinessSheets() first.');
+  if(!id) throw new Error('Agent Business Sheet ID is not configured in Apps Script Properties.');
   return SpreadsheetApp.openById(id);
 }
 function listRows_(ss,sheetName,p){
