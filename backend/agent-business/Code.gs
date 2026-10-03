@@ -12,11 +12,12 @@ var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.0.0',
+  SETUP_VERSION: '1.1.0',
+  SESSION_TTL_SECONDS: 21600,
   SHEETS: {
     Agents:['AgentID','AgentCode','AgentName','AgencyName','Mobile','Email','InsuranceCompany','LicenseNumber','Address','BankName','AccountName','AccountNumber','IFSC','UPI','Status','JoinedDate','Notes','CreatedAt','UpdatedAt'],
     AgentUsers:['AgentUserID','AgentID','Email','Mobile','PasswordHash','Status','LastLoginAt','CreatedAt','UpdatedAt'],
-    Clients:['ClientID','AgentID','ClientName','Mobile','Email','Address','DateOfBirth','PAN','Status','Notes','CreatedAt','UpdatedAt'],
+    Clients:['ClientID','AgentID','ClientName','PolicyNumber','DateOfBirth','Status','Notes','CreatedAt','UpdatedAt'],
     Policies:['PolicyID','AgentID','ClientID','InsuranceCompany','PolicyNumber','PolicyType','PolicyHolder','InsuredPerson','PremiumAmount','PremiumFrequency','NextDueDate','PolicyStatus','StartDate','MaturityDate','Notes','CreatedAt','UpdatedAt'],
     PremiumBills:['BillID','AgentID','ClientID','PolicyID','PolicyNumber','PremiumAmount','DueDate','BillDate','DiscountRate','DiscountAmount','CustomerPayable','PaymentStatus','ReceiptRequired','Notes','CreatedAt','UpdatedAt'],
     PaymentRequests:['RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
@@ -150,7 +151,67 @@ function agentBusinessRoute_(p){
   if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
+  if(action==='agentLogin') return agentLogin_(p);
+  if(action==='agentMe') return agentMe_(p);
+  if(action==='agentClients') return agentClients_(p);
+  if(action==='agentAddClient') return agentAddClient_(p);
+  if(action==='agentLogout') return agentLogout_(p);
   throw new Error('Unknown Agent Business action: '+action);
+}
+function agentSessionKey_(token){ return 'AGENT_SESSION_'+String(token||'').trim(); }
+function hashAgentPassword_(password){
+  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(password||''),Utilities.Charset.UTF_8);
+  return bytes.map(function(b){var v=b<0?b+256:b;return ('0'+v.toString(16)).slice(-2);}).join('');
+}
+function normalizeMobile_(value){return String(value||'').replace(/\\D/g,'');}
+function agentSession_(token){
+  var t=String(token||'').trim();
+  if(!t) throw new Error('Agent session is required.');
+  var raw=CacheService.getScriptCache().get(agentSessionKey_(t));
+  if(!raw) throw new Error('Agent session expired. Please login again.');
+  var session=JSON.parse(raw);
+  if(!session.AgentID) throw new Error('Invalid agent session.');
+  return session;
+}
+function agentLogin_(p){
+  var mobile=normalizeMobile_(p.mobile), password=String(p.password||'');
+  if(!/^\\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
+  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+  var ss=agentBusinessSpreadsheet_();
+  var users=sheetRows_(ss.getSheetByName('AgentUsers'));
+  var user=users.find(function(u){return normalizeMobile_(u.Mobile)===mobile && String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE';});
+  if(!user || String(user.PasswordHash||'')!==hashAgentPassword_(password)) throw new Error('Invalid mobile number or password.');
+  var agents=sheetRows_(ss.getSheetByName('Agents'));
+  var agent=agents.find(function(a){return String(a.AgentID)===String(user.AgentID) && String(a.Status||'ACTIVE').toUpperCase()==='ACTIVE';});
+  if(!agent) throw new Error('Agent account is inactive or unavailable.');
+  var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+  var session={AgentID:String(agent.AgentID),AgentUserID:String(user.AgentUserID),createdAt:new Date().toISOString()};
+  CacheService.getScriptCache().put(agentSessionKey_(token),JSON.stringify(session),AGENT_BUSINESS.SESSION_TTL_SECONDS);
+  updateAgentUserLastLogin_(ss,String(user.AgentUserID));
+  return {token:token,agent:safeAgent_(agent),expiresIn:AGENT_BUSINESS.SESSION_TTL_SECONDS};
+}
+function agentMe_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents'));var a=agents.find(function(x){return String(x.AgentID)===s.AgentID;});if(!a)throw new Error('Agent account not found.');return {agent:safeAgent_(a)};}
+function agentClients_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();var rows=sheetRows_(ss.getSheetByName('Clients')).filter(function(x){return String(x.AgentID)===s.AgentID;});return {items:rows.map(safeAgentClient_),total:rows.length};}
+function agentAddClient_(p){
+  var s=agentSession_(p.token),data=p.data||{},name=String(data.ClientName||'').trim(),policy=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  if(!name) throw new Error('Client name is required.');
+  if(!policy) throw new Error('Policy number is required.');
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
+  var ss=agentBusinessSpreadsheet_();
+  var row={ClientID:newId_('ClientID'),AgentID:s.AgentID,ClientName:name,PolicyNumber:policy,DateOfBirth:dob,Status:'ACTIVE',Notes:'Submitted by agent portal'};
+  var saved=saveRow_(ss,'Clients',row);
+  return {item:safeAgentClient_(saved.item)};
+}
+function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
+function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
+function safeAgentClient_(c){return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt};}
+function updateAgentUserLastLogin_(ss,id){var sheet=ss.getSheetByName('AgentUsers'),rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r.AgentUserID)===id;});if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.AgentUsers,values=rows[idx];var col=headers.indexOf('LastLoginAt');if(col>=0)sheet.getRange(idx+2,col+1).setValue(new Date().toISOString());}}
+function createAgentUser(agentId,mobile,password){
+  if(!/^\\d{4}$/.test(String(password||''))) throw new Error('Agent password must be exactly 4 digits.');
+  var ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(a){return String(a.AgentID)===String(agentId);});
+  if(!agent) throw new Error('Agent not found.');
+  var row={AgentUserID:newId_('AgentUserID'),AgentID:agent.AgentID,Email:agent.Email||'',Mobile:mobile,PasswordHash:hashAgentPassword_(password),Status:'ACTIVE'};
+  return saveRow_(ss,'AgentUsers',row);
 }
 function agentBusinessSpreadsheet_(){
   var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
