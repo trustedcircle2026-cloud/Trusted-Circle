@@ -229,8 +229,8 @@ function agentSession_(token){
 }
 function agentLogin_(p){
   var mobile=normalizeMobile_(p.mobile), password=String(p.password||'');
-  if(!/^\\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
-  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+  if(!/^\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
+  if(!/^\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
   var ss=agentBusinessSpreadsheet_();
   var users=sheetRows_(ss.getSheetByName('AgentUsers'));
   var user=users.find(function(u){return normalizeMobile_(u.Mobile)===mobile && String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE';});
@@ -250,7 +250,7 @@ function agentAddClient_(p){
   var s=agentSession_(p.token),data=p.data||{},name=String(data.ClientName||'').trim(),policy=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
   if(!name) throw new Error('Client name is required.');
   if(!policy) throw new Error('Policy number is required.');
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
   var ss=agentBusinessSpreadsheet_();
   var row={ClientID:newId_('ClientID'),AgentID:s.AgentID,ClientName:name,PolicyNumber:policy,DateOfBirth:dob,Status:'ACTIVE',Notes:'Submitted by agent portal'};
   var saved=saveRow_(ss,'Clients',row);
@@ -266,8 +266,8 @@ function adminCreateAgent_(p){
   var mobile=normalizeMobile_(data.Mobile);
   var password=String(data.Password||'');
   if(!name) throw new Error('Agent name is required.');
-  if(!/^\\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
-  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+  if(!/^\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
+  if(!/^\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
 
   var ss=agentBusinessSpreadsheet_();
   var agents=sheetRows_(ss.getSheetByName('Agents'));
@@ -280,7 +280,7 @@ function adminCreateAgent_(p){
     AgencyName:String(data.AgencyName||'').trim(),
     Mobile:mobile,
     Email:String(data.Email||'').trim(),
-    InsuranceCompany:String(data.InsuranceCompany||'').trim(),
+    InsuranceCompany:'LIC',
     LicenseNumber:String(data.LicenseNumber||'').trim(),
     Address:String(data.Address||'').trim(),
     BankName:String(data.BankName||'').trim(),
@@ -301,7 +301,7 @@ function adminSetAgentPassword_(p){
   var agentId=String(p.agentId||'').trim();
   var password=String(p.password||'');
   if(!agentId) throw new Error('Agent ID is required.');
-  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+  if(!/^\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
 
   var ss=agentBusinessSpreadsheet_();
   var agents=sheetRows_(ss.getSheetByName('Agents'));
@@ -326,7 +326,7 @@ function adminSetAgentPassword_(p){
 }
 
 function createAgentUser(agentId,mobile,password){
-  if(!/^\\d{4}$/.test(String(password||''))) throw new Error('Agent password must be exactly 4 digits.');
+  if(!/^\d{4}$/.test(String(password||''))) throw new Error('Agent password must be exactly 4 digits.');
   var ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(a){return String(a.AgentID)===String(agentId);});
   if(!agent) throw new Error('Agent not found.');
   var row={AgentUserID:newId_('AgentUserID'),AgentID:agent.AgentID,Email:agent.Email||'',Mobile:mobile,PasswordHash:hashAgentPassword_(password),Status:'ACTIVE'};
