@@ -37,7 +37,7 @@ export default function AgentBusinessPage(){
  return <div className="agent-business-page">
   <div className="ab-shell">
    <aside className="ab-sidebar">
-    <div className="ab-brand"><span className="ab-logo">TC</span><div><strong>Trusted Circle</strong><small>Agent Business</small></div></div>
+    <div className="ab-brand"><span className="ab-logo">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
     <div className="ab-nav-label">CONTROL CENTER</div>
     <button className={module==='__dashboard'?'active':''} onClick={()=>setModule('__dashboard')}><LayoutDashboard size={17}/>Dashboard</button>
     {MODULES.map(m=>{const Icon=m.icon;return <button key={m.key} className={module===m.key?'active':''} onClick={()=>setModule(m.key)}><Icon size={17}/><span>{m.label}</span></button>})}
@@ -45,7 +45,7 @@ export default function AgentBusinessPage(){
    </aside>
 
    <main className="ab-main">
-    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · AGENT BUSINESS</span><h1>{module==='__dashboard'?'Business Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><a href="#/home"><ArrowLeft size={16}/>Shopping</a></div></header>
+    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><a href="#/home"><ArrowLeft size={16}/>Shopping</a></div></header>
 
     {error&&<div className="ab-error"><X size={17}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
 
@@ -60,7 +60,7 @@ export default function AgentBusinessPage(){
        <Metric label="Pending Bills" value={metrics.pendingBills||0} icon={FileText}/>
       </div>
       <div className="ab-grid">
-       <div className="ab-panel"><div className="ab-panel-head"><div><span className="ab-eyebrow">QUICK ACCESS</span><h3>Business modules</h3></div></div><div className="ab-module-grid">{MODULES.slice(0,8).map(m=><button key={m.key} onClick={()=>setModule(m.key)}><m.icon size={20}/><strong>{m.label}</strong><small>{count(m.key)} records</small><ChevronRight size={15}/></button>)}</div></div>
+       <div className="ab-panel"><div className="ab-panel-head"><div><span className="ab-eyebrow">QUICK ACCESS</span><h3>Admin modules</h3></div></div><div className="ab-module-grid">{MODULES.slice(0,8).map(m=><button key={m.key} onClick={()=>setModule(m.key)}><m.icon size={20}/><strong>{m.label}</strong><small>{count(m.key)} records</small><ChevronRight size={15}/></button>)}</div></div>
        <div className="ab-panel"><div className="ab-panel-head"><div><span className="ab-eyebrow">2% DISCOUNT ENGINE</span><h3>Payment calculator</h3></div></div><div className="ab-calc"><label>Premium Amount<input type="number" value={calc.premiumAmount} onChange={e=>setCalc({...calc,premiumAmount:e.target.value})}/></label><label>Discount %<input type="number" step=".01" value={Number(calc.discountRate)*100} onChange={e=>setCalc({...calc,discountRate:Number(e.target.value)/100})}/></label><label>Cashback %<input type="number" step=".01" value={Number(calc.cashbackRate)*100} onChange={e=>setCalc({...calc,cashbackRate:Number(e.target.value)/100})}/></label><button className="ab-primary" onClick={calculate}><Calculator size={16}/>Calculate</button>{calcResult&&<div className="ab-calc-result"><span>Customer Pays <strong>{money(calcResult.customerPayable)}</strong></span><span>Discount <strong>{money(calcResult.discountAmount)}</strong></span><span>Expected Cashback <strong>{money(calcResult.expectedCashback)}</strong></span><span>Expected Net Benefit <strong>{money(calcResult.expectedNetBenefit)}</strong></span></div>}</div></div>
       </div>
     </section>:<section className="ab-content">
