@@ -12,6 +12,7 @@ var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   DISCOUNT_RATE: 0.02,
+  SETUP_VERSION: '1.0.0',
   SHEETS: {
     Agents:['AgentID','AgentCode','AgentName','AgencyName','Mobile','Email','InsuranceCompany','LicenseNumber','Address','BankName','AccountName','AccountNumber','IFSC','UPI','Status','JoinedDate','Notes','CreatedAt','UpdatedAt'],
     AgentUsers:['AgentUserID','AgentID','Email','Mobile','PasswordHash','Status','LastLoginAt','CreatedAt','UpdatedAt'],
@@ -36,25 +37,99 @@ var AGENT_BUSINESS = {
 
 function setupAgentBusinessSheets(spreadsheetId){
   var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
-  if(!id) throw new Error('Enter the Insurance Agent Business Google Sheet ID.');
+  if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
+
   var ss=SpreadsheetApp.openById(id);
   PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY,id);
+
+  var created=[],updated=[];
   Object.keys(AGENT_BUSINESS.SHEETS).forEach(function(name){
-    var sheet=ss.getSheetByName(name)||ss.insertSheet(name);
-    var headers=AGENT_BUSINESS.SHEETS[name];
-    if(sheet.getLastRow()===0){
-      sheet.getRange(1,1,1,headers.length).setValues([headers]);
-    }else{
-      var existing=sheet.getRange(1,1,1,Math.max(sheet.getLastColumn(),headers.length)).getValues()[0].map(String);
-      headers.forEach(function(h){if(existing.indexOf(h)<0){sheet.getRange(1,sheet.getLastColumn()+1).setValue(h);existing.push(h);}});
+    var sheet=ss.getSheetByName(name);
+    if(!sheet){
+      sheet=ss.insertSheet(name);
+      created.push(name);
     }
+
+    var headers=AGENT_BUSINESS.SHEETS[name];
+    var lastColumn=Math.max(sheet.getLastColumn(),1);
+    var existing=sheet.getLastRow()>0
+      ? sheet.getRange(1,1,1,lastColumn).getValues()[0].map(function(v){return String(v||'').trim();})
+      : [];
+
+    if(sheet.getLastRow()===0 || !existing.some(function(v){return v;})){
+      sheet.getRange(1,1,1,headers.length).setValues([headers]);
+      updated.push(name);
+    }else{
+      headers.forEach(function(h){
+        if(existing.indexOf(h)<0){
+          var nextColumn=sheet.getLastColumn()+1;
+          sheet.getRange(1,nextColumn).setValue(h);
+          existing.push(h);
+          updated.push(name);
+        }
+      });
+    }
+
     sheet.setFrozenRows(1);
-    if(sheet.getLastColumn()>0) sheet.autoResizeColumns(1,sheet.getLastColumn());
+    sheet.getRange(1,1,1,sheet.getLastColumn())
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center')
+      .setWrap(true);
+
+    if(sheet.getLastColumn()>0){
+      sheet.autoResizeColumns(1,sheet.getLastColumn());
+    }
   });
+
   var settings=ss.getSheetByName('Settings');
-  var values=[['DISCOUNT_RATE',AGENT_BUSINESS.DISCOUNT_RATE,'Default customer discount rate',new Date().toISOString()],['BUSINESS_NAME',AGENT_BUSINESS.NAME,'Module name',new Date().toISOString()]];
-  if(settings.getLastRow()<=1) settings.getRange(2,1,values.length,4).setValues(values);
-  return {ok:true,spreadsheetId:id,sheets:Object.keys(AGENT_BUSINESS.SHEETS),message:'Agent Business sheets are ready.'};
+  var settingsHeaders=AGENT_BUSINESS.SHEETS.Settings;
+  if(settings.getLastRow()===0){
+    settings.getRange(1,1,1,settingsHeaders.length).setValues([settingsHeaders]);
+    settings.setFrozenRows(1);
+  }
+
+  var settingsRows=sheetRows_(settings);
+  var now=new Date().toISOString();
+  var defaults={
+    DISCOUNT_RATE:String(AGENT_BUSINESS.DISCOUNT_RATE),
+    BUSINESS_NAME:AGENT_BUSINESS.NAME,
+    SETUP_VERSION:AGENT_BUSINESS.SETUP_VERSION
+  };
+
+  Object.keys(defaults).forEach(function(key){
+    var found=settingsRows.find(function(row){return String(row.Key)===key;});
+    if(!found){
+      settings.getRange(settings.getLastRow()+1,1,1,4)
+        .setValues([[key,defaults[key],key==='DISCOUNT_RATE'?'Default customer discount rate':key==='BUSINESS_NAME'?'Module name':'Backend database setup version',now]]);
+    }
+  });
+
+  SpreadsheetApp.flush();
+
+  return {
+    ok:true,
+    spreadsheetId:id,
+    setupVersion:AGENT_BUSINESS.SETUP_VERSION,
+    createdSheets:created,
+    updatedSheets:Array.from(new Set(updated)),
+    sheets:Object.keys(AGENT_BUSINESS.SHEETS),
+    message:'Agent Business backend and Google Sheet structure are ready. Existing data was preserved.'
+  };
+}
+
+function verifyAgentBusinessSheets(){
+  var ss=agentBusinessSpreadsheet_();
+  var missing=[];
+  Object.keys(AGENT_BUSINESS.SHEETS).forEach(function(name){
+    if(!ss.getSheetByName(name)) missing.push(name);
+  });
+  return {
+    ok:missing.length===0,
+    spreadsheetId:ss.getId(),
+    setupVersion:AGENT_BUSINESS.SETUP_VERSION,
+    missingSheets:missing,
+    message:missing.length?'Setup is incomplete. Run setupAgentBusinessSheets() again.':'Agent Business database setup is complete.'
+  };
 }
 
 function doGet(e){return agentBusinessResponse_(agentBusinessRoute_(e&&e.parameter?e.parameter:{}));}
