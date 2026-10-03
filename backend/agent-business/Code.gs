@@ -163,7 +163,7 @@ function hashAgentPassword_(password){
   var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(password||''),Utilities.Charset.UTF_8);
   return bytes.map(function(b){var v=b<0?b+256:b;return ('0'+v.toString(16)).slice(-2);}).join('');
 }
-function normalizeMobile_(value){return String(value||'').replace(/\\D/g,'');}
+function normalizeMobile_(value){return String(value||'').replace(/\D/g,'');}
 function agentSession_(token){
   var t=String(token||'').trim();
   if(!t) throw new Error('Agent session is required.');
