@@ -27,8 +27,7 @@ export default function AgentBusinessPage(){
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
  const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const r=await agentBusinessApi.list(module,{search},adminToken);setRows(r.items||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{if(adminToken){loadDashboard();}},[adminToken])
- useEffect(()=>{if(adminToken)loadModule()},[module,adminToken])
+ useEffect(()=>{if(!adminToken)return; if(module==='__dashboard')loadDashboard(); else loadModule()},[module,adminToken])
  const metrics=dashboard?.metrics||{}
  const count=key=>dashboard?.counts?.[key]||0
  const fields=useMemo(()=>rows.length?Object.keys(rows[0]).slice(0,10):[],[rows])
@@ -51,7 +50,7 @@ export default function AgentBusinessPage(){
    </aside>
 
    <main className="ab-main">
-    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><button onClick={logout}>Logout</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
+    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{if(module==='__dashboard')loadDashboard();else loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><button onClick={logout}>Logout</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
 
     {error&&<div className="ab-error"><X size={17}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
     {notice&&<div className="ab-success"><CheckCircle2 size={17}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
