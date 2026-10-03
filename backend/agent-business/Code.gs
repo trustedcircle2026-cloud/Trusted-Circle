@@ -1,0 +1,139 @@
+/*
+ * Trusted Circle — Agent Business Backend
+ * Dedicated Google Apps Script backend.
+ *
+ * ONE-TIME SETUP:
+ *   setupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+ *
+ * After setup, deploy this Apps Script as a Web App.
+ */
+
+var AGENT_BUSINESS = {
+  NAME: 'Trusted Circle Agent Business',
+  SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
+  DISCOUNT_RATE: 0.02,
+  SHEETS: {
+    Agents:['AgentID','AgentCode','AgentName','AgencyName','Mobile','Email','InsuranceCompany','LicenseNumber','Address','BankName','AccountName','AccountNumber','IFSC','UPI','Status','JoinedDate','Notes','CreatedAt','UpdatedAt'],
+    AgentUsers:['AgentUserID','AgentID','Email','Mobile','PasswordHash','Status','LastLoginAt','CreatedAt','UpdatedAt'],
+    Clients:['ClientID','AgentID','ClientName','Mobile','Email','Address','DateOfBirth','PAN','Status','Notes','CreatedAt','UpdatedAt'],
+    Policies:['PolicyID','AgentID','ClientID','InsuranceCompany','PolicyNumber','PolicyType','PolicyHolder','InsuredPerson','PremiumAmount','PremiumFrequency','NextDueDate','PolicyStatus','StartDate','MaturityDate','Notes','CreatedAt','UpdatedAt'],
+    PremiumBills:['BillID','AgentID','ClientID','PolicyID','PolicyNumber','PremiumAmount','DueDate','BillDate','DiscountRate','DiscountAmount','CustomerPayable','PaymentStatus','ReceiptRequired','Notes','CreatedAt','UpdatedAt'],
+    PaymentRequests:['RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
+    Payments:['PaymentID','RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerCollected','PaymentMode','CardID','PaymentDate','ReferenceNumber','ReceiptID','Status','Notes','CreatedAt','UpdatedAt'],
+    Receipts:['ReceiptID','PaymentID','ReceiptNumber','ReceiptUrl','ReceiptDate','Notes','CreatedAt'],
+    Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CreatedAt','UpdatedAt'],
+    CardRules:['RuleID','CardID','Category','Eligible','CashbackRate','CashbackType','MonthlyCap','MonthlyUsed','MonthlyRemaining','RewardConversion','EffectiveFrom','EffectiveTo','Notes','CreatedAt','UpdatedAt'],
+    CardTransactions:['TransactionID','PaymentID','CardID','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','CreatedAt'],
+    Cashback:['CashbackID','PaymentID','CardID','TransactionAmount','ExpectedRate','ExpectedCashback','ActualCashback','CashbackStatus','ExpectedDate','ReceivedDate','Variance','Notes','CreatedAt','UpdatedAt'],
+    AgentSettlements:['SettlementID','AgentID','PeriodFrom','PeriodTo','GrossAmount','DiscountAmount','NetAmount','PaidAmount','BalanceAmount','Status','SettlementDate','ReferenceNumber','Notes','CreatedAt','UpdatedAt'],
+    MoneyLedger:['LedgerID','TransactionDate','ReferenceType','ReferenceID','AgentID','ClientID','PaymentID','Description','MoneyIn','MoneyOut','Balance','PaymentMode','BankAccount','Category','Status','CreatedAt'],
+    Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
+    Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
+    AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
+    Settings:['Key','Value','Description','UpdatedAt']
+  }
+};
+
+function setupAgentBusinessSheets(spreadsheetId){
+  var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
+  if(!id) throw new Error('Enter the Insurance Agent Business Google Sheet ID.');
+  var ss=SpreadsheetApp.openById(id);
+  PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY,id);
+  Object.keys(AGENT_BUSINESS.SHEETS).forEach(function(name){
+    var sheet=ss.getSheetByName(name)||ss.insertSheet(name);
+    var headers=AGENT_BUSINESS.SHEETS[name];
+    if(sheet.getLastRow()===0){
+      sheet.getRange(1,1,1,headers.length).setValues([headers]);
+    }else{
+      var existing=sheet.getRange(1,1,1,Math.max(sheet.getLastColumn(),headers.length)).getValues()[0].map(String);
+      headers.forEach(function(h){if(existing.indexOf(h)<0){sheet.getRange(1,sheet.getLastColumn()+1).setValue(h);existing.push(h);}});
+    }
+    sheet.setFrozenRows(1);
+    if(sheet.getLastColumn()>0) sheet.autoResizeColumns(1,sheet.getLastColumn());
+  });
+  var settings=ss.getSheetByName('Settings');
+  var values=[['DISCOUNT_RATE',AGENT_BUSINESS.DISCOUNT_RATE,'Default customer discount rate',new Date().toISOString()],['BUSINESS_NAME',AGENT_BUSINESS.NAME,'Module name',new Date().toISOString()]];
+  if(settings.getLastRow()<=1) settings.getRange(2,1,values.length,4).setValues(values);
+  return {ok:true,spreadsheetId:id,sheets:Object.keys(AGENT_BUSINESS.SHEETS),message:'Agent Business sheets are ready.'};
+}
+
+function doGet(e){return agentBusinessResponse_(agentBusinessRoute_(e&&e.parameter?e.parameter:{}));}
+function doPost(e){
+  var input={};
+  try{input=JSON.parse(String(e&&e.postData&&e.postData.contents||'{}'));}catch(err){input=e&&e.parameter?e.parameter:{};}
+  return agentBusinessResponse_(agentBusinessRoute_(input));
+}
+function agentBusinessResponse_(data){
+  return ContentService.createTextOutput(JSON.stringify({ok:true,data:data})).setMimeType(ContentService.MimeType.JSON);
+}
+function agentBusinessRoute_(p){
+  var action=String(p.action||'dashboard');
+  if(action==='setup') return setupAgentBusinessSheets(p.spreadsheetId);
+  var ss=agentBusinessSpreadsheet_();
+  if(action==='dashboard') return dashboard_(ss);
+  if(action==='list') return listRows_(ss,String(p.sheet||''),p);
+  if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
+  if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
+  if(action==='calculate') return calculate_(p);
+  throw new Error('Unknown Agent Business action: '+action);
+}
+function agentBusinessSpreadsheet_(){
+  var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
+  if(!id) throw new Error('Agent Business database is not configured. Run setupAgentBusinessSheets() first.');
+  return SpreadsheetApp.openById(id);
+}
+function listRows_(ss,sheetName,p){
+  if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
+  var sheet=ss.getSheetByName(sheetName), rows=sheetRows_(sheet);
+  var limit=Math.min(500,Math.max(1,Number(p.limit||200))),offset=Math.max(0,Number(p.offset||0));
+  var search=String(p.search||'').trim().toLowerCase();
+  if(search) rows=rows.filter(function(r){return JSON.stringify(r).toLowerCase().indexOf(search)>=0;});
+  return {sheet:sheetName,items:rows.slice(offset,offset+limit),total:rows.length};
+}
+function saveRow_(ss,sheetName,data){
+  if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
+  var sheet=ss.getSheetByName(sheetName),headers=AGENT_BUSINESS.SHEETS[sheetName],idField=headers[0],row=Object.assign({},data);
+  var id=String(row[idField]||newId_(idField));
+  row[idField]=id;
+  if(!row.CreatedAt) row.CreatedAt=new Date().toISOString();
+  row.UpdatedAt=new Date().toISOString();
+  var values=headers.map(function(h){return row[h]===undefined?'':row[h];});
+  var rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r[idField])===id;});
+  if(idx>=0) sheet.getRange(idx+2,1,1,headers.length).setValues([values]);
+  else sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([values]);
+  return {id:id,item:row};
+}
+function deleteRow_(ss,sheetName,id,idField){
+  if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
+  var sheet=ss.getSheetByName(sheetName),field=idField||AGENT_BUSINESS.SHEETS[sheetName][0],rows=sheetRows_(sheet);
+  var idx=rows.findIndex(function(r){return String(r[field])===id;});
+  if(idx<0) throw new Error('Record not found.');
+  sheet.deleteRow(idx+2);
+  return {deleted:true,id:id};
+}
+function calculate_(p){
+  var premium=Number(p.premiumAmount||0),rate=Number(p.discountRate===undefined?AGENT_BUSINESS.DISCOUNT_RATE:p.discountRate),cashbackRate=Number(p.cashbackRate||0);
+  var discount=Math.round(premium*rate*100)/100,customer=Math.max(0,premium-discount),cashback=Math.round(premium*cashbackRate*100)/100;
+  return {premiumAmount:premium,discountRate:rate,discountAmount:discount,customerPayable:customer,cashbackRate:cashbackRate,expectedCashback:cashback,expectedNetBenefit:Math.round((cashback-discount)*100)/100};
+}
+function dashboard_(ss){
+  var counts={};
+  Object.keys(AGENT_BUSINESS.SHEETS).forEach(function(n){counts[n]=Math.max(0,(ss.getSheetByName(n)||{getLastRow:function(){return 1;}}).getLastRow()-1);});
+  var bills=sheetRows_(ss.getSheetByName('PremiumBills')),payments=sheetRows_(ss.getSheetByName('Payments')),cash=sheetRows_(ss.getSheetByName('Cashback'));
+  var volume=payments.reduce(function(s,r){return s+Number(r.PremiumAmount||0);},0);
+  var collected=payments.reduce(function(s,r){return s+Number(r.CustomerCollected||0);},0);
+  var expected=cash.reduce(function(s,r){return s+Number(r.ExpectedCashback||0);},0);
+  var actual=cash.reduce(function(s,r){return s+Number(r.ActualCashback||0);},0);
+  return {counts,metrics:{paymentVolume:volume,customerCollected:collected,expectedCashback:expected,actualCashback:actual,customerDiscount:Math.max(0,volume-collected),pendingBills:bills.filter(function(r){return !['PAID','CANCELLED'].includes(String(r.PaymentStatus||'').toUpperCase());}).length}};
+}
+function sheetRows_(sheet){
+  if(!sheet||sheet.getLastRow()<2)return [];
+  var headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
+  return sheet.getRange(2,1,sheet.getLastRow()-1,headers.length).getValues().map(function(row){
+    var o={};headers.forEach(function(h,i){o[h]=row[i] instanceof Date?row[i].toISOString():row[i];});return o;
+  });
+}
+function newId_(field){
+  var prefix=String(field||'REC').replace(/ID$/,'').replace(/([a-z])([A-Z])/g,'$1-$2').toUpperCase().replace(/[^A-Z]/g,'').slice(0,8)||'REC';
+  return prefix+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,10).toUpperCase();
+}
