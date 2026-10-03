@@ -11,8 +11,8 @@ export default defineConfig({
       input: {
         main: 'index.html',
         admin: 'admin.html',
-        agentPortal: 'agent-portal.html',
-        adminPortal: 'admin-portal.html'
+        agentPortal: 'agent-portal/index.html',
+        adminPortal: 'admin-portal/index.html'
       }
     }
   }
