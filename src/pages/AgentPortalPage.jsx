@@ -125,5 +125,5 @@ export default function AgentPortalPage(){
  </div>
 }
 
-function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-ring"><span></span><span></span><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
+function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-logo"><img src={LOGO_URL} alt="Trusted Circle"/><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
 function Stat({icon:Icon,label,value,tone='green'}){return <div className={'ap-stat '+tone}><span><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>}
