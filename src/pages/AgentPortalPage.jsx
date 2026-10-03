@@ -81,8 +81,8 @@ export default function AgentPortalPage(){
    <div className="ap-agent"><div><b>{agent.AgentName}</b><small>Agent Account · LIC</small></div><button onClick={logout}><LogOut size={15}/>Logout</button></div>
   </header>
   <main className="ap-main">
-   <section className="ap-welcome-strip">
-    <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Submit the three required client details and we'll take the payment request forward.</p></div>
+   <section className="ap-page-head">
+    <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage client submissions and payment requests.</p></div>
     <button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>New Payment Request</button>
    </section>
 
