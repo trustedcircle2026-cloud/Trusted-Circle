@@ -21,7 +21,7 @@ var AGENT_BUSINESS = {
     Clients:['ClientID','AgentID','ClientName','PolicyNumber','DateOfBirth','Status','Notes','CreatedAt','UpdatedAt'],
     Policies:['PolicyID','AgentID','ClientID','InsuranceCompany','PolicyNumber','PolicyType','PolicyHolder','InsuredPerson','PremiumAmount','PremiumFrequency','NextDueDate','PolicyStatus','StartDate','MaturityDate','Notes','CreatedAt','UpdatedAt'],
     PremiumBills:['BillID','AgentID','ClientID','PolicyID','PolicyNumber','PremiumAmount','DueDate','BillDate','DiscountRate','DiscountAmount','CustomerPayable','PaymentStatus','ReceiptRequired','Notes','CreatedAt','UpdatedAt'],
-    PaymentRequests:['RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
+    PaymentRequests:['RequestID','BillID','PolicyID','AgentID','ClientID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
     Payments:['PaymentID','RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerCollected','PaymentMode','CardID','PaymentDate','ReferenceNumber','ReceiptID','Status','Notes','CreatedAt','UpdatedAt'],
     Receipts:['ReceiptID','PaymentID','ReceiptNumber','ReceiptUrl','ReceiptDate','Notes','CreatedAt'],
     Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CreatedAt','UpdatedAt'],
@@ -171,6 +171,7 @@ function agentBusinessRoute_(p){
   if(action==='agentLogin') return agentLogin_(p);
   if(action==='agentMe') return agentMe_(p);
   if(action==='agentClients') return agentClients_(p);
+  if(action==='agentPaymentRequests') return agentPaymentRequests_(p);
   if(action==='agentAddClient') return agentAddClient_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
@@ -247,18 +248,43 @@ function agentLogin_(p){
 function agentMe_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents'));var a=agents.find(function(x){return String(x.AgentID)===s.AgentID;});if(!a)throw new Error('Agent account not found.');return {agent:safeAgent_(a)};}
 function agentClients_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();var rows=sheetRows_(ss.getSheetByName('Clients')).filter(function(x){return String(x.AgentID)===s.AgentID;});return {items:rows.map(safeAgentClient_),total:rows.length};}
 function agentAddClient_(p){
-  var s=agentSession_(p.token),data=p.data||{},name=String(data.ClientName||'').trim(),policy=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  var s=agentSession_(p.token),data=p.data||{},policyData=data.PolicyDetails||{};
+  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  var premium=Number(policyData.PremiumAmount||0),due=String(policyData.NextDueDate||'').trim();
   if(!name) throw new Error('Client name is required.');
-  if(!policy) throw new Error('Policy number is required.');
+  if(!policyNumber) throw new Error('Policy number is required.');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
+  if(!(premium>0)) throw new Error('Premium amount must be greater than zero.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('Enter the next premium due date.');
   var ss=agentBusinessSpreadsheet_();
-  var row={ClientID:newId_('ClientID'),AgentID:s.AgentID,ClientName:name,PolicyNumber:policy,DateOfBirth:dob,Status:'ACTIVE',Notes:'Submitted by agent portal'};
-  var saved=saveRow_(ss,'Clients',row);
-  return {item:safeAgentClient_(saved.item)};
+  var clientId=newId_('ClientID'),policyId=newId_('PolicyID'),billId=newId_('BillID'),requestId=newId_('RequestID');
+  var client=saveRow_(ss,'Clients',{ClientID:clientId,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,Status:'ACTIVE',Notes:'Submitted by agent portal'});
+  var discountRate=AGENT_BUSINESS.DISCOUNT_RATE;
+  var discount=Math.round(premium*discountRate*100)/100;
+  var customerPayable=Math.max(0,Math.round((premium-discount)*100)/100);
+  var policy=saveRow_(ss,'Policies',{PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,InsuranceCompany:'LIC',PolicyNumber:policyNumber,PolicyType:String(policyData.PolicyType||'').trim(),PolicyHolder:String(policyData.PolicyHolder||name).trim(),InsuredPerson:name,PremiumAmount:premium,PremiumFrequency:String(policyData.PremiumFrequency||'Monthly'),NextDueDate:due,PolicyStatus:'ACTIVE',Notes:String(policyData.Notes||'').trim()});
+  var bill=saveRow_(ss,'PremiumBills',{BillID:billId,AgentID:s.AgentID,ClientID:clientId,PolicyID:policyId,PolicyNumber:policyNumber,PremiumAmount:premium,DueDate:due,BillDate:new Date().toISOString().slice(0,10),DiscountRate:discountRate,DiscountAmount:discount,CustomerPayable:customerPayable,PaymentStatus:'PENDING',ReceiptRequired:'YES',Notes:'Created from agent portal'});
+  var request=saveRow_(ss,'PaymentRequests',{RequestID:requestId,BillID:billId,PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,PremiumAmount:premium,CustomerPayable:customerPayable,DiscountAmount:discount,Status:'PENDING',RequestedAt:new Date().toISOString(),Notes:'Submitted by agent portal'});
+  saveRow_(ss,'Notifications',{NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',Type:'PAYMENT_REQUEST',Title:'New LIC payment request',Message:name+' · Policy '+policy+' · Premium ₹'+premium.toLocaleString('en-IN')+' · Customer payable ₹'+customerPayable.toLocaleString('en-IN'),Status:'UNREAD',CreatedAt:new Date().toISOString()});
+  return {client:safeAgentClient_(client.item),paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:name,PolicyNumber:policyNumber})),policyId:policyId,billId:billId};
+}
+function agentPaymentRequests_(p){
+  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
+  var rows=sheetRows_(ss.getSheetByName('PaymentRequests')).filter(function(x){return String(x.AgentID)===s.AgentID;});
+  var clients=sheetRows_(ss.getSheetByName('Clients')),clientMap={};
+  clients.forEach(function(c){clientMap[String(c.ClientID)]=c;});
+  var policies=sheetRows_(ss.getSheetByName('Policies')),policyMap={};
+  policies.forEach(function(x){policyMap[String(x.PolicyID)]=x;});
+  return {items:rows.reverse().map(function(r){var c=clientMap[String(r.ClientID)]||{},p=policyMap[String(r.PolicyID)]||{};return safeAgentRequest_(Object.assign({},r,{ClientName:c.ClientName||'',PolicyNumber:c.PolicyNumber||p.PolicyNumber||''}));}),total:rows.length};
 }
 function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
-function safeAgentClient_(c){return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt};}
+function safeAgentClient_(c){
+  return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt,PolicyType:c.PolicyType||'LIC Policy',PremiumAmount:c.PremiumAmount||0,RequestStatus:c.RequestStatus||'PENDING'};
+}
+function safeAgentRequest_(r){
+  return {RequestID:r.RequestID,ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',Notes:r.Notes||''};
+}
 function updateAgentUserLastLogin_(ss,id){var sheet=ss.getSheetByName('AgentUsers'),rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r.AgentUserID)===id;});if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.AgentUsers,values=rows[idx];var col=headers.indexOf('LastLoginAt');if(col>=0)sheet.getRange(idx+2,col+1).setValue(new Date().toISOString());}}
 function adminCreateAgent_(p){
   var data=p.data||{};
