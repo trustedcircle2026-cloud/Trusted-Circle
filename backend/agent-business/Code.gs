@@ -316,6 +316,7 @@ function agentAddClient_(p){
     Message:name+' · Policy '+policyNumber+' · DOB '+dob+' · Agent '+s.AgentID,
     Status:'UNREAD',CreatedAt:new Date().toISOString()
   });
+  ['Clients','Policies','PaymentRequests','Notifications','PremiumBills'].forEach(invalidateSheetCache_);
   cacheRemoveAgent_(s.AgentID);
   return {
     client:safeAgentClient_(client.item),
