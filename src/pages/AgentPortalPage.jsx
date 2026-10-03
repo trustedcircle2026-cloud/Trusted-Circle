@@ -1,62 +1,90 @@
 import {useEffect,useState} from 'react'
-import {ArrowRight,CalendarDays,CheckCircle2,FileText,LogIn,Plus,ReceiptText,RefreshCw,ShieldCheck,UserRound,Users,X} from 'lucide-react'
+import {ArrowRight,CheckCircle2,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
-const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
-const empty={ClientName:'',Mobile:'',Email:'',PolicyNumber:'',PremiumAmount:'',DueDate:''}
+const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
+const empty={ClientName:'',PolicyNumber:'',DateOfBirth:''}
 
 export default function AgentPortalPage(){
- const[logged,setLogged]=useState(false),[agent,setAgent]=useState(null),[agents,setAgents]=useState([]),[agentCode,setAgentCode]=useState(''),[mobile,setMobile]=useState(''),[clients,setClients]=useState([]),[policies,setPolicies]=useState([]),[bills,setBills]=useState([]),[requests,setRequests]=useState([]),[tab,setTab]=useState('dashboard'),[form,setForm]=useState(empty),[showForm,setShowForm]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState('')
+ const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
+ const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[mobile,setMobile]=useState(''),[password,setPassword]=useState(''),[form,setForm]=useState(empty),[showForm,setShowForm]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('')
 
- const login=async()=>{
-  setError('');setLoading(true)
-  try{
-   const r=await agentBusinessApi.list('Agents',{search:agentCode.trim()})
-   const match=(r.items||[]).find(a=>String(a.AgentCode||'').toLowerCase()===agentCode.trim().toLowerCase()&&String(a.Mobile||'').replace(/\D/g,'')===mobile.replace(/\D/g,'')&&String(a.InsuranceCompany||'').toUpperCase()==='LIC'&&String(a.Status||'ACTIVE').toUpperCase()==='ACTIVE')
-   if(!match)throw new Error('LIC Agent details could not be verified.')
-   setAgent(match);setLogged(true)
-  }catch(e){setError(e.message)}finally{setLoading(false)}
- }
- const load=async()=>{
-  if(!agent)return
+ const load=async token=>{
   setLoading(true);setError('')
   try{
-   const [c,p,b,r]=await Promise.all([
-    agentBusinessApi.list('Clients',{search:agent.AgentID}),
-    agentBusinessApi.list('Policies',{search:agent.AgentID}),
-    agentBusinessApi.list('PremiumBills',{search:agent.AgentID}),
-    agentBusinessApi.list('PaymentRequests',{search:agent.AgentID})
-   ])
-   setClients((c.items||[]).filter(x=>String(x.AgentID)===String(agent.AgentID)))
-   setPolicies((p.items||[]).filter(x=>String(x.AgentID)===String(agent.AgentID)))
-   setBills((b.items||[]).filter(x=>String(x.AgentID)===String(agent.AgentID)))
-   setRequests((r.items||[]).filter(x=>String(x.AgentID)===String(agent.AgentID)))
+   const me=await agentBusinessApi.agentMe(token)
+   const data=await agentBusinessApi.agentClients(token)
+   setAgent(me.agent);setClients(data.items||[])
+  }catch(e){
+   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([])
+   setError(e.message)
+  }finally{setLoading(false)}
+ }
+
+ useEffect(()=>{if(session)load(session)},[session])
+
+ const login=async()=>{
+  setLoading(true);setError('');setNotice('')
+  try{
+   const data=await agentBusinessApi.agentLogin(mobile,password)
+   localStorage.setItem('tc_agent_session',data.token);setSession(data.token);setAgent(data.agent);setPassword('')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
- useEffect(()=>{if(agent)load()},[agent])
 
- const saveClient=async()=>{
+ const addClient=async()=>{
+  setLoading(true);setError('');setNotice('')
   try{
-   await agentBusinessApi.save('Clients',{ClientID:undefined,AgentID:agent.AgentID,ClientName:form.ClientName,Mobile:form.Mobile,Email:form.Email,Status:'ACTIVE'})
-   setShowForm(false);setForm(empty);await load()
-  }catch(e){setError(e.message)}
+   const data=await agentBusinessApi.agentAddClient(session,form)
+   setClients(current=>[data.item,...current]);setForm(empty);setShowForm(false);setNotice('Client details submitted successfully.')
+  }catch(e){setError(e.message)}finally{setLoading(false)}
  }
 
- if(!logged)return <div className="agent-portal-page"><div className="agent-login-shell"><div className="agent-login-card"><div className="agent-login-brand"><span>TC</span><div><strong>Trusted Circle</strong><small>LIC Agent Portal</small></div></div><div className="agent-login-icon"><ShieldCheck size={25}/></div><span className="ap-eyebrow">LIC AGENT ACCESS</span><h1>Welcome, Agent</h1><p>Access your clients, policies and premium payment requests.</p><label>Agent Code<input value={agentCode} onChange={e=>setAgentCode(e.target.value)} placeholder="Enter Agent Code"/></label><label>Registered Mobile<input value={mobile} onChange={e=>setMobile(e.target.value)} inputMode="numeric" placeholder="Registered mobile number"/></label>{error&&<div className="ap-error">{error}</div>}<button className="ap-primary wide" disabled={loading||!agentCode||!mobile} onClick={login}>{loading?<RefreshCw className="spin"/>:<LogIn size={17}/>}Verify & Enter</button><a href="./">Back to Trusted Circle</a></div></div></div>
+ const logout=async()=>{
+  try{if(session)await agentBusinessApi.agentLogout(session)}catch{}
+  localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([])
+ }
 
- return <div className="agent-portal-page"><header className="ap-header"><div className="ap-brand"><span>TC</span><div><strong>Trusted Circle</strong><small>LIC Agent Portal</small></div></div><div className="ap-agent"><UserRound size={16}/><div><b>{agent.AgentName}</b><small>{agent.AgentCode} · LIC</small></div><button onClick={()=>{setLogged(false);setAgent(null)}}>Logout</button></div></header><main className="ap-main">
- <div className="ap-welcome"><div><span className="ap-eyebrow">LIC PARTNER WORKSPACE</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} 👋</h1><p>Manage your clients and submit premium payment requests.</p></div><button className="ap-secondary" onClick={load}><RefreshCw size={15}/>Refresh</button></div>
- <nav className="ap-tabs">{[['dashboard','Dashboard'],['clients','My Clients'],['policies','Policies'],['bills','Premium Bills'],['requests','Payment Requests']].map(([k,l])=><button className={tab===k?'active':''} onClick={()=>setTab(k)} key={k}>{l}</button>)}</nav>
- {error&&<div className="ap-error"><X size={15}/>{error}</div>}
- {tab==='dashboard'&&<><div className="ap-stats"><Stat icon={Users} label="My Clients" value={clients.length}/><Stat icon={FileText} label="Policies" value={policies.length}/><Stat icon={CalendarDays} label="Premium Bills" value={bills.length}/><Stat icon={ReceiptText} label="Requests" value={requests.length}/></div><div className="ap-panels"><section className="ap-panel"><div className="ap-panel-head"><div><span className="ap-eyebrow">QUICK ACTION</span><h2>Manage your business</h2></div></div><div className="ap-actions"><button onClick={()=>{setForm(empty);setShowForm(true)}}><Plus size={19}/><b>Add Client</b><small>Create a new client profile</small></button><button onClick={()=>setTab('bills')}><FileText size={19}/><b>Premium Bills</b><small>View upcoming premiums</small></button><button onClick={()=>setTab('requests')}><ReceiptText size={19}/><b>Payment Requests</b><small>Track submitted requests</small></button></div></section><section className="ap-panel"><span className="ap-eyebrow">ACCOUNT</span><h2>Agent Information</h2><div className="ap-info"><span>Agent Code <b>{agent.AgentCode}</b></span><span>Company <b>LIC</b></span><span>Mobile <b>{agent.Mobile}</b></span><span>Status <b className="green">{agent.Status||'ACTIVE'}</b></span></div></section></div></>}
- {tab==='clients'&&<DataSection title="My Clients" rows={clients} onAdd={()=>{setForm(empty);setShowForm(true)}} columns={['ClientName','Mobile','Email','Status']}/>}
- {tab==='policies'&&<DataSection title="My Policies" rows={policies} columns={['PolicyNumber','ClientID','PremiumAmount','PremiumFrequency','NextDueDate','PolicyStatus']}/>}
- {tab==='bills'&&<DataSection title="Premium Bills" rows={bills} columns={['BillID','PolicyNumber','PremiumAmount','DueDate','CustomerPayable','PaymentStatus']}/>}
- {tab==='requests'&&<DataSection title="Payment Requests" rows={requests} columns={['RequestID','BillID','PremiumAmount','CustomerPayable','Status','RequestedAt']}/>}
- </main>
- {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal"><button className="ap-close" onClick={()=>setShowForm(false)}><X/></button><span className="ap-eyebrow">NEW CLIENT</span><h2>Add Client</h2><p>Client information will be linked to your LIC agent account.</p><label>Client Name<input value={form.ClientName} onChange={e=>setForm({...form,ClientName:e.target.value})}/></label><label>Mobile<input value={form.Mobile} onChange={e=>setForm({...form,Mobile:e.target.value})}/></label><label>Email<input value={form.Email} onChange={e=>setForm({...form,Email:e.target.value})}/></label><button className="ap-primary wide" onClick={saveClient}><CheckCircle2 size={16}/>Save Client</button></div></div>}
+ if(!session||!agent)return <div className="agent-portal-page">
+  <div className="agent-login-shell">
+   <div className="agent-login-card">
+    <div className="agent-login-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal</small></div></div>
+    <div className="agent-login-icon"><ShieldCheck size={25}/></div>
+    <span className="ap-eyebrow">AGENT ACCESS</span>
+    <h1>Welcome back</h1>
+    <p>Sign in securely to submit your client details for premium payment processing.</p>
+    <label>Mobile Number<input value={mobile} onChange={e=>setMobile(e.target.value.replace(/\D/g,'').slice(0,10))} inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" autoComplete="tel"/></label>
+    <label>4-Digit Password<input type="password" value={password} onChange={e=>setPassword(e.target.value.replace(/\D/g,'').slice(0,4))} inputMode="numeric" maxLength={4} placeholder="••••" autoComplete="current-password"/></label>
+    {error&&<div className="ap-error"><X size={15}/>{error}</div>}
+    <button className="ap-primary wide" disabled={loading||mobile.length!==10||password.length!==4} onClick={login}>{loading?<RefreshCw className="spin"/>:<LogIn size={17}/>}Sign In</button>
+    <a href="./">Back to Trusted Circle</a>
+   </div>
+  </div>
+ </div>
+
+ return <div className="agent-portal-page">
+  <header className="ap-header">
+   <div className="ap-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal</small></div></div>
+   <div className="ap-agent"><div><b>{agent.AgentName}</b><small>Agent Account</small></div><button onClick={logout}><LogOut size={15}/>Logout</button></div>
+  </header>
+  <main className="ap-main">
+   <div className="ap-welcome"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} 👋</h1><p>Share only the client details required for us to process premium payments.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
+   {error&&<div className="ap-error"><X size={15}/>{error}</div>}
+   {notice&&<div className="ap-success"><CheckCircle2 size={16}/>{notice}</div>}
+   <div className="ap-stats"><Stat icon={Users} label="Submitted Clients" value={clients.length}/><Stat icon={ShieldCheck} label="Access" value="Active"/></div>
+   <section className="ap-panel ap-data">
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT SUBMISSIONS</span><h2>My Clients</h2><p>Only Name, Policy Number and Date of Birth are shared with Trusted Circle.</p></div><button className="ap-primary" onClick={()=>{setNotice('');setForm(empty);setShowForm(true)}}><Plus size={15}/>Add Client</button></div>
+    {clients.length?<div className="ap-table"><table><thead><tr><th>Client Name</th><th>Policy Number</th><th>Date of Birth</th><th>Status</th></tr></thead><tbody>{clients.map(r=><tr key={r.ClientID}><td>{r.ClientName}</td><td>{r.PolicyNumber}</td><td>{r.DateOfBirth}</td><td><span className="ap-status">{r.Status||'ACTIVE'}</span></td></tr>)}</tbody></table></div>:<div className="ap-empty"><Users size={22}/><b>No client submissions yet</b><span>Add a client using only the three required details.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Add Client</button></div>}
+   </section>
+  </main>
+  {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal">
+   <button className="ap-close" onClick={()=>setShowForm(false)}><X/></button><span className="ap-eyebrow">NEW CLIENT</span><h2>Submit Client Details</h2><p>Only these three details are collected for payment processing.</p>
+   <label>Client Name<input value={form.ClientName} onChange={e=>setForm({...form,ClientName:e.target.value})} placeholder="Full name"/></label>
+   <label>Policy Number<input value={form.PolicyNumber} onChange={e=>setForm({...form,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
+   <label>Date of Birth<input type="date" value={form.DateOfBirth} onChange={e=>setForm({...form,DateOfBirth:e.target.value})}/></label>
+   <button className="ap-primary wide" disabled={loading||!form.ClientName||!form.PolicyNumber||!form.DateOfBirth} onClick={addClient}><CheckCircle2 size={16}/>Submit Client</button>
+  </div></div>}
  </div>
 }
+
 function Stat({icon:Icon,label,value}){return <div className="ap-stat"><span><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>}
-function DataSection({title,rows,onAdd,columns=[]}){return <section className="ap-panel ap-data"><div className="ap-panel-head"><div><span className="ap-eyebrow">MY RECORDS</span><h2>{title}</h2></div>{onAdd&&<button className="ap-primary" onClick={onAdd}><Plus size={15}/>Add Client</button>}</div>{rows.length?<div className="ap-table"><table><thead><tr>{columns.map(c=><th key={c}>{c.replace(/([a-z])([A-Z])/g,'$1 $2')}</th>)}</tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{columns.map(c=><td key={c}>{String(r[c]??'')}</td>)}</tr>)}</tbody></table></div>:<div className="ap-empty"><FileText size={22}/><b>No records found</b><span>Records linked to your agent account will appear here.</span></div>}</section>}
