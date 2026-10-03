@@ -3,7 +3,7 @@
  * Dedicated Google Apps Script backend.
  *
  * ONE-TIME SETUP:
- *   setupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+ *   freshSetupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
  *
  * After setup, deploy this Apps Script as a Web App.
  */
@@ -36,7 +36,7 @@ var AGENT_BUSINESS = {
   }
 };
 
-function setupAgentBusinessSheets(spreadsheetId){
+function freshSetupAgentBusinessSheets(spreadsheetId){
   var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
   if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
 
@@ -118,21 +118,6 @@ function setupAgentBusinessSheets(spreadsheetId){
   };
 }
 
-function verifyAgentBusinessSheets(){
-  var ss=agentBusinessSpreadsheet_();
-  var missing=[];
-  Object.keys(AGENT_BUSINESS.SHEETS).forEach(function(name){
-    if(!ss.getSheetByName(name)) missing.push(name);
-  });
-  return {
-    ok:missing.length===0,
-    spreadsheetId:ss.getId(),
-    setupVersion:AGENT_BUSINESS.SETUP_VERSION,
-    missingSheets:missing,
-    message:missing.length?'Setup is incomplete. Run setupAgentBusinessSheets() again.':'Agent Business database setup is complete.'
-  };
-}
-
 function doGet(e){return agentBusinessResponse_(agentBusinessRoute_(e&&e.parameter?e.parameter:{}));}
 function doPost(e){
   var input={};
@@ -144,7 +129,7 @@ function agentBusinessResponse_(data){
 }
 function agentBusinessRoute_(p){
   var action=String(p.action||'dashboard');
-  if(action==='setup') return setupAgentBusinessSheets(p.spreadsheetId);
+  if(action==='freshSetup') return freshSetupAgentBusinessSheets(p.spreadsheetId);
   var ss=agentBusinessSpreadsheet_();
   if(action==='dashboard') return dashboard_(ss);
   if(action==='list') return listRows_(ss,String(p.sheet||''),p);
@@ -215,7 +200,7 @@ function createAgentUser(agentId,mobile,password){
 }
 function agentBusinessSpreadsheet_(){
   var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
-  if(!id) throw new Error('Agent Business database is not configured. Run setupAgentBusinessSheets() first.');
+  if(!id) throw new Error('Agent Business database is not configured. Run freshSetupAgentBusinessSheets() first.');
   return SpreadsheetApp.openById(id);
 }
 function listRows_(ss,sheetName,p){
