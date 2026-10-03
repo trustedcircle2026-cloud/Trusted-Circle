@@ -151,7 +151,6 @@ function agentBusinessResponse_(data){
 }
 function agentBusinessRoute_(p){
   var action=String(p.action||'dashboard');
-  if(action==='freshSetup') return freshSetupAgentBusinessSheets(p.spreadsheetId);
   var ss=agentBusinessSpreadsheet_();
 
   if(action==='adminLogin') return adminLogin_(p);
