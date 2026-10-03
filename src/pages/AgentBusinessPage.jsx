@@ -43,7 +43,7 @@ export default function AgentBusinessPage(){
  return <div className="agent-business-page">
   <div className="ab-shell">
    <aside className="ab-sidebar">
-    <div className="ab-brand"><span className="ab-logo">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
+    <div className="ab-brand"><img className="ab-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
     <div className="ab-nav-label">CONTROL CENTER</div>
     <button className={module==='__dashboard'?'active':''} onClick={()=>setModule('__dashboard')}><LayoutDashboard size={17}/>Dashboard</button>
     {MODULES.map(m=>{const Icon=m.icon;return <button key={m.key} className={module===m.key?'active':''} onClick={()=>setModule(m.key)}><Icon size={17}/><span>{m.label}</span></button>})}
