@@ -49,6 +49,7 @@ export const agentBusinessApi={
   save:(sheet,data,adminToken)=>request('save',{sheet,data,adminToken}),
   remove:(sheet,id,idField='',adminToken)=>request('delete',{sheet,id,idField,adminToken}),
   calculate:(data,adminToken)=>request('calculate',{...data,adminToken}),
+  schema:(sheet,adminToken)=>request('schema',{sheet,adminToken}),
   createAgent:(data,adminToken)=>request('createAgent',{data,adminToken}),
   setAgentPassword:(agentId,password,adminToken)=>request('setAgentPassword',{agentId,password,adminToken}),
   agentLogin:(mobile,password)=>request('agentLogin',{mobile,password}),
