@@ -36,6 +36,28 @@ var AGENT_BUSINESS = {
   }
 };
 
+function resetAgentBusinessDatabase(spreadsheetId){
+  var id=String(spreadsheetId||'').trim();
+  if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
+
+  var ss=SpreadsheetApp.openById(id);
+  var managed=Object.keys(AGENT_BUSINESS.SHEETS);
+  managed.forEach(function(name){
+    var sheet=ss.getSheetByName(name);
+    if(sheet){
+      sheet.clearContents();
+      sheet.clearFormats();
+      sheet.clearDataValidations();
+      sheet.clearNotes();
+    }
+  });
+
+  PropertiesService.getScriptProperties().deleteProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
+  SpreadsheetApp.flush();
+
+  return freshSetupAgentBusinessSheets(id);
+}
+
 function freshSetupAgentBusinessSheets(spreadsheetId){
   var id=String(spreadsheetId||PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY)||'').trim();
   if(!id) throw new Error('Enter the Agent Business Google Sheet ID.');
