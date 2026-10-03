@@ -153,20 +153,23 @@ function agentBusinessRoute_(p){
   var action=String(p.action||'dashboard');
   if(action==='freshSetup') return freshSetupAgentBusinessSheets(p.spreadsheetId);
   var ss=agentBusinessSpreadsheet_();
+
   if(action==='adminLogin') return adminLogin_(p);
   if(action==='adminMe') return adminMe_(p);
   if(action==='adminLogout') return adminLogout_(p);
+
+  if(action==='agentLogin') return agentLogin_(p);
+  if(action==='agentMe') return agentMe_(p);
+  if(action==='agentClients') return agentClients_(p);
+  if(action==='agentAddClient') return agentAddClient_(p);
+  if(action==='agentLogout') return agentLogout_(p);
+
   requireAdmin_(p);
   if(action==='dashboard') return dashboard_(ss);
   if(action==='list') return listRows_(ss,String(p.sheet||''),p);
   if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
-  if(action==='agentLogin') return agentLogin_(p);
-  if(action==='agentMe') return agentMe_(p);
-  if(action==='agentClients') return agentClients_(p);
-  if(action==='agentAddClient') return agentAddClient_(p);
-  if(action==='agentLogout') return agentLogout_(p);
   if(action==='createAgent') return adminCreateAgent_(p);
   if(action==='setAgentPassword') return adminSetAgentPassword_(p);
   throw new Error('Unknown Agent Business action: '+action);
