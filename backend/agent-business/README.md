@@ -9,12 +9,12 @@ Paste **Code.gs** into a new Apps Script project connected to the dedicated Agen
 Run exactly one setup function:
 
 ```javascript
-setupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+freshSetupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
 ```
 
 This creates/checks all required tabs without clearing existing data. It is idempotent: you can run it again safely after backend schema updates. It also stores the setup version in the `Settings` tab.
 
-After authorizing, run `verifyAgentBusinessSheets()` once to confirm the database structure, then deploy as a Web App:
+After authorizing, run `` once to confirm the database structure, then deploy as a Web App:
 - Execute as: Me
 - Who has access: Anyone
 
@@ -34,7 +34,7 @@ Hidden route:
 
 The Shopping footer exposes **Agent Business** immediately beside **ERP Login**.
 
-## Database tabs created by setupAgentBusinessSheets()
+## Database tabs created by freshSetupAgentBusinessSheets()
 
 Agents, AgentUsers, Clients, Policies, PremiumBills, PaymentRequests, Payments, Receipts, Cards, CardRules, CardTransactions, Cashback, AgentSettlements, MoneyLedger, Expenses, Notifications, AuditLogs, Settings.
 
@@ -62,3 +62,20 @@ For a fresh database based on the current `AGENT_BUSINESS.SHEETS` schema, the re
 Current schema version: `1.1.0`.
 
 After a fresh reset, create AgentUsers again because the agent login now requires a mobile number and 4-digit password.
+
+
+## Current backend structure
+
+The Agent Business Apps Script backend is intentionally consolidated into a single file: backend/agent-business/Code.gs
+
+The old placeholder service .gs files have been removed because they contained no executable service logic.
+
+## Fresh setup
+
+The only setup operation exposed by the backend is:
+
+freshSetupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+
+For a truly empty database, first remove/clear the existing Agent Business tabs in the Google Sheet, then run the fresh setup function. This creates the current schema and Settings defaults without carrying forward old records.
+
+Do not expose database-reset operations through the public web-app endpoint. Database reset is an administrative Apps Script operation only.
