@@ -261,25 +261,39 @@ function agentClients_(p){
   }),total:rows.length};
 }
 function agentAddClient_(p){
-  var s=agentSession_(p.token),data=p.data||{},policyData=data.PolicyDetails||{};
+  var s=agentSession_(p.token),data=p.data||{};
   var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
-  var premium=Number(policyData.PremiumAmount||0),due=String(policyData.NextDueDate||'').trim();
   if(!name) throw new Error('Client name is required.');
   if(!policyNumber) throw new Error('Policy number is required.');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
-  if(!(premium>0)) throw new Error('Premium amount must be greater than zero.');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('Enter the next premium due date.');
   var ss=agentBusinessSpreadsheet_();
-  var clientId=newId_('ClientID'),policyId=newId_('PolicyID'),billId=newId_('BillID'),requestId=newId_('RequestID');
-  var client=saveRow_(ss,'Clients',{ClientID:clientId,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,Status:'ACTIVE',Notes:'Submitted by agent portal'});
-  var discountRate=AGENT_BUSINESS.DISCOUNT_RATE;
-  var discount=Math.round(premium*discountRate*100)/100;
-  var customerPayable=Math.max(0,Math.round((premium-discount)*100)/100);
-  var policy=saveRow_(ss,'Policies',{PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,InsuranceCompany:'LIC',PolicyNumber:policyNumber,PolicyType:String(policyData.PolicyType||'').trim(),PolicyHolder:String(policyData.PolicyHolder||name).trim(),InsuredPerson:name,PremiumAmount:premium,PremiumFrequency:String(policyData.PremiumFrequency||'Monthly'),NextDueDate:due,PolicyStatus:'ACTIVE',Notes:String(policyData.Notes||'').trim()});
-  var bill=saveRow_(ss,'PremiumBills',{BillID:billId,AgentID:s.AgentID,ClientID:clientId,PolicyID:policyId,PolicyNumber:policyNumber,PremiumAmount:premium,DueDate:due,BillDate:new Date().toISOString().slice(0,10),DiscountRate:discountRate,DiscountAmount:discount,CustomerPayable:customerPayable,PaymentStatus:'PENDING',ReceiptRequired:'YES',Notes:'Created from agent portal'});
-  var request=saveRow_(ss,'PaymentRequests',{RequestID:requestId,BillID:billId,AgentID:s.AgentID,ClientID:clientId,PremiumAmount:premium,CustomerPayable:customerPayable,DiscountAmount:discount,Status:'PENDING',RequestedAt:new Date().toISOString(),Notes:'Submitted by agent portal'});
-  saveRow_(ss,'Notifications',{NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',Type:'PAYMENT_REQUEST',Title:'New LIC payment request',Message:name+' · Policy '+policyNumber+' · Premium ₹'+premium.toLocaleString('en-IN')+' · Customer payable ₹'+customerPayable.toLocaleString('en-IN'),Status:'UNREAD',CreatedAt:new Date().toISOString()});
-  return {client:safeAgentClient_(client.item),paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:name,PolicyNumber:policyNumber})),policyId:policyId,billId:billId};
+  var clientId=newId_('ClientID'),policyId=newId_('PolicyID'),requestId=newId_('RequestID');
+  var client=saveRow_(ss,'Clients',{
+    ClientID:clientId,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,
+    Status:'ACTIVE',Notes:'Submitted by agent portal'
+  });
+  var policy=saveRow_(ss,'Policies',{
+    PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,InsuranceCompany:'LIC',
+    PolicyNumber:policyNumber,PolicyType:'',PolicyHolder:name,InsuredPerson:name,
+    PremiumAmount:'',PremiumFrequency:'',NextDueDate:'',PolicyStatus:'ACTIVE',
+    Notes:'Policy details to be verified by Admin'
+  });
+  var request=saveRow_(ss,'PaymentRequests',{
+    RequestID:requestId,BillID:'',AgentID:s.AgentID,ClientID:clientId,
+    PremiumAmount:'',CustomerPayable:'',DiscountAmount:'',Status:'PENDING',
+    RequestedAt:new Date().toISOString(),Notes:'Agent submitted Client Name, Policy Number and DOB. Admin to verify premium details.'
+  });
+  saveRow_(ss,'Notifications',{
+    NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',
+    Type:'PAYMENT_REQUEST',Title:'New LIC payment request',
+    Message:name+' · Policy '+policyNumber+' · DOB '+dob+' · Agent '+s.AgentID,
+    Status:'UNREAD',CreatedAt:new Date().toISOString()
+  });
+  return {
+    client:safeAgentClient_(client.item),
+    paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:name,PolicyNumber:policyNumber})),
+    policyId:policyId
+  };
 }
 function agentPaymentRequests_(p){
   var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
