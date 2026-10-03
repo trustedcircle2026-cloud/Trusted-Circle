@@ -12,7 +12,7 @@ var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.1.0',
+  SETUP_VERSION: '1.2.0',
   SESSION_TTL_SECONDS: 21600,
   SHEETS: {
     Agents:['AgentID','AgentCode','AgentName','AgencyName','Mobile','Email','InsuranceCompany','LicenseNumber','Address','BankName','AccountName','AccountNumber','IFSC','UPI','Status','JoinedDate','Notes','CreatedAt','UpdatedAt'],
@@ -141,6 +141,8 @@ function agentBusinessRoute_(p){
   if(action==='agentClients') return agentClients_(p);
   if(action==='agentAddClient') return agentAddClient_(p);
   if(action==='agentLogout') return agentLogout_(p);
+  if(action==='createAgent') return adminCreateAgent_(p);
+  if(action==='setAgentPassword') return adminSetAgentPassword_(p);
   throw new Error('Unknown Agent Business action: '+action);
 }
 function agentSessionKey_(token){ return 'AGENT_SESSION_'+String(token||'').trim(); }
@@ -191,6 +193,71 @@ function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getS
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
 function safeAgentClient_(c){return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt};}
 function updateAgentUserLastLogin_(ss,id){var sheet=ss.getSheetByName('AgentUsers'),rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r.AgentUserID)===id;});if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.AgentUsers,values=rows[idx];var col=headers.indexOf('LastLoginAt');if(col>=0)sheet.getRange(idx+2,col+1).setValue(new Date().toISOString());}}
+function adminCreateAgent_(p){
+  var data=p.data||{};
+  var name=String(data.AgentName||'').trim();
+  var mobile=normalizeMobile_(data.Mobile);
+  var password=String(data.Password||'');
+  if(!name) throw new Error('Agent name is required.');
+  if(!/^\\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
+  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+
+  var ss=agentBusinessSpreadsheet_();
+  var agents=sheetRows_(ss.getSheetByName('Agents'));
+  if(agents.some(function(a){return normalizeMobile_(a.Mobile)===mobile;})) throw new Error('An agent already exists with this mobile number.');
+
+  var agent=saveRow_(ss,'Agents',{
+    AgentID:newId_('AgentID'),
+    AgentCode:String(data.AgentCode||'').trim(),
+    AgentName:name,
+    AgencyName:String(data.AgencyName||'').trim(),
+    Mobile:mobile,
+    Email:String(data.Email||'').trim(),
+    InsuranceCompany:String(data.InsuranceCompany||'').trim(),
+    LicenseNumber:String(data.LicenseNumber||'').trim(),
+    Address:String(data.Address||'').trim(),
+    BankName:String(data.BankName||'').trim(),
+    AccountName:String(data.AccountName||'').trim(),
+    AccountNumber:String(data.AccountNumber||'').trim(),
+    IFSC:String(data.IFSC||'').trim(),
+    UPI:String(data.UPI||'').trim(),
+    Status:'ACTIVE',
+    JoinedDate:data.JoinedDate||new Date().toISOString().slice(0,10),
+    Notes:String(data.Notes||'').trim()
+  });
+
+  var user=createAgentUser(agent.id,mobile,password);
+  return {agent:safeAgent_(agent.item),agentUserId:user.id,message:'Agent created and login credentials initialized.'};
+}
+
+function adminSetAgentPassword_(p){
+  var agentId=String(p.agentId||'').trim();
+  var password=String(p.password||'');
+  if(!agentId) throw new Error('Agent ID is required.');
+  if(!/^\\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
+
+  var ss=agentBusinessSpreadsheet_();
+  var agents=sheetRows_(ss.getSheetByName('Agents'));
+  var agent=agents.find(function(a){return String(a.AgentID)===agentId;});
+  if(!agent) throw new Error('Agent not found.');
+
+  var users=sheetRows_(ss.getSheetByName('AgentUsers'));
+  var idx=users.findIndex(function(u){return String(u.AgentID)===agentId;});
+  if(idx<0){
+    var created=createAgentUser(agentId,agent.Mobile,password);
+    return {agentUserId:created.id,message:'Agent password created.'};
+  }
+
+  var sheet=ss.getSheetByName('AgentUsers');
+  var row=users[idx];
+  row.PasswordHash=hashAgentPassword_(password);
+  row.Status='ACTIVE';
+  row.UpdatedAt=new Date().toISOString();
+  var headers=AGENT_BUSINESS.SHEETS.AgentUsers;
+  sheet.getRange(idx+2,1,1,headers.length).setValues([headers.map(function(h){return row[h]===undefined?'':row[h];})]);
+  return {agentUserId:row.AgentUserID,message:'Agent password updated.'};
+}
+
 function createAgentUser(agentId,mobile,password){
   if(!/^\\d{4}$/.test(String(password||''))) throw new Error('Agent password must be exactly 4 digits.');
   var ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(a){return String(a.AgentID)===String(agentId);});
