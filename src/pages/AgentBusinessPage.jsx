@@ -22,18 +22,22 @@ const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',ma
 const title=s=>String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2')
 
 export default function AgentBusinessPage(){
- const[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[showPassword,setShowPassword]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null)
+ const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null)
 
- const loadDashboard=async()=>{setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard())}catch(e){setError(e.message)}finally{setRefreshing(false)}}
- const loadModule=async()=>{if(!agentBusinessApi.isConfigured())return;setLoading(true);try{const r=await agentBusinessApi.list(module,{search});setRows(r.items||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{loadDashboard();},[])
- useEffect(()=>{loadModule()},[module])
+ const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
+ const loadModule=async()=>{if(!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const r=await agentBusinessApi.list(module,{search},adminToken);setRows(r.items||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
+ useEffect(()=>{if(adminToken){loadDashboard();}},[adminToken])
+ useEffect(()=>{if(adminToken)loadModule()},[module,adminToken])
  const metrics=dashboard?.metrics||{}
  const count=key=>dashboard?.counts?.[key]||0
  const fields=useMemo(()=>rows.length?Object.keys(rows[0]).slice(0,10):[],[rows])
- const save=async()=>{try{setError('');setNotice('');if(module==='Agents'){await agentBusinessApi.createAgent(form);setNotice('Agent created. The 4-digit password is active immediately.')}else await agentBusinessApi.save(module,form);setShowForm(false);setForm({});await loadModule();await loadDashboard()}catch(e){setError(e.message)}}
- const resetAgentPassword=async agentId=>{const password=window.prompt('Enter a new 4-digit password for this agent:');if(password===null)return;if(!/^\\d{4}$/.test(password)){setError('Password must be exactly 4 digits.');return}try{await agentBusinessApi.setAgentPassword(agentId,password);setNotice('Agent password updated successfully.')}catch(e){setError(e.message)}}
- const calculate=async()=>{try{setCalcResult(await agentBusinessApi.calculate(calc))}catch(e){setError(e.message)}}
+ const save=async()=>{try{setError('');setNotice('');if(module==='Agents'){await agentBusinessApi.createAgent(form,adminToken);setNotice('Agent created. The 4-digit password is active immediately.')}else await agentBusinessApi.save(module,form,adminToken);setShowForm(false);setForm({});await loadModule();await loadDashboard()}catch(e){setError(e.message)}}
+ const resetAgentPassword=async agentId=>{const password=window.prompt('Enter a new 4-digit password for this agent:');if(password===null)return;if(!/^\\d{4}$/.test(password)){setError('Password must be exactly 4 digits.');return}try{await agentBusinessApi.setAgentPassword(agentId,password,adminToken);setNotice('Agent password updated successfully.')}catch(e){setError(e.message)}}
+ const calculate=async()=>{try{setCalcResult(await agentBusinessApi.calculate(calc,adminToken))}catch(e){setError(e.message)}}
+ const login=async()=>{try{setError('');const r=await agentBusinessApi.adminLogin(adminPassword);localStorage.setItem('tc_agent_admin_session',r.token);setAdminToken(r.token);setAdminPassword('')}catch(e){setError(e.message)}}
+ const logout=async()=>{try{if(adminToken)await agentBusinessApi.adminLogout(adminToken)}catch{}localStorage.removeItem('tc_agent_admin_session');setAdminToken('');setDashboard(null);setRows([])}
+
+ if(!adminToken)return <div className="agent-business-page"><div className="ab-admin-login"><div className="ab-admin-login-card"><div className="ab-brand"><span className="ab-logo">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><div className="ab-admin-lock">ADMIN ACCESS</div><h1>Admin Sign In</h1><p>Enter the administrator password to manage agents, clients, payments and business records.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus/></label>{error&&<div className="ab-error"><X size={16}/>{error}</div>}<button className="ab-primary wide" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
 
  return <div className="agent-business-page">
   <div className="ab-shell">
@@ -46,7 +50,7 @@ export default function AgentBusinessPage(){
    </aside>
 
    <main className="ab-main">
-    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
+    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{loadDashboard();loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><button onClick={logout}>Logout</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
 
     {error&&<div className="ab-error"><X size={17}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
     {notice&&<div className="ab-success"><CheckCircle2 size={17}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
@@ -77,5 +81,7 @@ export default function AgentBusinessPage(){
   {showForm&&<div className="ab-modal-backdrop"><div className="ab-modal"><button className="ab-modal-x" onClick={()=>setShowForm(false)}><X size={18}/></button><span className="ab-eyebrow">NEW {module==='Agents'?'AGENT':'RECORD'}</span><h3>{module==='Agents'?'Create Agent Access':'Add '+title(module)}</h3><p>{module==='Agents'?'Create the agent profile and initialize the 4-digit mobile login. The password is stored only as a secure hash.':'Enter the fields required for this record. IDs and timestamps are generated automatically.'}</p>{module==='Agents'?<div className="ab-form-grid"><label>Agent Name<input value={form.AgentName||''} onChange={e=>setForm({...form,AgentName:e.target.value})} placeholder="Full name"/></label><label>Mobile Number<input value={form.Mobile||''} onChange={e=>setForm({...form,Mobile:e.target.value.replace(/\D/g,'').slice(0,10)})} inputMode="numeric" maxLength="10" placeholder="10-digit mobile"/></label><label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="••••"/></label><label>Agency Name<input value={form.AgencyName||''} onChange={e=>setForm({...form,AgencyName:e.target.value})} placeholder="Agency / business name"/></label><label>Email<input value={form.Email||''} onChange={e=>setForm({...form,Email:e.target.value})} placeholder="Optional"/></label><label>Notes<input value={form.Notes||''} onChange={e=>setForm({...form,Notes:e.target.value})} placeholder="Optional"/></label></div>:<div className="ab-form-grid">{['Name','Amount','Status','Notes'].map(f=><label key={f}>{f}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder={f}/></label>)}</div>}<button className="ab-primary wide" disabled={module==='Agents'&&(!/^\d{10}$/.test(form.Mobile||'')||!/^\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
  </div>
 }
+
+function agentTokenReady(token){return Boolean(token)}
 
 function Metric({label,value,icon:Icon}){return <div className="ab-metric"><span className="ab-metric-icon"><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>}
