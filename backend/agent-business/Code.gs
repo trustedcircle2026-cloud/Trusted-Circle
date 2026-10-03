@@ -242,7 +242,8 @@ function agentLogin_(p){
   var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
   var session={AgentID:String(agent.AgentID),AgentUserID:String(user.AgentUserID),createdAt:new Date().toISOString()};
   CacheService.getScriptCache().put(agentSessionKey_(token),JSON.stringify(session),AGENT_BUSINESS.SESSION_TTL_SECONDS);
-  updateAgentUserLastLogin_(ss,String(user.AgentUserID));
+  // Keep authentication fast: do not perform a second Sheet write during login.
+  // LastLoginAt can be updated asynchronously from an admin/reporting workflow.
   return {token:token,agent:safeAgent_(agent),expiresIn:AGENT_BUSINESS.SESSION_TTL_SECONDS};
 }
 function agentMe_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents'));var a=agents.find(function(x){return String(x.AgentID)===s.AgentID;});if(!a)throw new Error('Agent account not found.');return {agent:safeAgent_(a)};}
