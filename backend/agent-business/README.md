@@ -37,3 +37,13 @@ The Shopping footer exposes **Agent Business** immediately beside **ERP Login**.
 ## Database tabs created by setupAgentBusinessSheets()
 
 Agents, AgentUsers, Clients, Policies, PremiumBills, PaymentRequests, Payments, Receipts, Cards, CardRules, CardTransactions, Cashback, AgentSettlements, MoneyLedger, Expenses, Notifications, AuditLogs, Settings.
+
+
+## Standalone portal pages
+
+The Agent Business portals are separate Vite HTML entry points and do not use the Shopping Website header/footer:
+
+- LIC Agent Portal: `/agent-portal.html`
+- Admin Portal: `/admin-portal.html`
+
+The Shopping Website footer links directly to these standalone pages.
