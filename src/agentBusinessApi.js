@@ -53,6 +53,7 @@ export const agentBusinessApi={
   setAgentPassword:(agentId,password,adminToken)=>request('setAgentPassword',{agentId,password,adminToken}),
   agentLogin:(mobile,password)=>request('agentLogin',{mobile,password}),
   agentMe:(token)=>request('agentMe',{token}),
+  agentBootstrap:(token)=>request('agentBootstrap',{token}),
   agentClients:(token)=>request('agentClients',{token}),
   agentPaymentRequests:(token)=>request('agentPaymentRequests',{token}),
   agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
