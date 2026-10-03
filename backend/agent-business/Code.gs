@@ -444,6 +444,7 @@ function saveRow_(ss,sheetName,data){
   var rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r[idField])===id;});
   if(idx>=0) sheet.getRange(idx+2,1,1,headers.length).setValues([values]);
   else sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([values]);
+  invalidateSheetCache_(sheetName);
   return {id:id,item:row};
 }
 function deleteRow_(ss,sheetName,id,idField){
@@ -452,6 +453,7 @@ function deleteRow_(ss,sheetName,id,idField){
   var idx=rows.findIndex(function(r){return String(r[field])===id;});
   if(idx<0) throw new Error('Record not found.');
   sheet.deleteRow(idx+2);
+  invalidateSheetCache_(sheetName);
   return {deleted:true,id:id};
 }
 function calculate_(p){
