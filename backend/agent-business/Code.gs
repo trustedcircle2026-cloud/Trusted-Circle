@@ -175,6 +175,10 @@ function agentBusinessRoute_(p){
   if(action==='agentClients') return agentClients_(p);
   if(action==='agentPaymentRequests') return agentPaymentRequests_(p);
   if(action==='agentAddClient') return agentAddClient_(p);
+  if(action==='agentAddPolicy') return agentAddPolicy_(p);
+  if(action==='agentEditPolicy') return agentEditPolicy_(p);
+  if(action==='agentRequestPayment') return agentRequestPayment_(p);
+  if(action==='agentCancelPaymentRequest') return agentCancelPaymentRequest_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
   var ss=agentBusinessSpreadsheet_();
@@ -265,7 +269,7 @@ function agentBootstrap_(p){
   var policyMap={};policies.forEach(function(x){if(String(x.AgentID)===s.AgentID)policyMap[String(x.ClientID)]=x;});
   var billMap={};bills.forEach(function(x){if(String(x.AgentID)===s.AgentID)billMap[String(x.ClientID)]=x;});
   var requestMap={};requests.forEach(function(x){if(String(x.AgentID)===s.AgentID)requestMap[String(x.ClientID)]=x;});
-  var items=ownClients.slice().reverse().map(function(client){var policy=policyMap[String(client.ClientID)]||{},bill=billMap[String(client.ClientID)]||{},request=requestMap[String(client.ClientID)]||{};return safeAgentClient_(Object.assign({},client,policy,{PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||'PENDING'}));});
+  var items=ownClients.slice().reverse().map(function(client){var policy=policyMap[String(client.ClientID)]||{},bill=billMap[String(client.ClientID)]||{},request=requestMap[String(client.ClientID)]||{};return safeAgentClient_(Object.assign({},client,policy,{PolicyID:policy.PolicyID||'',PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||''}));});
   var reqItems=requests.filter(function(x){return String(x.AgentID)===s.AgentID;}).slice().reverse().map(function(req){var client=ownClients.find(function(x){return String(x.ClientID)===String(req.ClientID);})||{};var policy=policyMap[String(req.ClientID)]||{};return safeAgentRequest_(Object.assign({},req,{ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||policy.PolicyNumber||''}));});
   var result={agent:safeAgent_(agent),clients:{items:items,total:items.length},requests:{items:reqItems,total:reqItems.length}};
   cachePutJson_('AGENT_BOOT_'+s.AgentID,result,15);
@@ -325,6 +329,61 @@ function agentAddClient_(p){
     policyId:policyId
   };
 }
+function agentAddPolicy_(p){
+  var s=agentSession_(p.token),data=p.data||{};
+  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  if(!name)throw new Error('Client name is required.');
+  if(!policyNumber)throw new Error('Policy number is required.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dob))throw new Error('Enter date of birth in YYYY-MM-DD format.');
+  var ss=agentBusinessSpreadsheet_();
+  var clients=cachedSheetRows_(ss.getSheetByName('Clients'),'Clients'),policies=cachedSheetRows_(ss.getSheetByName('Policies'),'Policies');
+  if(clients.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.PolicyNumber).trim()===policyNumber;}))throw new Error('This policy is already added to your workspace.');
+  var clientId=newId_('ClientID'),policyId=newId_('PolicyID');
+  var client=saveRow_(ss,'Clients',{ClientID:clientId,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,Status:'ACTIVE',Notes:'Added from Agent Portal'});
+  var policy=saveRow_(ss,'Policies',{PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,InsuranceCompany:'LIC',PolicyNumber:policyNumber,PolicyType:'',PolicyHolder:name,InsuredPerson:name,PremiumAmount:'',PremiumFrequency:'',NextDueDate:'',PolicyStatus:'ACTIVE',Notes:'Policy details to be verified by Admin'});
+  invalidateSheetCache_('Clients');invalidateSheetCache_('Policies');cacheRemoveAgent_(s.AgentID);
+  return {client:safeAgentClient_(Object.assign({},client.item,policy.item,{RequestStatus:''})),policy:safeAgentClient_(Object.assign({},client.item,policy.item,{RequestStatus:''}))};
+}
+function agentEditPolicy_(p){
+  var s=agentSession_(p.token),data=p.data||{},policyId=String(data.PolicyID||'').trim();
+  if(!policyId)throw new Error('Policy ID is required.');
+  var ss=agentBusinessSpreadsheet_(),policies=sheetRows_(ss.getSheetByName('Policies')),policy=policies.find(function(x){return String(x.PolicyID)===policyId&&String(x.AgentID)===s.AgentID;});
+  if(!policy)throw new Error('Policy not found.');
+  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  if(!name||!policyNumber||!/^\d{4}-\d{2}-\d{2}$/.test(dob))throw new Error('Client name, policy number and date of birth are required.');
+  var clients=sheetRows_(ss.getSheetByName('Clients')),client=clients.find(function(x){return String(x.ClientID)===String(policy.ClientID)&&String(x.AgentID)===s.AgentID;});
+  if(!client)throw new Error('Client record not found.');
+  var duplicate=clients.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)!==String(client.ClientID)&&String(x.PolicyNumber).trim()===policyNumber;});
+  if(duplicate)throw new Error('Another client already uses this policy number.');
+  saveRow_(ss,'Clients',{ClientID:client.ClientID,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,Status:client.Status||'ACTIVE',Notes:client.Notes||''});
+  saveRow_(ss,'Policies',{PolicyID:policy.PolicyID,AgentID:s.AgentID,ClientID:client.ClientID,InsuranceCompany:policy.InsuranceCompany||'LIC',PolicyNumber:policyNumber,PolicyType:policy.PolicyType||'',PolicyHolder:name,InsuredPerson:name,PremiumAmount:policy.PremiumAmount||'',PremiumFrequency:policy.PremiumFrequency||'',NextDueDate:policy.NextDueDate||'',PolicyStatus:policy.PolicyStatus||'ACTIVE',Notes:policy.Notes||''});
+  ['Clients','Policies'].forEach(invalidateSheetCache_);cacheRemoveAgent_(s.AgentID);
+  return {updated:true};
+}
+function agentRequestPayment_(p){
+  var s=agentSession_(p.token),policyId=String((p.data||{}).PolicyID||p.policyId||'').trim();
+  if(!policyId)throw new Error('Select a policy first.');
+  var ss=agentBusinessSpreadsheet_(),policies=sheetRows_(ss.getSheetByName('Policies')),policy=policies.find(function(x){return String(x.PolicyID)===policyId&&String(x.AgentID)===s.AgentID;});
+  if(!policy)throw new Error('Policy not found.');
+  var requests=sheetRows_(ss.getSheetByName('PaymentRequests'));
+  if(requests.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.PolicyID||'')===policyId&&String(x.Status||'').toUpperCase()==='PENDING';}))throw new Error('A payment request is already pending for this policy.');
+  var client=sheetRows_(ss.getSheetByName('Clients')).find(function(x){return String(x.ClientID)===String(policy.ClientID)&&String(x.AgentID)===s.AgentID;});
+  if(!client)throw new Error('Client record not found.');
+  var request=saveRow_(ss,'PaymentRequests',{RequestID:newId_('RequestID'),BillID:'',AgentID:s.AgentID,ClientID:client.ClientID,PolicyID:policyId,PremiumAmount:'',CustomerPayable:'',DiscountAmount:'',Status:'PENDING',RequestedAt:new Date().toISOString(),Notes:'Agent requested payment on behalf of client. Admin to verify premium details.'});
+  saveRow_(ss,'Notifications',{NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',Type:'PAYMENT_REQUEST',Title:'New payment request',Message:client.ClientName+' · Policy '+policy.PolicyNumber+' · Agent '+s.AgentID,Status:'UNREAD',CreatedAt:new Date().toISOString()});
+  ['PaymentRequests','Notifications'].forEach(invalidateSheetCache_);cacheRemoveAgent_(s.AgentID);
+  return {paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:client.ClientName,PolicyNumber:policy.PolicyNumber}))};
+}
+function agentCancelPaymentRequest_(p){
+  var s=agentSession_(p.token),requestId=String(p.requestId||'').trim();
+  if(!requestId)throw new Error('Request ID is required.');
+  var ss=agentBusinessSpreadsheet_(),rows=sheetRows_(ss.getSheetByName('PaymentRequests')),row=rows.find(function(x){return String(x.RequestID)===requestId&&String(x.AgentID)===s.AgentID;});
+  if(!row)throw new Error('Payment request not found.');
+  if(!['PENDING','SUBMITTED'].includes(String(row.Status||'').toUpperCase()))throw new Error('Only a pending payment request can be cancelled.');
+  row.Status='CANCELLED';row.UpdatedAt=new Date().toISOString();saveRow_(ss,'PaymentRequests',row);
+  invalidateSheetCache_('PaymentRequests');cacheRemoveAgent_(s.AgentID);
+  return {cancelled:true,requestId:requestId};
+}
 function agentPaymentRequests_(p){
   var boot=agentBootstrap_(p);return boot.requests;
   /*
@@ -343,7 +402,7 @@ function safeAgentClient_(c){
   return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt,PolicyType:c.PolicyType||'LIC Policy',PremiumAmount:c.PremiumAmount||0,RequestStatus:c.RequestStatus||'PENDING'};
 }
 function safeAgentRequest_(r){
-  return {RequestID:r.RequestID,ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',Notes:r.Notes||''};
+  return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',Notes:r.Notes||''};
 }
 function updateAgentUserLastLogin_(ss,id){var sheet=ss.getSheetByName('AgentUsers'),rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r.AgentUserID)===id;});if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.AgentUsers,values=rows[idx];var col=headers.indexOf('LastLoginAt');if(col>=0)sheet.getRange(idx+2,col+1).setValue(new Date().toISOString());}}
 function adminCreateAgent_(p){
