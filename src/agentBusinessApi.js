@@ -52,6 +52,7 @@ export const agentBusinessApi={
   agentLogin:(mobile,password)=>request('agentLogin',{mobile,password}),
   agentMe:(token)=>request('agentMe',{token}),
   agentClients:(token)=>request('agentClients',{token}),
+  agentPaymentRequests:(token)=>request('agentPaymentRequests',{token}),
   agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
   agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
