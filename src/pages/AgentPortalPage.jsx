@@ -16,10 +16,8 @@ export default function AgentPortalPage(){
   let timer
   try{
    let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
-   const me=await agentBusinessApi.agentMe(token)
-   const data=await agentBusinessApi.agentClients(token)
-   const req=await agentBusinessApi.agentPaymentRequests(token)
-   setAgent(me.agent);setClients(data.items||[]);setRequests(req.items||[])
+   const data=await agentBusinessApi.agentBootstrap(token)
+   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
   }catch(e){
    localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])
    setError(e.message)
