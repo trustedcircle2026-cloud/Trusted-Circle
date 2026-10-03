@@ -8,17 +8,20 @@ async function request(action,payload={}){
   return json.data;
 }
 export const agentBusinessApi={
-  dashboard:()=>request('dashboard'),
-  list:(sheet,params={})=>request('list',{sheet,...params}),
-  save:(sheet,data)=>request('save',{sheet,data}),
-  remove:(sheet,id,idField='')=>request('delete',{sheet,id,idField}),
-  calculate:(data)=>request('calculate',data),
+  adminLogin:(password)=>request('adminLogin',{password}),
+  adminMe:(token)=>request('adminMe',{token}),
+  adminLogout:(token)=>request('adminLogout',{token}),
+  dashboard:(adminToken)=>request('dashboard',{adminToken}),
+  list:(sheet,params={},adminToken)=>request('list',{sheet,...params,adminToken}),
+  save:(sheet,data,adminToken)=>request('save',{sheet,data,adminToken}),
+  remove:(sheet,id,idField='',adminToken)=>request('delete',{sheet,id,idField,adminToken}),
+  calculate:(data,adminToken)=>request('calculate',{...data,adminToken}),
+  createAgent:(data,adminToken)=>request('createAgent',{data,adminToken}),
+  setAgentPassword:(agentId,password,adminToken)=>request('setAgentPassword',{agentId,password,adminToken}),
   agentLogin:(mobile,password)=>request('agentLogin',{mobile,password}),
   agentMe:(token)=>request('agentMe',{token}),
   agentClients:(token)=>request('agentClients',{token}),
   agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
   agentLogout:(token)=>request('agentLogout',{token}),
-  createAgent:(data)=>request('createAgent',{data}),
-  setAgentPassword:(agentId,password)=>request('setAgentPassword',{agentId,password}),
   isConfigured:()=>Boolean(API_URL)
 };
