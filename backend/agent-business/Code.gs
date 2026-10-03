@@ -11,7 +11,7 @@
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
-  ADMIN_PASSWORD_HASH_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD_HASH',
+  ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
   SETUP_VERSION: '1.2.0',
   SESSION_TTL_SECONDS: 21600,
@@ -177,15 +177,11 @@ function agentBusinessRoute_(p){
 }
 function agentSessionKey_(token){ return 'AGENT_SESSION_'+String(token||'').trim(); }
 function adminSessionKey_(token){ return 'ADMIN_SESSION_'+String(token||'').trim(); }
-function hashAdminPassword_(password){
-  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(password||''),Utilities.Charset.UTF_8);
-  return bytes.map(function(b){var v=b<0?b+256:b;return ('0'+v.toString(16)).slice(-2);}).join('');
-}
 function setAdminPassword(password){
   password=String(password||'');
   if(password.length<8) throw new Error('Admin password must be at least 8 characters.');
-  PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.ADMIN_PASSWORD_HASH_PROPERTY,hashAdminPassword_(password));
-  return {ok:true,message:'Admin password configured.'};
+  PropertiesService.getScriptProperties().setProperty(AGENT_BUSINESS.ADMIN_PASSWORD_PROPERTY,password);
+  return {ok:true,message:'Admin password configured in Apps Script Properties.'};
 }
 function adminSession_(token){
   var t=String(token||'').trim();
@@ -196,9 +192,9 @@ function adminSession_(token){
 }
 function adminLogin_(p){
   var password=String(p.password||'');
-  var stored=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.ADMIN_PASSWORD_HASH_PROPERTY);
-  if(!stored) throw new Error('Admin password is not configured in Apps Script Properties. Run setAdminPassword() in Apps Script once.');
-  if(hashAdminPassword_(password)!==stored) throw new Error('Invalid admin password.');
+  var stored=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.ADMIN_PASSWORD_PROPERTY);
+  if(!stored) throw new Error('Admin password is not configured in Apps Script Properties. Add AGENT_BUSINESS_ADMIN_PASSWORD in Apps Script Properties.');
+  if(password!==stored) throw new Error('Invalid admin password.');
   var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
   CacheService.getScriptCache().put(adminSessionKey_(token),JSON.stringify({role:'ADMIN',createdAt:new Date().toISOString()}),AGENT_BUSINESS.SESSION_TTL_SECONDS);
   return {token:token,expiresIn:AGENT_BUSINESS.SESSION_TTL_SECONDS};
