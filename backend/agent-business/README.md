@@ -79,3 +79,21 @@ freshSetupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
 For a truly empty database, first remove/clear the existing Agent Business tabs in the Google Sheet, then run the fresh setup function. This creates the current schema and Settings defaults without carrying forward old records.
 
 Do not expose database-reset operations through the public web-app endpoint. Database reset is an administrative Apps Script operation only.
+
+
+## Current version 1.2.0
+
+Agent login is mobile number + 4-digit password. Passwords are stored as SHA-256 hashes in AgentUsers.PasswordHash; the raw password is never stored.
+
+### Fresh database
+For a completely fresh database, run manually in the Apps Script editor:
+
+resetAgentBusinessDatabase('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+
+This clears only the managed Agent Business tabs and then recreates the current schema and Settings. The reset function is intentionally not exposed through doGet/doPost.
+
+If the existing data must be preserved, run instead:
+
+freshSetupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+
+The setup adds missing current columns without deleting existing rows.
