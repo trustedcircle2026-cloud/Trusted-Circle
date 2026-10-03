@@ -39,7 +39,7 @@ export default function AgentPortalPage(){
  const addClientAndRequest=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Creating client, policy and payment request…')
   try{
-   const data=await agentBusinessApi.agentAddClient(session,{...clientForm,PolicyDetails:policyForm})
+   const data=await agentBusinessApi.agentAddClient(session,clientForm)
    setClients(current=>[data.client,...current])
    setRequests(current=>[data.paymentRequest,...current])
    setClientForm(emptyClient);setShowForm(false)
@@ -81,9 +81,9 @@ export default function AgentPortalPage(){
    <div className="ap-agent"><div><b>{agent.AgentName}</b><small>Agent Account · LIC</small></div><button onClick={logout}><LogOut size={15}/>Logout</button></div>
   </header>
   <main className="ap-main">
-   <section className="ap-hero">
-    <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Submit a client once. Add their policy. We'll take the payment request forward.</p></div>
-    <div className="ap-hero-art"><Sparkles size={30}/><span></span><span></span><span></span></div>
+   <section className="ap-welcome-strip">
+    <div><span className="ap-eyebrow">TRUSTED CIRCLE · LIC AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Submit the three required client details and we'll take the payment request forward.</p></div>
+    <button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>New Payment Request</button>
    </section>
 
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
@@ -102,11 +102,11 @@ export default function AgentPortalPage(){
    </div>
 
    {activeTab==='clients'?<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Client, policy and premium details are submitted together for faster processing.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Client & Policy</button></div>
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Submit only the client name, LIC policy number and date of birth.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Client & Policy</button></div>
     {clients.length?<div className="ap-client-grid">{clients.map(r=><div className="ap-client-card" key={r.ClientID}><div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div><div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><WalletCards size={13}/>{r.PolicyType||'LIC Policy'}</span></div><div className="ap-client-bottom"><span>Payment request <b>Awaiting Admin</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'PENDING').toLowerCase()}>{r.RequestStatus||'PENDING'}</span></div></div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>No client submissions yet</b><span>Add the client and policy together to create a payment request.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Start First Submission</button></div>}
    </section>:<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">ADMIN WORKFLOW</span><h2>Payment Requests</h2><p>Requests are sent to Trusted Circle Admin for review and payment processing.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
-    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}><div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber} · Premium ₹{Number(r.PremiumAmount||0).toLocaleString('en-IN')}</span><small>Submitted {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div><span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span><ChevronRight size={17}/></div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Add a client and policy to send the first request.</span></div>}
+    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}><div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber} · Awaiting Admin verification</span><small>Submitted {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div><span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span><ChevronRight size={17}/></div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Add a client and policy to send the first request.</span></div>}
    </section>}
   </main>
 
