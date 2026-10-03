@@ -12,9 +12,9 @@ Run exactly one setup function:
 setupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
 ```
 
-This creates/checks all required tabs without clearing existing data.
+This creates/checks all required tabs without clearing existing data. It is idempotent: you can run it again safely after backend schema updates. It also stores the setup version in the `Settings` tab.
 
-After authorizing, deploy as a Web App:
+After authorizing, run `verifyAgentBusinessSheets()` once to confirm the database structure, then deploy as a Web App:
 - Execute as: Me
 - Who has access: Anyone
 
