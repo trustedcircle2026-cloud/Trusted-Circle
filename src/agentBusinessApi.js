@@ -13,5 +13,10 @@ export const agentBusinessApi={
   save:(sheet,data)=>request('save',{sheet,data}),
   remove:(sheet,id,idField='')=>request('delete',{sheet,id,idField}),
   calculate:(data)=>request('calculate',data),
+  agentLogin:(mobile,password)=>request('agentLogin',{mobile,password}),
+  agentMe:(token)=>request('agentMe',{token}),
+  agentClients:(token)=>request('agentClients',{token}),
+  agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
+  agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
 };
