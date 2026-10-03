@@ -1,15 +1,19 @@
 import {useEffect,useMemo,useState} from 'react'
-import {ArrowRight,CheckCircle2,FileText,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,WalletCards,Sparkles,Clock3,ChevronRight} from 'lucide-react'
+import {ArrowRight,CheckCircle2,FileText,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
-const emptyClient={ClientName:'',PolicyNumber:'',DateOfBirth:''}
-const loadingMessages=['Securing your agent session…','Loading your client workspace…','Syncing your latest submissions…','Preparing the payment workflow…']
+const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
+const loadingMessages=['Securing your agent session…','Loading your policy workspace…','Syncing your latest requests…','Preparing your workspace…']
 
 export default function AgentPortalPage(){
- const[detail,setDetail]=useState(null),[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
- const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[mobile,setMobile]=useState(''),[password,setPassword]=useState(''),[clientForm,setClientForm]=useState(emptyClient),[showForm,setShowForm]=useState(false),[loading,setLoading]=useState(false),[loadingText,setLoadingText]=useState(loadingMessages[0]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[activeTab,setActiveTab]=useState('policies'),[editingPolicyId,setEditingPolicyId]=useState('')
+ const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
+ const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([])
+ const[mobile,setMobile]=useState(''),[password,setPassword]=useState('')
+ const[policyForm,setPolicyForm]=useState(emptyPolicy),[showForm,setShowForm]=useState(false),[editingPolicyId,setEditingPolicyId]=useState('')
+ const[loading,setLoading]=useState(false),[loadingText,setLoadingText]=useState(loadingMessages[0]),[error,setError]=useState(''),[notice,setNotice]=useState('')
+ const[activeTab,setActiveTab]=useState('policies'),[detail,setDetail]=useState(null)
 
  const load=async token=>{
   setLoading(true);setError('')
@@ -19,11 +23,9 @@ export default function AgentPortalPage(){
    const data=await agentBusinessApi.agentBootstrap(token)
    setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
   }catch(e){
-   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])
-   setError(e.message)
+   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setError(e.message)
   }finally{clearInterval(timer);setLoading(false)}
  }
-
  useEffect(()=>{if(session)load(session)},[session])
 
  const login=async()=>{
@@ -33,61 +35,51 @@ export default function AgentPortalPage(){
    localStorage.setItem('tc_agent_session',data.token);setSession(data.token);setAgent(data.agent);setPassword('')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
-
+ const openAddPolicy=()=>{setError('');setNotice('');setEditingPolicyId('');setPolicyForm(emptyPolicy);setShowForm(true)}
+ const openEditPolicy=r=>{setError('');setNotice('');setEditingPolicyId(r.PolicyID);setPolicyForm({ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||''});setShowForm(true)}
  const addPolicy=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Adding policy to your workspace…')
   try{
-   const data=await agentBusinessApi.agentAddPolicy(session,clientForm)
-   setClients(current=>[data.client,...current]);setClientForm(emptyClient);setShowForm(false)
-   setNotice('Policy added. Select it anytime to request payment on behalf of the client.')
+   const data=await agentBusinessApi.agentAddPolicy(session,policyForm)
+   setClients(current=>[data.policy,...current]);setPolicyForm(emptyPolicy);setShowForm(false)
+   setNotice('Policy added. Select it later whenever payment needs to be requested.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const editPolicy=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Updating client and policy details…')
   try{
-   await agentBusinessApi.agentEditPolicy(session,{...clientForm,PolicyID:editingPolicyId})
-   await load(session);setClientForm(emptyClient);setEditingPolicyId('');setShowForm(false)
-   setNotice('Client and policy details updated successfully.')
+   await agentBusinessApi.agentEditPolicy(session,{...policyForm,PolicyID:editingPolicyId})
+   await load(session);setPolicyForm(emptyPolicy);setEditingPolicyId('');setShowForm(false);setNotice('Client and policy details updated successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
- const requestPayment=async policyId=>{
+ const requestPayment=async policy=>{
+  if(!policy.PolicyID)return setError('Policy reference is missing. Refresh the workspace.')
   if(!window.confirm('Request premium payment for this selected policy on behalf of the client?'))return
   setLoading(true);setError('');setNotice('');setLoadingText('Sending payment request to Admin…')
   try{
-   const data=await agentBusinessApi.agentRequestPayment(session,policyId)
-   setRequests(current=>[data.paymentRequest,...current]);await load(session)
-   setActiveTab('requests');setNotice('Payment request sent to Trusted Circle Admin.')
+   const data=await agentBusinessApi.agentRequestPayment(session,policy.PolicyID)
+   setRequests(current=>[data.paymentRequest,...current]);await load(session);setActiveTab('requests');setNotice('Payment request sent to Trusted Circle Admin.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const cancelRequest=async requestId=>{
   if(!window.confirm('Cancel this payment request?'))return
   setLoading(true);setError('');setNotice('');setLoadingText('Cancelling payment request…')
-  try{
-   await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session)
-   setNotice('Payment request cancelled.')
-  }catch(e){setError(e.message)}finally{setLoading(false)}
+  try{await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session);setNotice('Payment request cancelled.')}
+  catch(e){setError(e.message)}finally{setLoading(false)}
  }
-
- const logout=async()=>{
-  try{if(session)await agentBusinessApi.agentLogout(session)}catch{}
-  localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])
- }
-
+ const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])}
  const pending=requests.filter(r=>!['PAID','COMPLETED','CANCELLED'].includes(String(r.Status||'').toUpperCase())).length
- const latestRequests=useMemo(()=>requests.slice(0,8),[requests])
+ const latestRequests=useMemo(()=>requests.slice(0,12),[requests])
 
  if(!session||!agent)return <div className="agent-portal-page">
   {loading&&<LoadingOverlay text={loadingText}/>}
-  <div className="agent-login-shell">
-   <div className="agent-login-orbit orbit-one"></div><div className="agent-login-orbit orbit-two"></div>
+  <div className="agent-login-shell"><div className="agent-login-orbit orbit-one"></div><div className="agent-login-orbit orbit-two"></div>
    <div className="agent-login-card">
     <div className="agent-login-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal</small></div></div>
-    <div className="agent-login-icon"><ShieldCheck size={25}/></div>
-    <span className="ap-eyebrow">SECURE AGENT ACCESS</span>
-    <h1>Welcome back 👋</h1>
-    <p>Submit your client and policy details, then send the premium payment request directly to our Admin team.</p>
-    <label>Mobile Number<input value={mobile} onChange={e=>setMobile(e.target.value.replace(/\D/g,'').slice(0,10))} inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" autoComplete="tel"/></label>
-    <label>4-Digit Password<input type="password" value={password} onChange={e=>setPassword(e.target.value.replace(/\D/g,'').slice(0,4))} inputMode="numeric" maxLength={4} placeholder="••••" autoComplete="current-password"/></label>
+    <div className="agent-login-icon"><ShieldCheck size={25}/></div><span className="ap-eyebrow">SECURE AGENT ACCESS</span><h1>Welcome back 👋</h1>
+    <p>Manage your saved policies and request premium payments on behalf of your clients.</p>
+    <label>Mobile Number<input value={mobile} onChange={e=>setMobile(e.target.value.replace(/\D/g,'').slice(0,10))} inputMode="numeric" maxLength="10" placeholder="10-digit mobile number" autoComplete="tel"/></label>
+    <label>4-Digit Password<input type="password" value={password} onChange={e=>setPassword(e.target.value.replace(/\D/g,'').slice(0,4))} inputMode="numeric" maxLength="4" placeholder="••••" autoComplete="current-password"/></label>
     {error&&<div className="ap-error"><X size={15}/>{error}</div>}
     <button className="ap-primary wide" disabled={loading||mobile.length!==10||password.length!==4} onClick={login}>{loading?<RefreshCw className="spin"/>:<LogIn size={17}/>}Sign In</button>
     <a href="./">Back to Trusted Circle</a>
@@ -102,118 +94,54 @@ export default function AgentPortalPage(){
     <div className="ap-command-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal · {agent.AgentName}</small></div></div>
     <div className="ap-command-actions">
      <button className="ap-command-box" onClick={()=>load(session)} disabled={loading}><RefreshCw size={16} className={loading?'spin':''}/><span>Refresh</span><small>Sync workspace</small></button>
-     <button className="ap-command-box ap-command-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={16}/><span>New Request</span><small>Add client & policy</small></button>
+     <button className="ap-command-box ap-command-primary" onClick={openAddPolicy}><Plus size={16}/><span>Add Policy</span><small>Save client policy</small></button>
      <button className="ap-command-box ap-command-danger" onClick={logout}><LogOut size={16}/><span>Sign Out</span><small>End session</small></button>
     </div>
    </div>
-   <section className="ap-page-head">
-    <div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage client submissions and payment requests.</p></div>
-   </section>
-
+   <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Add policies first. Select a saved policy later when you need a payment request.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-
-   <div className="ap-stats">
-    <Stat icon={Users} label="Clients Submitted" value={clients.length} tone="green"/>
-    <Stat icon={FileText} label="Payment Requests" value={requests.length} tone="blue"/>
-    <Stat icon={Clock3} label="Pending Requests" value={pending} tone="amber"/>
-    <Stat icon={ShieldCheck} label="Account Access" value="Active" tone="purple"/>
-   </div>
-
-   <div className="ap-tabs">
-    <button className={activeTab==='clients'?'active':''} onClick={()=>setActiveTab('clients')}><Users size={15}/>My Clients</button>
-    <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={15}/>Payment Requests <span>{pending}</span></button>
-   </div>
-
-   {activeTab==='clients'?<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Submit only the client name, policy number and date of birth.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Client & Policy</button></div>
-    {clients.length?<div className="ap-client-grid">{clients.map(r=><div className="ap-client-card" key={r.ClientID} onClick={()=>setDetail({type:'Client',data:r})}><div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div><div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><WalletCards size={13}/>{r.PolicyType||'Policy'}</span></div><div className="ap-client-bottom"><span>Payment request <b>Awaiting Admin</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'PENDING').toLowerCase()}>{r.RequestStatus||'PENDING'}</span></div></div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>No client submissions yet</b><span>Add the client and policy together to create a payment request.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Start First Submission</button></div>}
-   </section>:<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">ADMIN WORKFLOW</span><h2>Payment Requests</h2><p>Requests are sent to Trusted Circle Admin for review and payment processing.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
-    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID} onClick={()=>setDetail({type:'Payment Request',data:r})}><div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber} · Awaiting Admin verification</span><small>Submitted {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div><span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span><ChevronRight size={17}/></div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Add a client and policy to send the first request.</span></div>}
-   </section>}
-  </main>
-
-  {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
-   <button className="ap-close" onClick={()=>!loading&&setShowForm(false)}><X/></button>
-   <div className="ap-wizard-head"><span className="ap-eyebrow">NEW PAYMENT REQUEST</span><h2>Client Details</h2><p>Only the three details required to process the premium payment are collected here.</p></div>
-   <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Admin</small></div>
-   <div className="ap-form-grid ap-three-fields">
-    <label>Client Name<input value={clientForm.ClientName} onChange={e=>setClientForm({...clientForm,ClientName:e.target.value})} placeholder="Full name"/></label>
-    <label>Policy Number<input value={clientForm.PolicyNumber} onChange={e=>setClientForm({...clientForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
-    <label>Date of Birth<input type="date" value={clientForm.DateOfBirth} onChange={e=>setClientForm({...clientForm,DateOfBirth:e.target.value})}/></label>
-   </div>
-   <div className="ap-info-note"><ShieldCheck size={15}/><span>Trusted Circle Admin will verify the policy and obtain the premium/payment details. No premium amount or other policy information is required from the agent.</span></div>
-   <div className="ap-wizard-actions"><button className="ap-secondary" onClick={()=>setShowForm(false)} disabled={loading}>Cancel</button><button className="ap-primary ap-send" disabled={loading||!clientForm.ClientName||!clientForm.PolicyNumber||!clientForm.DateOfBirth} onClick={addClientAndRequest}>{loading?<RefreshCw className="spin"/>:<Send size={15}/>}Send Payment Request<ArrowRight size={15}/></button></div>
-  </div></div>}
- </div>
-}
-
-function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-logo"><img src={LOGO_URL} alt="Trusted Circle"/><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
-function Stat({icon:Icon,label,value,tone='green'}){return <div className={'ap-stat '+tone}><span><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>} return <div className="agent-portal-page">
-  {loading&&<LoadingOverlay text={loadingText}/>}
-  <main className="ap-main">
-   <div className="ap-command-menu">
-    <div className="ap-command-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal · {agent.AgentName}</small></div></div>
-    <div className="ap-command-actions">
-     <button className="ap-command-box" onClick={()=>load(session)} disabled={loading}><RefreshCw size={16} className={loading?'spin':''}/><span>Refresh</span><small>Sync workspace</small></button>
-     <button className="ap-command-box ap-command-primary" onClick={()=>{setError('');setNotice('');setEditingPolicyId('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={16}/><span>Add Policy</span><small>Add client & policy</small></button>
-     <button className="ap-command-box ap-command-danger" onClick={logout}><LogOut size={16}/><span>Sign Out</span><small>End session</small></button>
-    </div>
-   </div>
-
-   <section className="ap-page-head">
-    <div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Add verified client policies first, then select a policy whenever payment needs to be requested.</p></div>
-   </section>
-
-   {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
-   {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-
-   <div className="ap-stats">
-    <Stat icon={FileText} label="Policies Added" value={clients.length} tone="green"/>
-    <Stat icon={Send} label="Payment Requests" value={requests.length} tone="blue"/>
-    <Stat icon={Clock3} label="Pending Requests" value={pending} tone="amber"/>
-    <Stat icon={ShieldCheck} label="Account Access" value="Active" tone="purple"/>
-   </div>
-
+   <div className="ap-stats"><Stat icon={FileText} label="Policies Added" value={clients.length} tone="green"/><Stat icon={Send} label="Payment Requests" value={requests.length} tone="blue"/><Stat icon={Clock3} label="Pending Requests" value={pending} tone="amber"/><Stat icon={ShieldCheck} label="Account Access" value="Active" tone="purple"/></div>
    <div className="ap-tabs">
     <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><FileText size={15}/>My Policies</button>
     <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={15}/>Payment Requests <span>{pending}</span></button>
    </div>
 
    {activeTab==='policies'?<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">POLICY WORKSPACE</span><h2>My Policies</h2><p>Add client name, policy number and date of birth. Premium details are handled by Admin.</p></div><button className="ap-primary" onClick={()=>{setError('');setNotice('');setEditingPolicyId('');setClientForm(emptyClient);setShowForm(true)}}><Plus size={15}/>Add Policy</button></div>
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">POLICY WORKSPACE</span><h2>My Policies</h2><p>Only client name, policy number and date of birth are required. Premium details are handled by Admin.</p></div><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add Policy</button></div>
     {clients.length?<div className="ap-client-grid">{clients.map(r=><div className="ap-client-card ap-policy-card" key={r.PolicyID||r.ClientID}>
       <div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div>
       <div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><FileText size={13}/>Policy</span></div>
-      <div className="ap-client-bottom"><span>Payment status <b>{r.RequestStatus||'Ready to Request'}</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'READY').toLowerCase()}>{r.RequestStatus||'READY'}</span></div>
+      <div className="ap-client-bottom"><span>Request status <b>{r.RequestStatus||'Ready'}</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'READY').toLowerCase()}>{r.RequestStatus||'READY'}</span></div>
       <div className="ap-card-actions">
-       <button className="ap-secondary" onClick={e=>{e.stopPropagation();setEditingPolicyId(r.PolicyID);setClientForm({ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||''});setShowForm(true)}}><FileText size={14}/>Edit</button>
-       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={e=>{e.stopPropagation();requestPayment(r.PolicyID)}}><Send size={14}/>{['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())?'Requested':'Request Payment'}</button>
+       <button className="ap-secondary" onClick={()=>openEditPolicy(r)}><Edit3 size={14}/>Edit</button>
+       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())?'Requested':'Request Payment'}</button>
       </div>
-    </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><FileText size={23}/></div><b>No policies added yet</b><span>Add the client and policy details first. You can request payment later from the policy card.</span><button className="ap-primary" onClick={()=>setShowForm(true)}><Plus size={15}/>Add First Policy</button></div>}
+    </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><FileText size={23}/></div><b>No policies added yet</b><span>Add the required client and policy details once. You can request payment later.</span><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Policy</button></div>}
    </section>:<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">ADMIN WORKFLOW</span><h2>Payment Requests</h2><p>Select a policy from My Policies to request payment on behalf of the client.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
-    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID} onClick={()=>setDetail({type:'Payment Request',data:r})}>
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">PAYMENT WORKFLOW</span><h2>Payment Requests</h2><p>Requests are created from your saved policies and sent to Admin for processing.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
+    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
       <div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>Submitted {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div>
       <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
-      {['PENDING','SUBMITTED'].includes(String(r.Status||'').toUpperCase())&&<button className="ap-secondary ap-cancel-request" onClick={e=>{e.stopPropagation();cancelRequest(r.RequestID)}}>Cancel</button>}
-      <ChevronRight size={17}/>
+      {['PENDING','SUBMITTED'].includes(String(r.Status||'').toUpperCase())&&<button className="ap-secondary ap-cancel-request" disabled={loading} onClick={()=>cancelRequest(r.RequestID)}>Cancel</button>}
+      <button className="ap-icon-action" title="View details" onClick={()=>setDetail({type:'Payment Request',data:r})}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Open My Policies and select Request Payment when a client needs a bill paid.</span></div>}
    </section>}
   </main>
 
+  {detail&&<div className="ap-modal-backdrop" onClick={()=>setDetail(null)}><div className="ap-modal ap-detail-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>setDetail(null)}><X/></button><span className="ap-eyebrow">{detail.type.toUpperCase()}</span><h2>{detail.data.ClientName||'Client'}</h2><div className="ap-detail-grid">{Object.entries(detail.data).filter(([k])=>!['ClientID','RequestID'].includes(k)).map(([k,v])=><div key={k}><small>{k.replace(/([a-z])([A-Z])/g,'$1 $2')}</small><strong>{String(v??'—')}</strong></div>)}</div><button className="ap-primary wide" onClick={()=>setDetail(null)}>Close</button></div></div>}
+
   {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
    <button className="ap-close" onClick={()=>!loading&&setShowForm(false)}><X/></button>
-   <div className="ap-wizard-head"><span className="ap-eyebrow">NEW PAYMENT REQUEST</span><h2>Client Details</h2><p>Only the three details required to process the premium payment are collected here.</p></div>
-   <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Admin</small></div>
+   <div className="ap-wizard-head"><span className="ap-eyebrow">{editingPolicyId?'EDIT SAVED POLICY':'ADD NEW POLICY'}</span><h2>{editingPolicyId?'Edit Client & Policy':'Add Policy'}</h2><p>{editingPolicyId?'Update only the required client and policy details.':'Save the policy first. You can request payment later from My Policies.'}</p></div>
+   <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Payment</small></div>
    <div className="ap-form-grid ap-three-fields">
-    <label>Client Name<input value={clientForm.ClientName} onChange={e=>setClientForm({...clientForm,ClientName:e.target.value})} placeholder="Full name"/></label>
-    <label>Policy Number<input value={clientForm.PolicyNumber} onChange={e=>setClientForm({...clientForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
-    <label>Date of Birth<input type="date" value={clientForm.DateOfBirth} onChange={e=>setClientForm({...clientForm,DateOfBirth:e.target.value})}/></label>
+    <label>Client Name<input value={policyForm.ClientName} onChange={e=>setPolicyForm({...policyForm,ClientName:e.target.value})} placeholder="Full name"/></label>
+    <label>Policy Number<input value={policyForm.PolicyNumber} onChange={e=>setPolicyForm({...policyForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
+    <label>Date of Birth<input type="date" value={policyForm.DateOfBirth} onChange={e=>setPolicyForm({...policyForm,DateOfBirth:e.target.value})}/></label>
    </div>
-   <div className="ap-info-note"><ShieldCheck size={15}/><span>Trusted Circle Admin will verify the policy and obtain the premium/payment details. No premium amount or other policy information is required from the agent.</span></div>
-   <div className="ap-wizard-actions"><button className="ap-secondary" onClick={()=>setShowForm(false)} disabled={loading}>Cancel</button><button className="ap-primary ap-send" disabled={loading||!clientForm.ClientName||!clientForm.PolicyNumber||!clientForm.DateOfBirth} onClick={addClientAndRequest}>{loading?<RefreshCw className="spin"/>:<Send size={15}/>}Send Payment Request<ArrowRight size={15}/></button></div>
+   <div className="ap-info-note"><ShieldCheck size={15}/><span>No premium amount, payment amount, due date or other policy details are required here. Admin verifies those details when you request payment.</span></div>
+   <div className="ap-wizard-actions"><button className="ap-secondary" onClick={()=>setShowForm(false)} disabled={loading}>Cancel</button><button className="ap-primary ap-send" disabled={loading||!policyForm.ClientName||!policyForm.PolicyNumber||!policyForm.DateOfBirth} onClick={editingPolicyId?editPolicy:addPolicy}>{loading?<RefreshCw className="spin"/>:editingPolicyId?<CheckCircle2 size={15}/>:<Plus size={15}/>} {editingPolicyId?'Save Changes':'Add Policy'}<ArrowRight size={15}/></button></div>
   </div></div>}
  </div>
 }
