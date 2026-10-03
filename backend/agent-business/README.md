@@ -13,7 +13,7 @@ AGENT_BUSINESS_SHEET_ID = 1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0
 AGENT_BUSINESS_ADMIN_PASSWORD = YOUR_ADMIN_PASSWORD
 ```
 
-The Google Sheet ID is read from Script Properties by the backend. The Admin password is never stored in source code or as plaintext; run `setAdminPassword('YOUR_PASSWORD')` once in the Apps Script editor to generate and store its SHA-256 hash in Script Properties.
+The Google Sheet ID and Admin password are read directly from Apps Script Project Properties. The Admin password is not stored in GitHub or the Google Sheet. Set `AGENT_BUSINESS_ADMIN_PASSWORD` manually in Apps Script → Project Settings → Script Properties.
 
 Run the setup/reset functions manually from Apps Script. They can also read `AGENT_BUSINESS_SHEET_ID` directly from Script Properties, so the ID does not need to be passed as an argument.
 
@@ -31,7 +31,7 @@ resetAgentBusinessDatabase()
 
 This creates/checks all required tabs without clearing existing data for fresh setup. The reset clears only the managed Agent Business tabs and recreates the schema.
 
-After authorizing, run `` once to confirm the database structure, then deploy as a Web App:
+After authorizing, run `freshSetupAgentBusinessSheets()` once to confirm the database structure, then deploy as a Web App:
 - Execute as: Me
 - Who has access: Anyone
 
@@ -60,7 +60,7 @@ Agents, AgentUsers, Clients, Policies, PremiumBills, PaymentRequests, Payments, 
 
 The Agent Business portals are separate Vite HTML entry points and do not use the Shopping Website header/footer:
 
-- LIC Agent Portal: `/agent-portal.html`
+- Agent Portal: `/agent-portal.html`
 - Admin Portal: `/admin-portal.html`
 
 The Shopping Website footer links directly to these standalone pages.
@@ -76,7 +76,7 @@ For a fresh database based on the current `AGENT_BUSINESS.SHEETS` schema, the re
 3. Recreate the current headers and Settings defaults.
 4. Preserve no old Agent, AgentUser, Client, Payment, Card, Cashback, Ledger, Settlement, Expense, Notification, or Audit records.
 
-Current schema version: `1.2.0`.
+Current schema version: `1.3.0`.
 
 After a fresh reset, create AgentUsers again because the agent login now requires a mobile number and 4-digit password.
 
@@ -108,7 +108,7 @@ Both functions read `AGENT_BUSINESS_SHEET_ID` from Script Properties when no arg
 Do not expose database-reset operations through the public web-app endpoint. Database reset is an administrative Apps Script operation only.
 
 
-## Current version 1.2.0
+## Current version 1.3.0 — Fast Agent Portal backend
 
 Agent login is mobile number + 4-digit password. Passwords are stored as SHA-256 hashes in AgentUsers.PasswordHash; the raw password is never stored.
 
