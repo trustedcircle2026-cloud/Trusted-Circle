@@ -25,7 +25,7 @@ export default function AgentBusinessPage(){
  const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
- const loadModule=async()=>{if(!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const r=await agentBusinessApi.list(module,{search},adminToken);setRows(r.items||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
+ const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const r=await agentBusinessApi.list(module,{search},adminToken);setRows(r.items||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
  useEffect(()=>{if(adminToken){loadDashboard();}},[adminToken])
  useEffect(()=>{if(adminToken)loadModule()},[module,adminToken])
  const metrics=dashboard?.metrics||{}
