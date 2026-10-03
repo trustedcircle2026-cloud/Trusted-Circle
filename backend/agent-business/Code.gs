@@ -46,10 +46,11 @@ function resetAgentBusinessDatabase(spreadsheetId){
   managed.forEach(function(name){
     var sheet=ss.getSheetByName(name);
     if(sheet){
-      sheet.clearContents();
-      sheet.clearFormats();
-      sheet.clearDataValidations();
-      sheet.clearNotes();
+      var range=sheet.getDataRange();
+      range.clearContent();
+      range.clearFormat();
+      range.clearDataValidations();
+      range.clearNote();
     }
   });
 
