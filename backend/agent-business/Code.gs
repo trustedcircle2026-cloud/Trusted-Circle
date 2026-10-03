@@ -153,6 +153,10 @@ function agentBusinessRoute_(p){
   var action=String(p.action||'dashboard');
   if(action==='freshSetup') return freshSetupAgentBusinessSheets(p.spreadsheetId);
   var ss=agentBusinessSpreadsheet_();
+  if(action==='adminLogin') return adminLogin_(p);
+  if(action==='adminMe') return adminMe_(p);
+  if(action==='adminLogout') return adminLogout_(p);
+  requireAdmin_(p);
   if(action==='dashboard') return dashboard_(ss);
   if(action==='list') return listRows_(ss,String(p.sheet||''),p);
   if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
@@ -168,6 +172,37 @@ function agentBusinessRoute_(p){
   throw new Error('Unknown Agent Business action: '+action);
 }
 function agentSessionKey_(token){ return 'AGENT_SESSION_'+String(token||'').trim(); }
+function adminSessionKey_(token){ return 'ADMIN_SESSION_'+String(token||'').trim(); }
+function hashAdminPassword_(password){
+  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(password||''),Utilities.Charset.UTF_8);
+  return bytes.map(function(b){var v=b<0?b+256:b;return ('0'+v.toString(16)).slice(-2);}).join('');
+}
+function setAdminPassword(password){
+  password=String(password||'');
+  if(password.length<8) throw new Error('Admin password must be at least 8 characters.');
+  PropertiesService.getScriptProperties().setProperty('AGENT_BUSINESS_ADMIN_PASSWORD_HASH',hashAdminPassword_(password));
+  return {ok:true,message:'Admin password configured.'};
+}
+function adminSession_(token){
+  var t=String(token||'').trim();
+  if(!t) throw new Error('Admin session is required.');
+  var raw=CacheService.getScriptCache().get(adminSessionKey_(t));
+  if(!raw) throw new Error('Admin session expired. Please login again.');
+  return JSON.parse(raw);
+}
+function adminLogin_(p){
+  var password=String(p.password||'');
+  var stored=PropertiesService.getScriptProperties().getProperty('AGENT_BUSINESS_ADMIN_PASSWORD_HASH');
+  if(!stored) throw new Error('Admin password is not configured. Run setAdminPassword() in Apps Script first.');
+  if(hashAdminPassword_(password)!==stored) throw new Error('Invalid admin password.');
+  var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+  CacheService.getScriptCache().put(adminSessionKey_(token),JSON.stringify({role:'ADMIN',createdAt:new Date().toISOString()}),AGENT_BUSINESS.SESSION_TTL_SECONDS);
+  return {token:token,expiresIn:AGENT_BUSINESS.SESSION_TTL_SECONDS};
+}
+function adminMe_(p){adminSession_(p.token);return {authenticated:true};}
+function adminLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(adminSessionKey_(t));return {loggedOut:true};}
+function requireAdmin_(p){adminSession_(p.adminToken);}
+
 function hashAgentPassword_(password){
   var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(password||''),Utilities.Charset.UTF_8);
   return bytes.map(function(b){var v=b<0?b+256:b;return ('0'+v.toString(16)).slice(-2);}).join('');
