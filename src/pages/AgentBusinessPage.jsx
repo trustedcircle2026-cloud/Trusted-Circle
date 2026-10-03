@@ -18,6 +18,7 @@ const MODULES=[
   {key:'Expenses',label:'Expenses',icon:CircleDollarSign,desc:'Track business expenses.'},
 ]
 
+const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
 const title=s=>String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2')
 
@@ -37,7 +38,7 @@ export default function AgentBusinessPage(){
  const login=async()=>{try{setError('');const r=await agentBusinessApi.adminLogin(adminPassword);localStorage.setItem('tc_agent_admin_session',r.token);setAdminToken(r.token);setAdminPassword('')}catch(e){setError(e.message)}}
  const logout=async()=>{try{if(adminToken)await agentBusinessApi.adminLogout(adminToken)}catch{}localStorage.removeItem('tc_agent_admin_session');setAdminToken('');setDashboard(null);setRows([])}
 
- if(!adminToken)return <div className="agent-business-page"><div className="ab-admin-login"><div className="ab-admin-login-card"><div className="ab-brand"><span className="ab-logo">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><div className="ab-admin-lock">ADMIN ACCESS</div><h1>Admin Sign In</h1><p>Enter the administrator password to manage agents, clients, payments and business records.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus/></label>{error&&<div className="ab-error"><X size={16}/>{error}</div>}<button className="ab-primary wide" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
+ if(!adminToken)return <div className="agent-business-page"><div className="ab-admin-login"><div className="ab-admin-login-card"><div className="ab-brand"><img className="ab-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><div className="ab-admin-lock">ADMIN ACCESS</div><h1>Admin Sign In</h1><p>Enter the administrator password to manage agents, clients, payments and business records.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus/></label>{error&&<div className="ab-error"><X size={16}/>{error}</div>}<button className="ab-primary wide" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
 
  return <div className="agent-business-page">
   <div className="ab-shell">
