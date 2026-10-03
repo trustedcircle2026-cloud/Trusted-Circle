@@ -29,8 +29,10 @@ async function request(action,payload={}){
   try{
     json=JSON.parse(raw);
   }catch{
-    const preview=String(raw||'').replace(/\\s+/g,' ').trim().slice(0,180);
-    throw new Error('Agent Business backend returned a non-JSON response ('+response.status+'). '+(preview?'Response: '+preview:'Redeploy the latest Apps Script Code.gs and verify the Web App URL.'));
+    if(response.status===404){
+      throw new Error('Agent Business Web App returned 404. The frontend URL points to a missing or old Apps Script deployment. Redeploy the latest Agent Business Code.gs as a Web App and update VITE_AGENT_BUSINESS_API_URL with the current /exec URL.');
+    }
+    throw new Error('Agent Business backend returned an invalid response ('+response.status+'). Redeploy the latest Agent Business Code.gs and verify the Web App /exec URL.');
   }
 
   if(!response.ok || !json.ok) throw new Error(json.error||('Agent Business request failed ('+response.status+').'));
