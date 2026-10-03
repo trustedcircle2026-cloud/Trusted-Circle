@@ -13,8 +13,9 @@ var AGENT_BUSINESS = {
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.2.0',
+  SETUP_VERSION: '1.3.0',
   SESSION_TTL_SECONDS: 21600,
+  READ_CACHE_TTL_SECONDS: 30,
   SHEETS: {
     Agents:['AgentID','AgentCode','AgentName','AgencyName','Mobile','Email','InsuranceCompany','LicenseNumber','Address','BankName','AccountName','AccountNumber','IFSC','UPI','Status','JoinedDate','Notes','CreatedAt','UpdatedAt'],
     AgentUsers:['AgentUserID','AgentID','Email','Mobile','PasswordHash','Status','LastLoginAt','CreatedAt','UpdatedAt'],
@@ -170,6 +171,7 @@ function agentBusinessRoute_(p){
 
   if(action==='agentLogin') return agentLogin_(p);
   if(action==='agentMe') return agentMe_(p);
+  if(action==='agentBootstrap') return agentBootstrap_(p);
   if(action==='agentClients') return agentClients_(p);
   if(action==='agentPaymentRequests') return agentPaymentRequests_(p);
   if(action==='agentAddClient') return agentAddClient_(p);
@@ -233,10 +235,10 @@ function agentLogin_(p){
   if(!/^\d{10}$/.test(mobile)) throw new Error('Enter a valid 10-digit mobile number.');
   if(!/^\d{4}$/.test(password)) throw new Error('Password must be exactly 4 digits.');
   var ss=agentBusinessSpreadsheet_();
-  var users=sheetRows_(ss.getSheetByName('AgentUsers'));
+  var users=cachedSheetRows_(ss.getSheetByName('AgentUsers'),'AgentUsers');
   var user=users.find(function(u){return normalizeMobile_(u.Mobile)===mobile && String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE';});
   if(!user || String(user.PasswordHash||'')!==hashAgentPassword_(password)) throw new Error('Invalid mobile number or password.');
-  var agents=sheetRows_(ss.getSheetByName('Agents'));
+  var agents=cachedSheetRows_(ss.getSheetByName('Agents'),'Agents');
   var agent=agents.find(function(a){return String(a.AgentID)===String(user.AgentID) && String(a.Status||'ACTIVE').toUpperCase()==='ACTIVE';});
   if(!agent) throw new Error('Agent account is inactive or unavailable.');
   var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
@@ -246,8 +248,31 @@ function agentLogin_(p){
   // LastLoginAt can be updated asynchronously from an admin/reporting workflow.
   return {token:token,agent:safeAgent_(agent),expiresIn:AGENT_BUSINESS.SESSION_TTL_SECONDS};
 }
-function agentMe_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents'));var a=agents.find(function(x){return String(x.AgentID)===s.AgentID;});if(!a)throw new Error('Agent account not found.');return {agent:safeAgent_(a)};}
+function agentMe_(p){var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agents=cachedSheetRows_(ss.getSheetByName('Agents'),'Agents');var a=agents.find(function(x){return String(x.AgentID)===s.AgentID;});if(!a)throw new Error('Agent account not found.');return {agent:safeAgent_(a)};}
+function agentBootstrap_(p){
+  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),agentKey='agent:'+s.AgentID;
+  var cached=cacheGetJson_('AGENT_BOOT_'+s.AgentID);
+  if(cached)return cached;
+  var agents=cachedSheetRows_(ss.getSheetByName('Agents'),'Agents');
+  var agent=agents.find(function(x){return String(x.AgentID)===s.AgentID;});
+  if(!agent)throw new Error('Agent account not found.');
+  var clients=cachedSheetRows_(ss.getSheetByName('Clients'),'Clients');
+  var policies=cachedSheetRows_(ss.getSheetByName('Policies'),'Policies');
+  var bills=cachedSheetRows_(ss.getSheetByName('PremiumBills'),'PremiumBills');
+  var requests=cachedSheetRows_(ss.getSheetByName('PaymentRequests'),'PaymentRequests');
+  var ownClients=clients.filter(function(x){return String(x.AgentID)===s.AgentID;});
+  var policyMap={};policies.forEach(function(x){if(String(x.AgentID)===s.AgentID)policyMap[String(x.ClientID)]=x;});
+  var billMap={};bills.forEach(function(x){if(String(x.AgentID)===s.AgentID)billMap[String(x.ClientID)]=x;});
+  var requestMap={};requests.forEach(function(x){if(String(x.AgentID)===s.AgentID)requestMap[String(x.ClientID)]=x;});
+  var items=ownClients.slice().reverse().map(function(client){var policy=policyMap[String(client.ClientID)]||{},bill=billMap[String(client.ClientID)]||{},request=requestMap[String(client.ClientID)]||{};return safeAgentClient_(Object.assign({},client,policy,{PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||'PENDING'}));});
+  var reqItems=requests.filter(function(x){return String(x.AgentID)===s.AgentID;}).slice().reverse().map(function(req){var client=ownClients.find(function(x){return String(x.ClientID)===String(req.ClientID);})||{};var policy=policyMap[String(req.ClientID)]||{};return safeAgentRequest_(Object.assign({},req,{ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||policy.PolicyNumber||''}));});
+  var result={agent:safeAgent_(agent),clients:{items:items,total:items.length},requests:{items:reqItems,total:reqItems.length}};
+  cachePutJson_('AGENT_BOOT_'+s.AgentID,result,15);
+  return result;
+}
 function agentClients_(p){
+  var boot=agentBootstrap_(p);return boot.clients;
+  /*
   var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
   var rows=sheetRows_(ss.getSheetByName('Clients')).filter(function(x){return String(x.AgentID)===s.AgentID;});
   var policies=sheetRows_(ss.getSheetByName('Policies')).filter(function(x){return String(x.AgentID)===s.AgentID;});
@@ -260,6 +285,7 @@ function agentClients_(p){
     var policy=policyMap[String(c.ClientID)]||{},bill=billMap[String(c.ClientID)]||{},request=requestMap[String(c.ClientID)]||{};
     return safeAgentClient_(Object.assign({},c,policy,{PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||'PENDING'}));
   }),total:rows.length};
+  */
 }
 function agentAddClient_(p){
   var s=agentSession_(p.token),data=p.data||{};
@@ -290,6 +316,7 @@ function agentAddClient_(p){
     Message:name+' · Policy '+policyNumber+' · DOB '+dob+' · Agent '+s.AgentID,
     Status:'UNREAD',CreatedAt:new Date().toISOString()
   });
+  cacheRemoveAgent_(s.AgentID);
   return {
     client:safeAgentClient_(client.item),
     paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:name,PolicyNumber:policyNumber})),
@@ -297,6 +324,8 @@ function agentAddClient_(p){
   };
 }
 function agentPaymentRequests_(p){
+  var boot=agentBootstrap_(p);return boot.requests;
+  /*
   var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
   var rows=sheetRows_(ss.getSheetByName('PaymentRequests')).filter(function(x){return String(x.AgentID)===s.AgentID;});
   var clients=sheetRows_(ss.getSheetByName('Clients')),clientMap={};
@@ -304,6 +333,7 @@ function agentPaymentRequests_(p){
   var policies=sheetRows_(ss.getSheetByName('Policies')),policyMap={};
   policies.forEach(function(x){policyMap[String(x.PolicyID)]=x;});
   return {items:rows.reverse().map(function(r){var c=clientMap[String(r.ClientID)]||{},p=policyMap[String(r.PolicyID)]||{};return safeAgentRequest_(Object.assign({},r,{ClientName:c.ClientName||'',PolicyNumber:c.PolicyNumber||p.PolicyNumber||''}));}),total:rows.length};
+  */
 }
 function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
@@ -348,6 +378,7 @@ function adminCreateAgent_(p){
   });
 
   var user=createAgentUser(agent.id,mobile,password);
+  invalidateSheetCache_('Agents');invalidateSheetCache_('AgentUsers');
   return {agent:safeAgent_(agent.item),agentUserId:user.id,message:'Agent created and login credentials initialized.'};
 }
 
@@ -376,6 +407,7 @@ function adminSetAgentPassword_(p){
   row.UpdatedAt=new Date().toISOString();
   var headers=AGENT_BUSINESS.SHEETS.AgentUsers;
   sheet.getRange(idx+2,1,1,headers.length).setValues([headers.map(function(h){return row[h]===undefined?'':row[h];})]);
+  invalidateSheetCache_('AgentUsers');
   return {agentUserId:row.AgentUserID,message:'Agent password updated.'};
 }
 
@@ -384,7 +416,7 @@ function createAgentUser(agentId,mobile,password){
   var ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(a){return String(a.AgentID)===String(agentId);});
   if(!agent) throw new Error('Agent not found.');
   var row={AgentUserID:newId_('AgentUserID'),AgentID:agent.AgentID,Email:agent.Email||'',Mobile:mobile,PasswordHash:hashAgentPassword_(password),Status:'ACTIVE'};
-  return saveRow_(ss,'AgentUsers',row);
+  var result=saveRow_(ss,'AgentUsers',row);invalidateSheetCache_('AgentUsers');return result;
 }
 function agentBusinessSpreadsheet_(){
   var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
@@ -435,6 +467,11 @@ function dashboard_(ss){
   var actual=cash.reduce(function(s,r){return s+Number(r.ActualCashback||0);},0);
   return {counts,metrics:{paymentVolume:volume,customerCollected:collected,expectedCashback:expected,actualCashback:actual,customerDiscount:Math.max(0,volume-collected),pendingBills:bills.filter(function(r){return !['PAID','CANCELLED'].includes(String(r.PaymentStatus||'').toUpperCase());}).length}};
 }
+function cacheGetJson_(key){try{var raw=CacheService.getScriptCache().get(String(key));return raw?JSON.parse(raw):null;}catch(e){return null;}}
+function cachePutJson_(key,value,ttl){try{var raw=JSON.stringify(value);if(raw.length<=90000)CacheService.getScriptCache().put(String(key),raw,ttl||AGENT_BUSINESS.READ_CACHE_TTL_SECONDS);}catch(e){}}
+function cachedSheetRows_(sheet,name){var key='AGENT_SHEET_'+name,hit=cacheGetJson_(key);if(hit)return hit;var rows=sheetRows_(sheet);cachePutJson_(key,rows,AGENT_BUSINESS.READ_CACHE_TTL_SECONDS);return rows;}
+function invalidateSheetCache_(name){try{CacheService.getScriptCache().remove('AGENT_SHEET_'+name);}catch(e){}}
+function cacheRemoveAgent_(agentId){try{CacheService.getScriptCache().remove('AGENT_BOOT_'+String(agentId));}catch(e){}}
 function sheetRows_(sheet){
   if(!sheet||sheet.getLastRow()<2)return [];
   var headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
