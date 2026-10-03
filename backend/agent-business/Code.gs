@@ -142,19 +142,28 @@ function freshSetupAgentBusinessSheets(spreadsheetId){
   };
 }
 
-function doGet(e){return agentBusinessResponse_(agentBusinessRoute_(e&&e.parameter?e.parameter:{}));}
+function doGet(e){
+  return agentBusinessResponse_(agentBusinessRouteSafe_(e&&e.parameter?e.parameter:{}));
+}
 function doPost(e){
   var input={};
   try{input=JSON.parse(String(e&&e.postData&&e.postData.contents||'{}'));}catch(err){input=e&&e.parameter?e.parameter:{};}
-  return agentBusinessResponse_(agentBusinessRoute_(input));
+  return agentBusinessResponse_(agentBusinessRouteSafe_(input));
 }
 function agentBusinessResponse_(data){
-  return ContentService.createTextOutput(JSON.stringify({ok:true,data:data})).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+function agentBusinessRouteSafe_(p){
+  try{
+    return {ok:true,data:agentBusinessRoute_(p)};
+  }catch(err){
+    return {ok:false,error:String(err&&err.message||err)};
+  }
 }
 function agentBusinessRoute_(p){
   var action=String(p.action||'dashboard');
-  var ss=agentBusinessSpreadsheet_();
 
+  if(action==='health') return {service:'Trusted Circle Agent Business',status:'ok',setupVersion:AGENT_BUSINESS.SETUP_VERSION};
   if(action==='adminLogin') return adminLogin_(p);
   if(action==='adminMe') return adminMe_(p);
   if(action==='adminLogout') return adminLogout_(p);
@@ -165,6 +174,7 @@ function agentBusinessRoute_(p){
   if(action==='agentAddClient') return agentAddClient_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
+  var ss=agentBusinessSpreadsheet_();
   requireAdmin_(p);
   if(action==='dashboard') return dashboard_(ss);
   if(action==='list') return listRows_(ss,String(p.sheet||''),p);
