@@ -47,3 +47,18 @@ The Agent Business portals are separate Vite HTML entry points and do not use th
 - Admin Portal: `/admin-portal.html`
 
 The Shopping Website footer links directly to these standalone pages.
+
+
+## Fresh database reset
+
+The Agent Business database reset is intentionally destructive. Before using a reset, make a backup/export of the Google Sheet.
+
+For a fresh database based on the current `AGENT_BUSINESS.SHEETS` schema, the reset operation should:
+1. Preserve the Google Spreadsheet itself.
+2. Remove all existing data from the managed Agent Business tabs.
+3. Recreate the current headers and Settings defaults.
+4. Preserve no old Agent, AgentUser, Client, Payment, Card, Cashback, Ledger, Settlement, Expense, Notification, or Audit records.
+
+Current schema version: `1.1.0`.
+
+After a fresh reset, create AgentUsers again because the agent login now requires a mobile number and 4-digit password.
