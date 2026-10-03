@@ -1,9 +1,39 @@
-# Trusted Circle Agent Business Backend
+# Trusted Circle Agent Business
 
-Dedicated backend module for the Insurance Agent Business.
+Dedicated backend and frontend for the Agent Business module.
 
-The module uses the dedicated Agent Business Google Sheet and is separated from the Shopping, Books, and Cards backends.
+## Google Apps Script setup
 
-Module files intentionally do not use the word `Insurance` in their filenames.
+Paste **Code.gs** into a new Apps Script project connected to the dedicated Agent Business Google Sheet.
 
-Planned data areas: Agents, AgentUsers, Clients, Policies, PremiumBills, PaymentRequests, Payments, Receipts, Cards, CardRules, CardTransactions, Cashback, AgentSettlements, MoneyLedger, Expenses, Notifications, AuditLogs, Settings.
+Run exactly one setup function:
+
+```javascript
+setupAgentBusinessSheets('1goWIbN1aQtxCs9PoNPLPl0xfFdCwI5vJxh4TOtahbl0')
+```
+
+This creates/checks all required tabs without clearing existing data.
+
+After authorizing, deploy as a Web App:
+- Execute as: Me
+- Who has access: Anyone
+
+Copy the Web App URL and configure the frontend build variable:
+
+```
+VITE_AGENT_BUSINESS_API_URL=https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec
+```
+
+The frontend client is `src/agentBusinessApi.js`.
+
+## Frontend
+
+Hidden route:
+
+`#/agent-business`
+
+The Shopping footer exposes **Agent Business** immediately beside **ERP Login**.
+
+## Database tabs created by setupAgentBusinessSheets()
+
+Agents, AgentUsers, Clients, Policies, PremiumBills, PaymentRequests, Payments, Receipts, Cards, CardRules, CardTransactions, Cashback, AgentSettlements, MoneyLedger, Expenses, Notifications, AuditLogs, Settings.
