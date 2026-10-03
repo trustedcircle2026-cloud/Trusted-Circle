@@ -18,5 +18,7 @@ export const agentBusinessApi={
   agentClients:(token)=>request('agentClients',{token}),
   agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
   agentLogout:(token)=>request('agentLogout',{token}),
+  createAgent:(data)=>request('createAgent',{data}),
+  setAgentPassword:(agentId,password)=>request('setAgentPassword',{agentId,password}),
   isConfigured:()=>Boolean(API_URL)
 };
