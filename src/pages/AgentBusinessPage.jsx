@@ -114,7 +114,7 @@ export default function AgentBusinessPage(){
      }
 
      if(!raw)throw new Error('No QR code was detected. Please upload the original QR image or a clear screenshot where the complete QR is visible.');
-     if(!/^https?:\/\//i.test(raw))throw new Error('QR detected, but it does not contain an HTTP/HTTPS payment link.');
+     if(!/^(?:https?:\/\/|upi:\/\/pay\?)/i.test(raw))throw new Error('QR detected, but it is not a supported HTTPS or UPI payment link.');
      setInvoiceLinkModal(prev=>prev?{...prev,paymentLink:raw}:{invoiceId:'',paymentLink:raw});
      setNotice('Payment QR read successfully. The payment URL has been extracted.');
    }catch(e){setError(e.message||'Unable to read the QR image.')}
