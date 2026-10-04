@@ -195,6 +195,7 @@ function agentBusinessRoute_(p){
   if(action==='agentInvoices') return agentInvoices_(p);
   if(action==='agentInvoicePdf') return agentInvoicePdf_(p);
   if(action==='agentReceiptFile') return agentReceiptFile_(p);
+  if(action==='agentOutstandingSummary') return agentOutstandingSummary_(p);
   if(action==='agentReportInvoicePaymentDone') return agentReportInvoicePaymentDone_(p);
   if(action==='invoicePaymentDecision') return invoicePaymentDecision_(p);
   if(action==='agentLogout') return agentLogout_(p);
@@ -444,6 +445,44 @@ function agentInvoices_(p){
     outstandingAmount:Math.round(outstanding*100)/100,
     earningsToDate:Math.round(receivedDiscount*100)/100
   };
+}
+function agentOutstandingSummary_(p){
+  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
+  var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){
+    return String(x.AgentID)===String(s.AgentID)&&!['PAID','SETTLED','CANCELLED'].includes(String(x.PaymentStatus||'UNPAID').toUpperCase());
+  }).sort(function(a,b){return new Date(a.InvoiceDate||0).getTime()-new Date(b.InvoiceDate||0).getTime();});
+  if(!invoices.length)throw new Error('There is no outstanding payable balance.');
+  var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems'));
+  var payments=sheetRows_(ss.getSheetByName('Payments'));
+  var rows=[],gross=0,discount=0,net=0;
+  invoices.forEach(function(inv){
+    items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);}).forEach(function(it){
+      var pay=payments.find(function(x){return String(x.PaymentID)===String(it.PaymentID);})||{};
+      var amt=Number(it.Amount||0),disc=Number(it.DiscountAmount||0),n=Number(it.NetAmount||amt-disc);
+      gross+=amt;discount+=disc;net+=n;
+      rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(pay.PaymentDate||inv.InvoiceDate),String(it.ClientName||''),String(it.PolicyNumber||''),formatInvoiceDate_(it.DateOfBirth||''),formatMoney_(amt)]);
+    });
+  });
+  var reportDate=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'dd-MMM-yyyy');
+  var doc=DocumentApp.create('Outstanding Summary · '+String(s.AgentID));
+  var body=doc.getBody();body.setMarginTop(24).setMarginBottom(24).setMarginLeft(28).setMarginRight(28);
+  try{var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();var lp=body.appendParagraph('');lp.setAlignment(DocumentApp.HorizontalAlignment.LEFT);var im=lp.appendInlineImage(logo);im.setWidth(58);im.setHeight(58);}catch(e){}
+  var title=body.appendParagraph('TRUSTED CIRCLE');title.setBold(true).setFontSize(18).setForegroundColor('#064f3b');
+  var sub=body.appendParagraph('CURRENT OUTSTANDING PAYABLE SUMMARY');sub.setBold(true).setFontSize(11);
+  var agentName=String((sheetRows_(ss.getSheetByName('Agents')).find(function(a){return String(a.AgentID)===String(s.AgentID);})||{}).AgentName||'Agent');
+  body.appendParagraph('Agent: '+agentName).setFontSize(9);
+  body.appendParagraph('Outstanding Payable as on '+reportDate).setBold(true).setFontSize(10).setSpacingAfter(8);
+  var table=body.appendTable([['Invoice No.','Premium Paid Date','Name','Policy','DOB','Amt']].concat(rows));
+  table.setBorderWidth(1);
+  for(var r=0;r<table.getNumRows();r++){for(var col=0;col<table.getRow(r).getNumCells();col++){var cell=table.getCell(r,col);cell.editAsText().setFontSize(7);if(r===0){cell.setBackgroundColor('#eef5f1');cell.editAsText().setBold(true);}}}
+  body.appendParagraph('');
+  var totals=body.appendTable([['TOTAL AMOUNT',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
+  totals.setBorderWidth(1);for(var tr=0;tr<3;tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(9);totals.getCell(tr,1).editAsText().setBold(true).setFontSize(9);}
+  body.appendParagraph('SYSTEM GENERATED SUMMARY — NO SIGNATURE REQUIRED.').setFontSize(7).setItalic(true).setSpacingBefore(10);
+  doc.saveAndClose();
+  var file=DriveApp.getFileById(doc.getId());
+  var folder=DriveApp.getFolderById(TRUSTED_CIRCLE_INVOICE_FOLDER_ID);folder.addFile(file);try{DriveApp.getRootFolder().removeFile(file);}catch(e){}
+  var blob=file.getBlob();return {fileName:'Outstanding-Summary-'+reportDate+'.pdf',pdfUrl:file.getUrl(),base64:Utilities.base64Encode(blob.getBytes())};
 }
 function agentReceiptFile_(p){
   var s=agentSession_(p.token),paymentId=String(p.paymentId||'').trim();
