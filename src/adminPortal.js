@@ -1,6 +1,10 @@
 import {agentBusinessApi} from './agentBusinessApi.js'
 
-const LOGO='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
+const LOGO=''
+const CACHE_TTL=30000
+const cacheKey=k=>'tc_admin_cache_'+k
+const readCache=k=>{try{const x=JSON.parse(sessionStorage.getItem(cacheKey(k))||'null');return x&&Date.now()-x.time<CACHE_TTL?x.data:null}catch{return null}}
+const writeCache=(k,data)=>{try{sessionStorage.setItem(cacheKey(k),JSON.stringify({time:Date.now(),data}))}catch{}}
 const AMAZON='https://www.amazon.in/apay/interstitial/insurance/LICOB?ref_=apay_interstitial_biller_search_to_form_field_insurance'
 const RECEIPT_EMAIL='info@trustedcircle.in'
 const page=document.currentScript?.dataset?.page||'home'
@@ -18,7 +22,7 @@ function nav(active){
  return '<nav class="tc-bottom">'+items.map(x=>'<a class="'+(active===x[3]?'active':'')+'" href="'+x[0]+'"><b>'+x[1]+'</b><span>'+x[2]+'</span></a>').join('')+'</nav>'
 }
 function shell(active,body,counts={}){
- return '<div class="tc-page"><div class="tc-shell"><header class="tc-header"><a class="tc-brand" href="index.html" style="text-decoration:none"><img src="'+LOGO+'" alt="Trusted Circle"><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></a><div class="tc-head-actions"><a class="tc-icon" href="requests.html" aria-label="Requests">↗'+(Number(counts.PaymentRequests||0)?'<b>'+esc(counts.PaymentRequests)+'</b>':'')+'</a><button class="tc-avatar" id="profileBtn" type="button">A</button></div></header>'+body+nav(active)+'</div></div>'
+ return '<div class="tc-page"><div class="tc-shell"><header class="tc-header"><a class="tc-brand" href="index.html" style="text-decoration:none"><span class="tc-mark" aria-hidden="true">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></a><div class="tc-head-actions"><a class="tc-icon" href="requests.html" aria-label="Requests">↗'+(Number(counts.PaymentRequests||0)?'<b>'+esc(counts.PaymentRequests)+'</b>':'')+'</a><button class="tc-avatar" id="profileBtn" type="button">A</button></div></header>'+body+nav(active)+'</div></div>'
 }
 function login(){
  root.innerHTML='<div class="tc-login"><div class="tc-login-card"><div class="tc-brand"><img src="'+LOGO+'" alt="Trusted Circle"><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><span class="tc-kicker">SECURE ADMIN ACCESS</span><h1>Admin Sign In</h1><p>Sign in to manage agents, payment requests and business operations.</p><label>Admin Password<input id="adminPassword" type="password" autocomplete="current-password" placeholder="Enter admin password"></label><div id="loginError"></div><button class="tc-btn primary" id="loginBtn">Sign In</button></div></div>'
@@ -30,9 +34,12 @@ function profileModal(){
  const bg=document.createElement('div');bg.className='tc-modal-bg';bg.innerHTML='<div class="tc-modal"><button class="tc-close">×</button><span class="tc-kicker">ADMIN PROFILE</span><h2 style="margin:5px 0;font-size:23px">Admin</h2><p class="tc-subtitle">Trusted Circle Administrator</p><div class="tc-card" style="margin-top:14px"><div class="tc-field"><small>Access</small><span>Full Business Administration</span></div><div class="tc-field"><small>Email</small><span>trustedcircle2026@gmail.com</span></div></div><button class="tc-btn danger" id="signOut" style="width:100%;margin-top:12px">Sign Out</button></div>'
  document.body.appendChild(bg);bg.querySelector('.tc-close').onclick=()=>bg.remove();bg.onclick=e=>{if(e.target===bg)bg.remove()};bg.querySelector('#signOut').onclick=async()=>{try{await agentBusinessApi.adminLogout(getToken())}catch{}setToken('');location.reload()}
 }
+function loading(label='Loading…'){
+ root.innerHTML='<div class="tc-page"><div class="tc-shell"><header class="tc-header"><a class="tc-brand" href="index.html" style="text-decoration:none"><span class="tc-mark">TC</span><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></a><div class="tc-avatar">A</div></header><main class="tc-content"><span class="tc-kicker">TRUSTED CIRCLE · ADMIN</span><h1 class="tc-title">'+esc(label)+'</h1><p class="tc-subtitle">Preparing your workspace…</p><div class="tc-skeleton"><i></i><i></i><i></i><i></i></div></main></div></div>'
+}
 async function bootstrap(){
  if(!getToken()){login();return}
- try{await agentBusinessApi.adminMe(getToken())}catch(e){setToken('');login();return}
+ loading(page==='home'?'Dashboard':title(page))
  try{if(page==='home')await home();else if(page==='agents')await agents();else if(page==='requests')await requests();else if(page==='history')await history();else await more()}catch(e){root.innerHTML='<div class="tc-page"><div class="tc-content"><div class="tc-error">'+esc(e.message)+'</div><button class="tc-btn primary" onclick="location.reload()">Reload</button></div></div>'}
  const p=document.getElementById('profileBtn');if(p)p.onclick=profileModal
 }
