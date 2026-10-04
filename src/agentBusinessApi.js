@@ -69,6 +69,7 @@ export const agentBusinessApi={
   agentClientHistory:(token,clientId)=>request('agentClientHistory',{token,clientId}),
   agentInvoices:(token)=>request('agentInvoices',{token}),
   agentInvoicePdf:(token,invoiceId)=>request('agentInvoicePdf',{token,invoiceId}),
+ agentPremiumReceipts:(token)=>request('agentPremiumReceipts',{token}),
  agentReceiptFile:(token,paymentId)=>request('agentReceiptFile',{token,paymentId}),
  agentOutstandingSummary:(token)=>request('agentOutstandingSummary',{token}),
   agentReportInvoicePaymentDone:(token,invoiceId)=>request('agentReportInvoicePaymentDone',{token,invoiceId}),
