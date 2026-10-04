@@ -104,7 +104,6 @@ export default function AgentPortalPage(){
    <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage saved clients and raise a premium payment request only when needed.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-   <div className="ap-stats"><Stat icon={FileText} label="Clients" value={clients.length} tone="green"/><Stat icon={Send} label="Payment Requests" value={requests.length} tone="blue"/><Stat icon={Clock3} label="Pending Requests" value={pending} tone="amber"/><Stat icon={ShieldCheck} label="Account Access" value="Active" tone="purple"/></div>
    <div className="ap-tabs">
     <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><FileText size={15}/>My Clients</button>
     <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={15}/>Payment Requests <span>{pending}</span></button>
