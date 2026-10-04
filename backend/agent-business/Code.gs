@@ -506,10 +506,30 @@ function agentReceiptFile_(p){
   var payments=sheetRows_(ss.getSheetByName('Payments')),payment=payments.find(function(x){return String(x.PaymentID)===paymentId&&String(x.AgentID)===String(s.AgentID);});
   if(!payment)throw new Error('Payment not found.');
   var receipts=sheetRows_(ensureBusinessSheet_(ss,'Receipts')),receipt=receipts.find(function(x){return String(x.PaymentID)===paymentId;});
-  if(!receipt||!receipt.ReceiptFileId)throw new Error('Payment receipt is not available.');
-  var file=DriveApp.getFileById(String(receipt.ReceiptFileId));
+  var file=null;
+  if(receipt&&receipt.ReceiptFileId){
+    try{file=DriveApp.getFileById(String(receipt.ReceiptFileId));}catch(e){file=null;}
+  }
+  // Recover receipts uploaded before the Receipts row was persisted.
+  if(!file){
+    var folder=DriveApp.getFolderById(INSURANCE_PREMIUM_RECEIPT_FOLDER_ID);
+    var files=folder.getFiles();
+    while(files.hasNext()){
+      var candidate=files.next();
+      if(String(candidate.getName()).indexOf(paymentId)!==-1){file=candidate;break;}
+    }
+    if(file&&!receipt){
+      saveRow_(ss,'Receipts',{
+        ReceiptID:newId_('ReceiptID'),PaymentID:paymentId,
+        ReceiptNumber:'TC-REC-'+paymentId.slice(-8),ReceiptUrl:file.getUrl(),
+        ReceiptFileId:file.getId(),FileName:file.getName(),MimeType:file.getMimeType(),
+        ReceiptDate:payment.PaymentDate||'',Notes:'Recovered premium payment receipt'
+      });
+    }
+  }
+  if(!file)throw new Error('Payment receipt is not available.');
   var blob=file.getBlob();
-  return {paymentId:paymentId,fileName:receipt.FileName||file.getName(),mimeType:blob.getContentType(),base64:Utilities.base64Encode(blob.getBytes())};
+  return {paymentId:paymentId,fileName:file.getName(),mimeType:blob.getContentType(),driveUrl:file.getUrl(),fileId:file.getId(),base64:Utilities.base64Encode(blob.getBytes())};
 }
 function agentReportInvoicePaymentDone_(p){
   var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
