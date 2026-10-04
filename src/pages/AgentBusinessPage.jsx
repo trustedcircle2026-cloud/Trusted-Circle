@@ -28,35 +28,56 @@ export default function AgentBusinessPage(){
  const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
+ const enrichPaymentRequests=async(items)=>{
+   if(!items.length)return items
+   try{
+     const clientResult=await agentBusinessApi.list('Clients',{limit:500},adminToken)
+     const clients=clientResult.items||[]
+     const byId=new Map(clients.map(client=>[String(client.ClientID),client]))
+     return items.map(request=>{
+       const client=byId.get(String(request.ClientID))||{}
+       return {
+         ...request,
+         ClientName:request.ClientName||client.ClientName||'',
+         PolicyNumber:request.PolicyNumber||client.PolicyNumber||'',
+         DateOfBirth:request.DateOfBirth||client.DateOfBirth||'',
+       }
+     })
+   }catch(e){return items}
+ }
+ const loadHistory=async()=>{
+   if(!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return
+   setLoading(true);setError('')
+   try{
+     const [paymentsResult,requestsResult,paymentSchema]=await Promise.all([
+       agentBusinessApi.list('Payments',{search},adminToken),
+       agentBusinessApi.list('PaymentRequests',{search},adminToken),
+       agentBusinessApi.schema('Payments',adminToken)
+     ])
+     const payments=(paymentsResult.items||[]).map(row=>({...row,HistoryType:'PAYMENT'}))
+     const requests=await enrichPaymentRequests(requestsResult.items||[])
+     const historicalRequests=requests
+       .filter(row=>!['PENDING','SUBMITTED'].includes(String(row.Status||row.RequestStatus||'').toUpperCase()))
+       .map(row=>({...row,HistoryType:'REQUEST'}))
+     const merged=[...payments,...historicalRequests]
+     merged.sort((a,b)=>{
+       const da=new Date(a.PaidAt||a.PaymentDate||a.CreatedAt||a.UpdatedAt||a.RequestDate||0).getTime()
+       const db=new Date(b.PaidAt||b.PaymentDate||b.CreatedAt||b.UpdatedAt||b.RequestDate||0).getTime()
+       return db-da
+     })
+     setRows(merged);setSchema(paymentSchema.fields||[])
+   }catch(e){setError(e.message)}finally{setLoading(false)}
+ }
  const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{
    const [r,s]=await Promise.all([agentBusinessApi.list(module,{search},adminToken),agentBusinessApi.schema(module,adminToken)])
    let items=r.items||[]
-   // PaymentRequests only stores ClientID in the business database. Enrich each request
-   // from Clients so Admin always sees the policy number and DOB entered by the agent.
-   if(module==='PaymentRequests'&&items.length){
-     try{
-       const clientResult=await agentBusinessApi.list('Clients',{limit:500},adminToken)
-       const clients=clientResult.items||[]
-       const byId=new Map(clients.map(client=>[String(client.ClientID),client]))
-       items=items.map(request=>{
-         const client=byId.get(String(request.ClientID))||{}
-         return {
-           ...request,
-           ClientName:request.ClientName||client.ClientName||'',
-           PolicyNumber:request.PolicyNumber||client.PolicyNumber||'',
-           DateOfBirth:request.DateOfBirth||client.DateOfBirth||'',
-         }
-       })
-       // Requests view is intentionally an active-work queue. Paid/completed/cancelled
-       // requests belong in payment history, not the Requests tab.
-       items=items.filter(request=>!['PAID','COMPLETED','CANCELLED'].includes(String(request.Status||request.RequestStatus||'').toUpperCase()))
-     }catch(e){
-       // Keep the request list usable even if the client enrichment call fails.
-     }
+   if(module==='PaymentRequests')items=await enrichPaymentRequests(items)
+   if(module==='PaymentRequests'){
+     items=items.filter(request=>!['PAID','COMPLETED','CANCELLED'].includes(String(request.Status||request.RequestStatus||'').toUpperCase()))
    }
    setRows(items);setSchema(s.fields||[])
  }catch(e){setError(e.message)}finally{setLoading(false)}}
- useEffect(()=>{if(!adminToken)return; if(module==='__dashboard')loadDashboard(); else loadModule()},[module,adminToken])
+ useEffect(()=>{if(!adminToken)return; if(module==='__dashboard')loadDashboard(); else if(activeTab==='history')loadHistory(); else loadModule()},[module,adminToken,activeTab])
  const metrics=dashboard?.metrics||{}
  const count=key=>dashboard?.counts?.[key]||0
  const fields=useMemo(()=>rows.length?Object.keys(rows[0]).slice(0,10):[],[rows])
@@ -125,7 +146,7 @@ export default function AgentBusinessPage(){
     {activeTab==='history'&&<section className="tc-page">
       <PageHeader kicker="PAYMENT HISTORY" title="History" text="View completed payment records and receipts." onRefresh={()=>loadModule()} loading={loading}/>
       <div className="tc-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadModule()} placeholder="Search payment history"/></div>
-      <RecordList rows={rows} fields={fields} loading={loading} onEdit={editRow} onDelete={deleteRow} module="Payments"/>
+      <HistoryList rows={rows} loading={loading} onEdit={editRow} onDelete={deleteRow}/>
     </section>}
 
     {activeTab==='more'&&<section className="tc-page tc-more-page">
@@ -166,9 +187,10 @@ export default function AgentBusinessPage(){
 }
 
 function PageHeader({kicker,title,text,onRefresh,loading,onAdd,addLabel}){return <div className="tc-page-head"><div><span className="tc-kicker">{kicker}</span><h1>{title}</h1><p>{text}</p></div><div className="tc-page-actions">{onRefresh&&<button onClick={onRefresh} disabled={loading}><RefreshCw size={15} className={loading?'tc-spin':''}/></button>}{onAdd&&<button className="tc-add-button" onClick={onAdd}><Plus size={16}/><span>{addLabel}</span></button>}</div></div>}
-function PaymentRequestList({rows,loading,onRefresh,onEdit,onDelete}){if(loading)return <div className="tc-empty"><RefreshCw className="tc-spin" size={22}/><span>Loading payment requests…</span></div>;if(!rows.length)return <div className="tc-empty"><Send size={22}/><strong>No payment requests</strong><span>Requests raised by agents will appear here.</span></div>;return <div className="tc-payment-request-list">{rows.map((r,i)=><PaymentRequestCard key={r.RequestID||i} request={r} onEdit={onEdit} onDelete={onDelete}/>)}</div>}
+function PaymentRequestList({rows,loading,onRefresh,onEdit,onDelete}){if(loading)return <div className="tc-empty"><RefreshCw className="tc-spin" size={22}/><span>Loading payment requests…</span></div>;if(!rows.length)return <div className="tc-empty"><Send size={22}/><strong>No pending payment requests</strong><span>New requests raised by agents will appear here.</span></div>;return <div className="tc-payment-request-list">{rows.map((r,i)=><PaymentRequestCard key={r.RequestID||i} request={r} onEdit={onEdit} onDelete={onDelete}/>)}</div>}
 function formatAmazonDob(value){const raw=String(value||'').trim();if(!raw)return '';const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[3]+'/'+m[2]+'/'+m[1];const d=new Date(raw);if(!Number.isNaN(d.getTime()))return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();return raw}
-function PaymentRequestCard({request:r,onEdit,onDelete}){const [copied,setCopied]=useState('');const status=String(r.Status||r.RequestStatus||'PENDING').toUpperCase();const policy=r.PolicyNumber||r.PolicyNo||'';const dob=formatAmazonDob(r.DateOfBirth||r.DOB||'');const client=r.ClientName||r.Name||'Client';const copy=async(label,value)=>{if(!value)return;try{await navigator.clipboard.writeText(String(value));setCopied(label);setTimeout(()=>setCopied(''),1300)}catch{setCopied('Copy manually')}};const startPayment=async()=>{const bundle='Policy Number: '+policy+'\\nDate of Birth: '+dob+'\\nReceipt Email: '+PAYMENT_RECEIPT_EMAIL;try{await navigator.clipboard.writeText(bundle)}catch{}window.open(AMAZON_INSURANCE_URL,'_blank','noopener,noreferrer')};return <div className="tc-payment-card"><div className="tc-payment-head"><div className="tc-record-avatar"><Send size={16}/></div><div><strong>{client}</strong><small>Payment Request · {status}</small></div><span className={'tc-status '+status.toLowerCase()}>{status}</span></div><div className="tc-payment-details"><div><small>Policy Number</small><strong>{policy||'Not available'}</strong><button onClick={()=>copy('policy',policy)}>{copied==='policy'?'✓ Copied':'Copy'}</button></div><div><small>Date of Birth</small><strong>{dob||'Not available'}</strong><button onClick={()=>copy('dob',dob)}>{copied==='dob'?'✓ Copied':'Copy'}</button></div><div><small>Receipt Email</small><strong>{PAYMENT_RECEIPT_EMAIL}</strong><button onClick={()=>copy('email',PAYMENT_RECEIPT_EMAIL)}>{copied==='email'?'✓ Copied':'Copy'}</button></div></div><div className="tc-payment-actions"><button className="tc-amazon-button" disabled={!policy||!dob} onClick={startPayment}><span>₹</span> Open Amazon Insurance</button><button onClick={()=>onEdit(r)}>Details</button>{['PENDING','SUBMITTED'].includes(status)&&<button className="danger" onClick={()=>onDelete(r)}>Cancel</button>}</div><div className="tc-payment-hint">Opening Amazon copies Policy Number, Email and DOB (DD/MM/YYYY) together for quick entry. Amazon's public insurance URL does not expose a documented query-string autofill interface.</div></div>}
+function PaymentRequestCard({request:r,onEdit,onDelete}){const [copied,setCopied]=useState('');const [paying,setPaying]=useState(false);const status=String(r.Status||r.RequestStatus||'PENDING').toUpperCase();const policy=r.PolicyNumber||r.PolicyNo||'';const dob=formatAmazonDob(r.DateOfBirth||r.DOB||'');const client=r.ClientName||r.Name||'Client';const copy=async(label,value)=>{if(!value)return;try{await navigator.clipboard.writeText(String(value));setCopied(label);setTimeout(()=>setCopied(''),1300)}catch{setCopied('Copy manually')}};const markPaid=async()=>{if(paying)return;const idField=r.RequestID?'RequestID':Object.keys(r).find(key=>/request.?id/i.test(key))||'RequestID';const id=r[idField];if(!id)return;setPaying(true);try{const updated={...r,Status:'PAID'};if(Object.prototype.hasOwnProperty.call(r,'RequestStatus'))updated.RequestStatus='PAID';await agentBusinessApi.save('PaymentRequests',updated,localStorage.getItem('tc_agent_admin_session')||'');window.dispatchEvent(new Event('tc-payment-request-paid'));}catch(error){window.dispatchEvent(new CustomEvent('tc-payment-request-error',{detail:error.message}))}finally{setPaying(false)}};const startPayment=async()=>{const bundle='Policy Number: '+policy+'\\nDate of Birth: '+dob+'\\nReceipt Email: '+PAYMENT_RECEIPT_EMAIL;try{await navigator.clipboard.writeText(bundle)}catch{}window.open(AMAZON_INSURANCE_URL,'_blank','noopener,noreferrer')};return <div className="tc-payment-card"><div className="tc-payment-head"><div className="tc-record-avatar"><Send size={16}/></div><div><strong>{client}</strong><small>Payment Request · {status}</small></div><span className={'tc-status '+status.toLowerCase()}>{status}</span></div><div className="tc-payment-details"><div><small>Policy Number</small><strong>{policy||'Not available'}</strong><button onClick={()=>copy('policy',policy)}>{copied==='policy'?'✓ Copied':'Copy'}</button></div><div><small>Date of Birth</small><strong>{dob||'Not available'}</strong><button onClick={()=>copy('dob',dob)}>{copied==='dob'?'✓ Copied':'Copy'}</button></div><div><small>Receipt Email</small><strong>{PAYMENT_RECEIPT_EMAIL}</strong><button onClick={()=>copy('email',PAYMENT_RECEIPT_EMAIL)}>{copied==='email'?'✓ Copied':'Copy'}</button></div></div><div className="tc-payment-actions"><button className="tc-amazon-button" disabled={!policy||!dob} onClick={startPayment}><span>₹</span> Open Amazon Insurance</button>{['PENDING','SUBMITTED'].includes(status)&&<button className="tc-paid-button" disabled={paying} onClick={markPaid}>{paying?'Saving…':'✓ Paid'}</button>}<button onClick={()=>onEdit(r)}>Details</button>{['PENDING','SUBMITTED'].includes(status)&&<button className="danger" onClick={()=>onDelete(r)}>Cancel</button>}</div><div className="tc-payment-hint">Opening Amazon copies Policy Number, Email and DOB (DD/MM/YYYY) together for quick entry. Mark <strong>Paid</strong> only after the payment is successfully completed.</div></div>}
+function HistoryList({rows,loading,onEdit,onDelete}){if(loading)return <div className="tc-empty"><RefreshCw className="tc-spin" size={22}/><span>Loading transaction history…</span></div>;if(!rows.length)return <div className="tc-empty"><FileText size={22}/><strong>No transactions found</strong><span>Paid, cancelled and completed transactions will appear here.</span></div>;return <div className="tc-payment-request-list">{rows.map((r,i)=>{const status=String(r.Status||r.RequestStatus||'PAID').toUpperCase();const isRequest=r.HistoryType==='REQUEST';return <div className="tc-payment-card tc-history-card" key={(r.PaymentID||r.RequestID||r.TransactionID||i)+'-'+i}><div className="tc-payment-head"><div className="tc-record-avatar"><CircleDollarSign size={16}/></div><div><strong>{r.ClientName||r.Name||r.PolicyNumber||r.PolicyNo||'Transaction'}</strong><small>{isRequest?'Payment Request':'Payment'} · {status}</small></div><span className={'tc-status '+status.toLowerCase()}>{status}</span></div><div className="tc-payment-details"><div><small>Policy Number</small><strong>{r.PolicyNumber||r.PolicyNo||'—'}</strong></div><div><small>Amount</small><strong>{money(r.Amount||r.PremiumAmount||r.PaidAmount||0)}</strong></div><div><small>Date</small><strong>{r.PaidAt||r.PaymentDate||r.CreatedAt||r.UpdatedAt||r.RequestDate||'—'}</strong></div><div><small>Type</small><strong>{isRequest?'Request History':'Payment Record'}</strong></div></div><div className="tc-payment-actions">{onEdit&&<button onClick={()=>onEdit(r)}>Details</button>}{isRequest&&onDelete&&status==='CANCELLED'&&<button className="danger" onClick={()=>onDelete(r)}>Delete</button>}</div></div>})}</div>}
 function RecordList({rows,fields,loading,onEdit,onDelete,onPassword,module}){if(loading)return <div className="tc-empty"><RefreshCw className="tc-spin" size={22}/><span>Loading records…</span></div>;if(!rows.length)return <div className="tc-empty"><FileText size={22}/><strong>No records found</strong><span>Add records or refresh to load the latest data.</span></div>;return <div className="tc-record-list">{rows.map((r,i)=><div className="tc-record-card" key={i}><div className="tc-record-main"><span className="tc-record-avatar">{String(r.AgentName||r.ClientName||r.Name||r.PolicyNumber||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.AgentName||r.ClientName||r.Name||r.PolicyNumber||module}</strong><small>{r.Mobile||r.Phone||r.Email||r.PolicyNumber||r.Status||r.RequestStatus||'Record'}</small></div><ChevronRight size={17}/></div><div className="tc-record-fields">{fields.slice(0,5).map(f=><div key={f}><small>{title(f)}</small><span>{String(r[f]??'').length>60?String(r[f]).slice(0,60)+'…':String(r[f]??'')}</span></div>)}</div><div className="tc-record-actions"><button onClick={()=>onEdit(r)}>Edit</button><button className="danger" onClick={()=>onDelete(r)}>Delete</button>{module==='Agents'&&<button onClick={()=>onPassword(r.AgentID)}>Password</button>}</div></div>)}</div>}
 function agentTokenReady(token){return Boolean(token)}
 
