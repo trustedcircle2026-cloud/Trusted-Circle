@@ -103,7 +103,22 @@ export default function AgentBusinessPage(){
 
     {activeTab==='more'&&<section className="tc-page tc-more-page">
       <div className="tc-more-head"><div className="tc-more-icon"><Activity size={24}/></div><span className="tc-kicker">ADMIN TOOLS</span><h1>More</h1><p>Additional business modules and controls.</p></div>
-      <div className="tc-more-grid">{moreModules.map(m=><button key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><m.icon size={20}/><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}</div>
+      <div className="tc-more-summary">
+        <div className="tc-more-summary-icon"><BarChart3 size={22}/></div>
+        <div><strong>Business Control Centre</strong><small>Everything beyond Agents, Requests and History.</small></div>
+      </div>
+      <div className="tc-more-group">
+        <span className="tc-more-group-title">CUSTOMER & POLICY</span>
+        {moreModules.filter(m=>['Clients','Policies','PremiumBills'].includes(m.key)).map(m=><button className="tc-more-item" key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><span className="tc-more-item-icon"><m.icon size={18}/></span><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}
+      </div>
+      <div className="tc-more-group">
+        <span className="tc-more-group-title">MONEY & CARDS</span>
+        {moreModules.filter(m=>['Cards','CardRules','Cashback','MoneyLedger','Expenses'].includes(m.key)).map(m=><button className="tc-more-item" key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><span className="tc-more-item-icon"><m.icon size={18}/></span><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}
+      </div>
+      <div className="tc-more-group">
+        <span className="tc-more-group-title">OPERATIONS</span>
+        {moreModules.filter(m=>m.key==='AgentSettlements').map(m=><button className="tc-more-item" key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><span className="tc-more-item-icon"><m.icon size={18}/></span><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}
+      </div>
       <button className="tc-more-logout" onClick={logout}><ShieldCheck size={16}/>Sign Out</button>
     </section>}
    </section>
