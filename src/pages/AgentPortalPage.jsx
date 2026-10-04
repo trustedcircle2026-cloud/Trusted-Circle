@@ -7,7 +7,7 @@ const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Truste
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
 const displayDate=value=>{const raw=String(value||'').trim();if(!raw)return '—';const d=new Date(raw);if(Number.isNaN(d.getTime()))return raw;return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
 const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
-const loadingMessages=['Securing your agent session…','Loading your policy workspace…','Syncing your latest requests…','Preparing your workspace…']
+const loadingMessages=['Securing your agent session…','Loading your policy workspace……','Syncing your latest requests…','Preparing your workspace…']
 
 export default function AgentPortalPage(){
  const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
