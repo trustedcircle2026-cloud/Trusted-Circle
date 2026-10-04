@@ -465,3 +465,40 @@ body{background:#fff}
  .tc-admin-content{padding-left:12px;padding-right:12px}
  .tc-admin-header{padding-left:12px;padding-right:12px}
 }
+
+/* =========================================================
+   ADMIN ICON DEPTH + PAYMENT HISTORY POLISH
+   ========================================================= */
+.tc-admin-page svg{
+  filter:drop-shadow(0 1px 0 rgba(255,255,255,.75)) drop-shadow(0 2px 1px rgba(6,79,59,.18));
+  stroke-width:2.15;
+  transition:transform .18s ease,filter .18s ease;
+}
+.tc-admin-page button:hover>svg,
+.tc-admin-page button:active>svg{
+  transform:translateY(-1px) rotate(-2deg);
+  filter:drop-shadow(1px 2px 0 rgba(255,255,255,.8)) drop-shadow(0 3px 2px rgba(6,79,59,.24));
+}
+.tc-record-avatar,
+.tc-more-icon,
+.tc-more-summary-icon,
+.tc-more-item-icon,
+.tc-page-actions>button,
+.tc-payment-head .tc-record-avatar{
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.5),
+    0 3px 0 rgba(6,79,59,.08),
+    0 7px 14px rgba(16,32,24,.08);
+}
+.tc-paid-button{
+  background:linear-gradient(145deg,#16834f,#0a5e40)!important;
+  border-color:#075b3e!important;
+  color:#fff!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 4px 9px rgba(6,79,59,.2);
+}
+.tc-paid-button:disabled{opacity:.6;cursor:wait}
+.tc-history-card .tc-payment-details>div{grid-template-columns:30% minmax(0,1fr)}
+.tc-history-card .tc-payment-actions{grid-template-columns:1fr}
+.tc-history-card .tc-status.cancelled{box-shadow:0 2px 0 rgba(163,68,59,.1)}
+.tc-history-card .tc-status.paid,
+.tc-history-card .tc-status.completed{box-shadow:0 2px 0 rgba(22,116,71,.12)}
