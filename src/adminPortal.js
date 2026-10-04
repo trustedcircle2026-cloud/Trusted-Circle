@@ -101,7 +101,7 @@ async function history(){
  const render=async()=>{const data=await agentBusinessApi.list('Payments',{search},getToken());const rows=data?.items||[]
  const body='<main class="tc-content"><div class="tc-page-head"><div><span class="tc-kicker">PAYMENT HISTORY</span><h1 class="tc-title">History</h1><p class="tc-subtitle">Completed payments, receipts and settlement records.</p></div><button class="tc-btn" id="refresh">↻</button></div><div class="tc-search">⌕<input id="search" placeholder="Search payment history" value="'+esc(search)+'"></div><div class="tc-list">'+(rows.length?rows.map(r=>recordCard(r,0,'Payments')).join(''):'<div class="tc-empty"><strong>No payment history</strong><span>Completed payment records will appear here.</span></div>')+'</div></main>'
  root.innerHTML=shell('history',body);document.getElementById('profileBtn').onclick=profileModal;document.getElementById('refresh').onclick=render;document.getElementById('search').onkeydown=e=>{if(e.key==='Enter'){search=e.target.value;render()}}
- rows.forEach((r,i)=>{const card=document.querySelectorAll('.tc-card')[i];if(!card)return;card.querySelector('[data-edit]').onclick=()=>alert('Payment history is read-only from this page.');card.querySelector('[data-delete]').onclick=()=>alert('Payment history is protected.')}
+ rows.forEach((r,i)=>{const card=document.querySelectorAll('.tc-card')[i];if(!card)return;card.querySelector('[data-edit]').onclick=()=>alert('Payment history is read-only from this page.');card.querySelector('[data-delete]').onclick=()=>alert('Payment history is protected.')})
  }
  await render()
 }
