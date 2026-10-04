@@ -401,3 +401,35 @@
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Client search + payment history */
+.ap-client-search{
+  display:flex;align-items:center;gap:6px;margin:0 0 10px;padding:6px;
+  border:1px solid #dce9e2;border-radius:12px;background:#fff;
+}
+.ap-client-search>div{display:flex;align-items:center;gap:7px;flex:1;min-width:0;padding:0 7px;color:#718078}
+.ap-client-search input{width:100%;border:0;outline:0;background:transparent;padding:8px 0;font-size:10px;color:#102018}
+.ap-client-search button{width:30px;height:30px;border:0;border-radius:8px;background:#f2f7f4;display:grid;place-items:center;color:#62716a}
+.ap-client-actions{grid-template-columns:1fr 1fr 1.65fr}
+.ap-history-sub{font-size:8px;color:#718078;margin:-4px 0 12px}
+.ap-history-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:11px}
+.ap-history-summary>div{padding:9px;border:1px solid #dce9e2;border-radius:10px;background:#f8fcfa}
+.ap-history-summary small{display:block;font-size:6px;text-transform:uppercase;letter-spacing:.08em;color:#7b8881}
+.ap-history-summary strong{display:block;margin-top:3px;font-size:11px}
+.ap-history-list{display:grid;gap:7px;max-height:45vh;overflow:auto;margin-bottom:12px}
+.ap-history-item{padding:10px;border:1px solid #dce9e2;border-radius:11px;background:#fff}
+.ap-history-item>div:first-child{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.ap-history-item strong{font-size:8px}.ap-history-item small{display:block;margin-top:3px;font-size:6px;color:#7b8881}
+.ap-history-payment{display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid #edf2ef;font-size:7px;color:#16834f}
+@media(max-width:760px){
+ .ap-client-search{border-radius:12px;padding:5px}
+ .ap-client-search input{font-size:10px}
+ .ap-client-actions{grid-template-columns:1fr 1fr;gap:6px}
+ .ap-client-actions .ap-request-action{grid-column:1/-1}
+ .ap-history-summary{gap:5px}
+ .ap-history-list{max-height:43dvh}
+}
+@media(min-width:761px){
+ .ap-client-actions{grid-template-columns:1fr 1fr 1.65fr}
+}
