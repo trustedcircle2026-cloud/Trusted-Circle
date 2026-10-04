@@ -502,3 +502,34 @@ body{background:#fff}
 .tc-history-card .tc-status.cancelled{box-shadow:0 2px 0 rgba(163,68,59,.1)}
 .tc-history-card .tc-status.paid,
 .tc-history-card .tc-status.completed{box-shadow:0 2px 0 rgba(22,116,71,.12)}
+
+/* =========================================================
+   PAYMENT VERIFICATION + AGENT INVOICE
+   ========================================================= */
+.tc-payment-verify-modal,.tc-invoice-modal{max-height:90dvh}
+.tc-payment-verify-modal h2,.tc-invoice-modal h2{margin-top:6px}
+.tc-payment-verify-modal .tc-form-grid{margin-top:15px}
+.tc-form-grid select,.tc-full-field select{
+  height:40px;border:1px solid #dce7e1;border-radius:9px;padding:0 9px;outline:0;font-size:10px;background:#fff;color:#24332b;width:100%;
+}
+.tc-full-field{display:grid;gap:5px;margin-top:11px;font-size:8px;font-weight:800;color:#65736c}
+.tc-full-field input{height:40px;border:1px solid #dce7e1;border-radius:9px;padding:0 9px;outline:0;font-size:10px;width:100%;box-sizing:border-box;background:#f9fbfa}
+.tc-date-display{height:40px;border:1px solid #dce7e1;border-radius:9px;display:flex;align-items:center;gap:7px;padding:0 9px;background:#fff;color:#16834f}
+.tc-date-display input{border:0!important;height:36px!important;padding:0!important;outline:0;width:100%;background:transparent!important;color:#24332b}
+.tc-field-note{font-size:7px;color:#7b8580;font-weight:600}
+.tc-payment-summary{margin-top:11px;border:1px solid #dce9e2;border-radius:12px;background:linear-gradient(135deg,#f4fbf7,#fbfaff);padding:10px}
+.tc-payment-summary>div{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:8px;color:#66736d}
+.tc-payment-summary strong{font-size:10px;color:#1a2a22}
+.tc-payment-summary .total{border-top:1px solid #dce9e2;margin-top:3px;padding-top:9px;color:#064f3b}
+.tc-payment-summary .total strong{font-size:13px;color:#064f3b}
+.tc-invoice-items{margin-top:11px;max-height:35dvh;overflow:auto;display:grid;gap:7px}
+.tc-invoice-item{display:flex;align-items:center;gap:8px;border:1px solid #e1e8e4;border-radius:11px;background:#fff;padding:9px;cursor:pointer}
+.tc-invoice-item input{width:17px;height:17px;accent-color:#064f3b;flex:0 0 auto}
+.tc-invoice-item>div{min-width:0;flex:1}
+.tc-invoice-item strong{display:block;font-size:9px;color:#17241e}
+.tc-invoice-item small{display:block;margin-top:3px;font-size:7px;color:#737d78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc-invoice-item>b{font-size:9px;color:#064f3b;white-space:nowrap}
+@media(max-width:430px){
+ .tc-payment-verify-modal,.tc-invoice-modal{max-height:92dvh;padding:17px}
+ .tc-invoice-items{max-height:31dvh}
+}
