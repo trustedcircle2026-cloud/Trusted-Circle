@@ -665,6 +665,7 @@ function createInvoice_(p){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate))throw new Error('Enter a valid invoice date.');
 
   var ss=agentBusinessSpreadsheet_();
+  ensureBusinessSheet_(ss,'Invoices');
   var agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(x){return String(x.AgentID)===agentId;});
   if(!agent)throw new Error('Agent not found.');
   var receivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'));
