@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {ArrowRight,Bell,CheckCircle2,CircleUserRound,FileText,Home,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards} from 'lucide-react'
+import {ArrowRight,Bell,CheckCircle2,CircleUserRound,FileText,Home,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards,MoreHorizontal} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
@@ -14,7 +14,7 @@ export default function AgentPortalPage(){
  const[policyForm,setPolicyForm]=useState(emptyPolicy),[showForm,setShowForm]=useState(false),[editingPolicyId,setEditingPolicyId]=useState('')
  const[clientSearch,setClientSearch]=useState(''),[history,setHistory]=useState(null),[historyLoading,setHistoryLoading]=useState(false)
  const[loading,setLoading]=useState(false),[loadingText,setLoadingText]=useState(loadingMessages[0]),[error,setError]=useState(''),[notice,setNotice]=useState('')
- const[activeTab,setActiveTab]=useState('policies'),[detail,setDetail]=useState(null)
+ const[activeTab,setActiveTab]=useState('home'),[detail,setDetail]=useState(null),[showProfile,setShowProfile]=useState(false)
 
  const load=async token=>{
   setLoading(true);setError('')
@@ -103,25 +103,29 @@ export default function AgentPortalPage(){
      <button className="ap-header-action" onClick={()=>setActiveTab('requests')} aria-label="Payment requests" title="Payment requests">
       <Bell size={21}/>{pending>0&&<span className="ap-header-badge">{pending}</span>}
      </button>
-     <button className="ap-header-action" onClick={logout} aria-label="Sign out" title="Sign out"><CircleUserRound size={22}/></button>
+     <button className="ap-profile-header" onClick={()=>setShowProfile(true)} aria-label="Open agent profile" title="Agent profile">
+      <span className="ap-profile-avatar">{String(agent.AgentName||'A').trim().charAt(0).toUpperCase()}</span>
+      <span className="ap-profile-name">{agent.AgentName||'Agent'}</span>
+      <CircleUserRound size={19}/>
+     </button>
     </div>
    </header>
-   <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage saved clients and raise a premium payment request only when needed.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-   <nav className="ap-tabs ap-reference-tabs" aria-label="Agent workspace">
-    <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}>
-      <Users size={23}/><span>My Clients</span>
-    </button>
-    <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}>
-      <Send size={23}/><span>Payment Requests</span>{pending>0&&<b>{pending}</b>}
-    </button>
-    <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}>
-      <Clock3 size={23}/><span>History</span>
-    </button>
-   </nav>
 
-   {activeTab==='policies'?<section className="ap-panel ap-data">
+   {activeTab==='home'?<section className="ap-panel ap-data ap-home-panel">
+    <div className="ap-home-hero"><span className="ap-eyebrow">AGENT DASHBOARD</span><h1>Agent Dashboard</h1><p>Manage your clients, payment requests and activity from one place.</p></div>
+    <div className="ap-home-stats">
+      <button onClick={()=>setActiveTab('policies')}><Users size={20}/><strong>{clients.length}</strong><span>My Clients</span></button>
+      <button onClick={()=>setActiveTab('requests')}><Send size={20}/><strong>{pending}</strong><span>Pending Requests</span></button>
+      <button onClick={()=>setActiveTab('history')}><Clock3 size={20}/><strong>{requests.length}</strong><span>Total Requests</span></button>
+    </div>
+    <div className="ap-home-actions">
+      <button className="ap-primary" onClick={openAddPolicy}><Plus size={16}/>Add Client</button>
+      <button className="ap-secondary" onClick={()=>setActiveTab('requests')}><Send size={16}/>Payment Requests</button>
+      <button className="ap-secondary" onClick={()=>setActiveTab('history')}><Clock3 size={16}/>View History</button>
+    </div>
+   </section>:activeTab==='policies'?<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Add a client and policy once. Raise premium payment requests whenever required.</p></div><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add Client</button></div>
     <div className="ap-client-search"><div><Users size={15}/><input value={clientSearch} onChange={e=>setClientSearch(e.target.value)} placeholder="Search client or policy number"/></div>{clientSearch&&<button onClick={()=>setClientSearch('')}><X size={14}/></button>}</div>
     {filteredClients.length?<div className="ap-client-grid">{filteredClients.map(r=><div className="ap-client-card ap-policy-card" key={r.PolicyID||r.ClientID}>
@@ -151,17 +155,35 @@ export default function AgentPortalPage(){
       <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
       <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No history yet</b><span>Payment request activity will appear here after you raise a request.</span></div>}
+   </section>:activeTab==='more'?<section className="ap-panel ap-data ap-more-panel">
+    <div className="ap-more-head"><div className="ap-more-icon"><MoreHorizontal size={24}/></div><span className="ap-eyebrow">MORE</span><h2>More</h2><p>Additional agent tools and settings will be added here.</p></div>
+    <div className="ap-more-placeholder"><MoreHorizontal size={22}/><strong>Coming soon</strong><span>This page is reserved for the next Trusted Circle Agent Portal features.</span></div>
    </section>:null}  </main>
+
+  {showProfile&&<div className="ap-modal-backdrop ap-profile-backdrop" onClick={()=>setShowProfile(false)}>
+   <div className="ap-modal ap-profile-modal" onClick={e=>e.stopPropagation()}>
+    <button className="ap-close" onClick={()=>setShowProfile(false)}><X/></button>
+    <div className="ap-profile-card-head">
+      <span className="ap-profile-large-avatar">{String(agent.AgentName||'A').trim().charAt(0).toUpperCase()}</span>
+      <div><span className="ap-eyebrow">AGENT PROFILE</span><h2>{agent.AgentName||'Agent'}</h2><p>Trusted Circle Agent</p></div>
+    </div>
+    <div className="ap-profile-details">
+      {Object.entries(agent||{}).filter(([k,v])=>v!==null&&v!==undefined&&v!==''&&!/password|token|secret|otp/i.test(k)).map(([k,v])=><div key={k}><small>{k.replace(/([a-z])([A-Z])/g,'$1 $2')}</small><strong>{String(v)}</strong></div>)}
+    </div>
+    <button className="ap-secondary ap-profile-logout" onClick={logout}><LogOut size={16}/>Sign Out</button>
+   </div>
+  </div>}
 
   {history&&<div className="ap-modal-backdrop" onClick={()=>!historyLoading&&setHistory(null)}><div className="ap-modal ap-detail-modal ap-history-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>!historyLoading&&setHistory(null)}><X/></button><span className="ap-eyebrow">CLIENT PAYMENT HISTORY</span><h2>{history.client.ClientName}</h2><p className="ap-history-sub">Policy {history.client.PolicyNumber} · Request and payment status</p><div className="ap-history-summary"><div><small>Requests</small><strong>{history.totalRequests}</strong></div><div><small>Payments</small><strong>{history.totalPayments}</strong></div><div><small>Current</small><strong>{history.client.Status||'ACTIVE'}</strong></div></div>{historyLoading?<div className="ap-empty"><RefreshCw className="spin"/><span>Loading history…</span></div>:history.requests.length?<div className="ap-history-list">{history.requests.map(x=><div className="ap-history-item" key={x.RequestID}><div><strong>Premium Request</strong><small>{x.RequestedAt?new Date(x.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—'}</small></div><span className={'ap-request-pill '+String(x.Status||'PENDING').toLowerCase()}>{x.Status||'PENDING'}</span>{x.PaymentID&&<div className="ap-history-payment"><WalletCards size={13}/><span>Paid {x.PaymentDate?new Date(x.PaymentDate).toLocaleDateString('en-IN'):'—'} · {x.ReferenceNumber||'Payment recorded'}</span></div>}</div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No payment history</b><span>This client has not had a premium payment request yet.</span></div>}<button className="ap-primary wide" onClick={()=>setHistory(null)}>Close</button></div></div>}
 
   {detail&&<div className="ap-modal-backdrop" onClick={()=>setDetail(null)}><div className="ap-modal ap-detail-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>setDetail(null)}><X/></button><span className="ap-eyebrow">{detail.type.toUpperCase()}</span><h2>{detail.data.ClientName||'Client'}</h2><div className="ap-detail-grid">{Object.entries(detail.data).filter(([k])=>!['ClientID','RequestID'].includes(k)).map(([k,v])=><div key={k}><small>{k.replace(/([a-z])([A-Z])/g,'$1 $2')}</small><strong>{String(v??'—')}</strong></div>)}</div><button className="ap-primary wide" onClick={()=>setDetail(null)}>Close</button></div></div>}
 
   <nav className="ap-bottom-nav" aria-label="Primary navigation">
-   <button className={activeTab==='policies'?'active':''} onClick={()=>{setActiveTab('policies');window.scrollTo({top:0,behavior:'smooth'})}}><Home size={22}/><span>Home</span></button>
-   <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><Users size={22}/><span>My Clients</span></button>
-   <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={22}/>{pending>0&&<b>{pending}</b>}<span>Requests</span></button>
-   <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}><Clock3 size={22}/><span>History</span></button>
+   <button className={activeTab==='home'?'active':''} onClick={()=>{setActiveTab('home');window.scrollTo({top:0,behavior:'smooth'})}}><Home size={21}/><span>Home</span></button>
+   <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><Users size={21}/><span>My Clients</span></button>
+   <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={21}/>{pending>0&&<b>{pending}</b>}<span>Requests</span></button>
+   <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}><Clock3 size={21}/><span>History</span></button>
+   <button className={activeTab==='more'?'active':''} onClick={()=>setActiveTab('more')}><MoreHorizontal size={21}/><span>More</span></button>
   </nav>
 
   {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
