@@ -61,13 +61,10 @@ export default function AgentBusinessPage(){
  const openInvoiceBuilder=async(agentId,preselect=[])=>{
    setError('');setInvoiceLoading(true);
    try{
-     let selectedAgentId=agentId||'';
-     if(!selectedAgentId){
-       const agentsResult=await agentBusinessApi.list('Agents',{limit:500},adminToken);
-       const activeAgents=(agentsResult.items||[]).filter(a=>String(a.Status||'ACTIVE').toUpperCase()!=='INACTIVE');
-       setInvoiceAgents(activeAgents);
-       selectedAgentId=activeAgents[0]?.AgentID||'';
-     }
+     const agentsResult=await agentBusinessApi.list('Agents',{limit:500},adminToken);
+     const activeAgents=(agentsResult.items||[]).filter(a=>String(a.Status||'ACTIVE').toUpperCase()!=='INACTIVE');
+     setInvoiceAgents(activeAgents);
+     let selectedAgentId=agentId||activeAgents[0]?.AgentID||'';
      const result=selectedAgentId?await agentBusinessApi.listReceivables(selectedAgentId,adminToken):{items:[]};
      const items=(result.items||[]).filter(row=>String(row.Status||'').toUpperCase()==='RECEIVABLE'||!String(row.Status||'').trim());
      setInvoiceRows(items);
