@@ -26,7 +26,7 @@ const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',ma
 const title=s=>String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2')
 
 export default function AgentBusinessPage(){
- const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false),[paymentModal,setPaymentModal]=useState(null),[paymentForm,setPaymentForm]=useState({amount:'',paymentDate:localIsoDate(),paymentMode:'Credit Card',cardId:'',receiptFile:null}),[cards,setCards]=useState([]),[paying,setPaying]=useState(false),[invoiceModal,setInvoiceModal]=useState(null),[invoiceRows,setInvoiceRows]=useState([]),[invoiceSelection,setInvoiceSelection]=useState([]),[invoiceDate,setInvoiceDate]=useState(localIsoDate()),[invoiceLoading,setInvoiceLoading]=useState(false),[invoiceAgents,setInvoiceAgents]=useState([]),[invoiceAdminRows,setInvoiceAdminRows]=useState([]),[invoiceAdminLoading,setInvoiceAdminLoading]=useState(false),[invoiceLinkModal,setInvoiceLinkModal]=useState(null),[invoiceLinkForm,setInvoiceLinkForm]=useState(''),[qrBusy,setQrBusy]=useState(false),[invoiceHistoryModal,setInvoiceHistoryModal]=useState(false),[receivableModal,setReceivableModal]=useState(false),[receivableRows,setReceivableRows]=useState([]),[receivableLoading,setReceivableLoading]=useState(false)
+ const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false),[paymentModal,setPaymentModal]=useState(null),[paymentForm,setPaymentForm]=useState({amount:'',paymentDate:localIsoDate(),paymentMode:'Credit Card',cardId:'',receiptFile:null}),[cards,setCards]=useState([]),[paying,setPaying]=useState(false),[invoiceModal,setInvoiceModal]=useState(null),[invoiceRows,setInvoiceRows]=useState([]),[invoiceSelection,setInvoiceSelection]=useState([]),[invoiceDate,setInvoiceDate]=useState(localIsoDate()),[invoiceLoading,setInvoiceLoading]=useState(false),[invoiceAgents,setInvoiceAgents]=useState([]),[invoiceAdminRows,setInvoiceAdminRows]=useState([]),[invoiceAdminLoading,setInvoiceAdminLoading]=useState(false),[invoiceHistoryModal,setInvoiceHistoryModal]=useState(false),[receivableModal,setReceivableModal]=useState(false),[receivableRows,setReceivableRows]=useState([]),[receivableLoading,setReceivableLoading]=useState(false)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
  const openPaymentModal=async request=>{
@@ -65,63 +65,6 @@ export default function AgentBusinessPage(){
    setInvoiceAdminLoading(true);setError('');
    try{const result=await agentBusinessApi.list('Invoices',{limit:500},adminToken);setInvoiceAdminRows(result.items||[])}catch(e){setError(e.message)}finally{setInvoiceAdminLoading(false)}
  }
- const openInvoiceLinkManager=async()=>{await loadAdminInvoices();setInvoiceLinkModal({invoiceId:'',paymentLink:''})}
- const decodeInvoiceQr=async file=>{
-   if(!file)return;
-   setQrBusy(true);setError('');setNotice('');
-   try{
-     const bitmap=await createImageBitmap(file);
-     const max=2400,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
-     const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
-     const ctx=canvas.getContext('2d',{willReadFrequently:true});
-     ctx.imageSmoothingEnabled=true;ctx.drawImage(bitmap,0,0,width,height);
-
-     let raw='';
-     // Prefer the browser's native QR detector when available; it is more tolerant
-     // of WhatsApp screenshots and compressed QR images than a single jsQR pass.
-     if('BarcodeDetector' in window){
-       try{
-         const detector=new BarcodeDetector({formats:['qr_code']});
-         const found=await detector.detect(canvas);
-         raw=String(found?.find(x=>x.rawValue)?.rawValue||'').trim();
-       }catch{}
-     }
-
-     const tryImage=(imageData)=>{
-       const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'attemptBoth'});
-       return String(code?.data||'').trim();
-     };
-
-     if(!raw){
-       const base=ctx.getImageData(0,0,width,height);
-       raw=tryImage(base);
-       if(!raw){
-         const gray=new ImageData(width,height);
-         for(let i=0;i<base.data.length;i+=4){
-           const y=Math.round(base.data[i]*.299+base.data[i+1]*.587+base.data[i+2]*.114);
-           gray.data[i]=gray.data[i+1]=gray.data[i+2]=y;gray.data[i+3]=255;
-         }
-         raw=tryImage(gray);
-       }
-       if(!raw){
-         const gray=ctx.createImageData(width,height),base=ctx.getImageData(0,0,width,height);
-         for(let i=0;i<base.data.length;i+=4){
-           const y=(base.data[i]*77+base.data[i+1]*150+base.data[i+2]*29)>>8;
-           const v=y<150?0:255;
-           gray.data[i]=gray.data[i+1]=gray.data[i+2]=v;gray.data[i+3]=255;
-         }
-         raw=tryImage(gray);
-       }
-     }
-
-     if(!raw)throw new Error('No QR code was detected. Please upload the original QR image or a clear screenshot where the complete QR is visible.');
-     if(!/^(?:https?:\/\/|upi:\/\/pay\?)/i.test(raw))throw new Error('QR detected, but it is not a supported HTTPS or UPI payment link.');
-     setInvoiceLinkModal(prev=>prev?{...prev,paymentLink:raw}:{invoiceId:'',paymentLink:raw});
-     setNotice('Payment QR read successfully. The payment URL has been extracted.');
-   }catch(e){setError(e.message||'Unable to read the QR image.')}
-   finally{setQrBusy(false)}
- }
- const openInvoiceLinkEditor=invoice=>{setInvoiceLinkModal({invoiceId:invoice.InvoiceID,paymentLink:invoice.PaymentLink||''})}
  const openInvoiceHistory=async()=>{await loadAdminInvoices();setInvoiceHistoryModal(true)}
  const openReceivables=async()=>{setReceivableLoading(true);setError('');try{const result=await agentBusinessApi.listReceivables('',adminToken);setReceivableRows(result.items||[]);setReceivableModal(true)}catch(e){setError(e.message)}finally{setReceivableLoading(false)}}
  const saveInvoicePaymentLink=async()=>{
@@ -343,8 +286,7 @@ export default function AgentBusinessPage(){
 
   {paymentModal&&<PaymentVerificationModal request={paymentModal} form={paymentForm} setForm={setPaymentForm} cards={cards} paying={paying} onClose={()=>setPaymentModal(null)} onSubmit={submitPayment}/>}
   {invoiceModal&&<InvoiceBuilderModal agentId={invoiceModal.agentId} agents={invoiceAgents} onAgentChange={changeInvoiceAgent} rows={invoiceRows} selection={invoiceSelection} setSelection={setInvoiceSelection} invoiceDate={invoiceDate} setInvoiceDate={setInvoiceDate} loading={invoiceLoading} onClose={()=>setInvoiceModal(null)} onSubmit={createInvoice}/>}
-  {invoiceLinkModal&&<InvoiceLinkManagerModal rows={invoiceAdminRows} loading={invoiceAdminLoading} modal={invoiceLinkModal} setModal={setInvoiceLinkModal} onEdit={openInvoiceLinkEditor} onSave={saveInvoicePaymentLink} onRefresh={loadAdminInvoices} onQrUpload={decodeInvoiceQr} qrBusy={qrBusy}/>}
-  {invoiceHistoryModal&&<InvoiceHistoryModal rows={invoiceAdminRows} loading={invoiceAdminLoading} onClose={()=>setInvoiceHistoryModal(false)} onRefresh={loadAdminInvoices} onAssign={openInvoiceLinkEditor}/>}
+  {invoiceHistoryModal&&<InvoiceHistoryModal rows={invoiceAdminRows} loading={invoiceAdminLoading} onClose={()=>setInvoiceHistoryModal(false)} onRefresh={loadAdminInvoices}/>}
   {receivableModal&&<ReceivableManagerModal rows={receivableRows} loading={receivableLoading} onClose={()=>setReceivableModal(false)} onRefresh={openReceivables}/>}
   {showForm&&<div className="tc-modal-backdrop" onClick={()=>{setShowForm(false);setEditing(false)}}><div className="tc-crud-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>{setShowForm(false);setEditing(false)}}><X size={18}/></button><span className="tc-kicker">{editing?'EDIT':'NEW'} {module==='Agents'?'AGENT':'RECORD'}</span><h2>{editing?'Edit ':'Add '}{title(module)}</h2><p>Manage the record details below.</p><div className="tc-form-grid">{schema.filter(f=>!['CreatedAt','UpdatedAt'].includes(f)).map(f=>{const isId=f===schema[0];if(isId)return <label key={f}>{title(f)}<input value={form[f]||''} disabled/></label>;return <label key={f}>{title(f)}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} disabled={editing&&['AgentID','AgentUserID'].includes(f)} placeholder={title(f)}/></label>})}{module==='Agents'&&!editing&&<label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="4-digit password"/></label>}</div><button className="tc-save-button" disabled={module==='Agents'&&!editing&&(!/^\d{10}$/.test(form.Mobile||'')||!/^\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{editing?'Update Record':module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
  </div>
@@ -353,35 +295,6 @@ export default function AgentBusinessPage(){
 function localIsoDate(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,10)}
 function displayDate(value){const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return value||'';return m[3]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2])-1]+'-'+m[1]}
 function PaymentVerificationModal({request,form,setForm,cards,paying,onClose,onSubmit}){const client=request.ClientName||'Client';const discount=Math.round(Number(form.amount||0)*.02*100)/100;const receivable=Math.max(0,Number(form.amount||0)-discount);const pickReceipt=e=>{const file=e.target.files?.[0];if(!file)return;if(file.size>6*1024*1024){window.alert('Receipt must be below 6 MB.');e.target.value='';return}const ok=/^application\/pdf$|^image\/(jpeg|png|webp)$/.test(file.type);if(!ok){window.alert('Upload a PDF, JPG, PNG or WEBP receipt.');e.target.value='';return}const reader=new FileReader();reader.onload=()=>setForm({...form,receiptFile:{fileName:file.name,mimeType:file.type,base64:String(reader.result||'').split(',')[1]||''}});reader.readAsDataURL(file)};return <div className="tc-modal-backdrop" onClick={onClose}><div className="tc-crud-modal tc-payment-verify-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={onClose}><X size={18}/></button><span className="tc-kicker">PAYMENT VERIFICATION</span><h2>Mark Premium as Paid</h2><p>{client} · Policy {request.PolicyNumber||'—'}</p><div className="tc-form-grid"><label>Premium Amount Paid<input type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})} placeholder="Enter amount"/></label><label>Premium Paid Date<div className="tc-date-display"><CalendarDays size={15}/><input value={displayDate(form.paymentDate)} onChange={e=>{const v=e.target.value;const m=v.match(/^(\d{2})[-\/](\w{3})[-\/](\d{4})$/);if(m){const months={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};setForm({...form,paymentDate:m[3]+'-'+months[m[2]]+'-'+m[1]})}}}/></div><small className="tc-field-note">Auto-filled: {displayDate(localIsoDate())}</small></label><label>Paid By<select value={form.paymentMode} onChange={e=>setForm({...form,paymentMode:e.target.value})}><option>Credit Card</option><option>Debit Card</option></select></label><label>Card Nickname<select value={form.cardId} onChange={e=>setForm({...form,cardId:e.target.value})}><option value="">Select card</option>{cards.map(card=><option key={card.CardID} value={card.CardID}>{card.CardName||card.Bank||'Card'} {card.Last4?'· '+card.Last4:''}</option>)}</select></label></div><label className="tc-full-field tc-receipt-upload"><span>Premium Payment Receipt <b>*</b></span><div><Upload size={16}/><input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={pickReceipt}/></div><small className="tc-field-note">{form.receiptFile?.fileName||'Required · PDF/JPG/PNG/WEBP · Max 6 MB'}</small></label><div className="tc-payment-summary"><div><span>Premium Paid</span><strong>{money(form.amount||0)}</strong></div><div><span>Discount 2%</span><strong>- {money(discount)}</strong></div><div className="total"><span>Agent Receivable</span><strong>{money(receivable)}</strong></div></div><div className="tc-payment-hint">The receipt is stored in the Insurance Premium Payment Drive folder and will be available to the agent in payment history.</div><button className="tc-save-button" disabled={paying||!(Number(form.amount)>0)||!form.paymentDate||!form.cardId||!form.receiptFile} onClick={onSubmit}><CheckCircle2 size={16}/>{paying?'Saving payment…':'Confirm Paid & Create Receivable'}</button></div></div>}
-function InvoiceLinkManagerModal({rows,loading,modal,setModal,onEdit,onSave,onRefresh,onQrUpload,qrBusy}){
- const invoice=modal?.invoiceId?rows.find(r=>String(r.InvoiceID)===String(modal.invoiceId)):null;
- const outstanding=rows.filter(r=>!['PAID','SETTLED','CANCELLED'].includes(String(r.PaymentStatus||'UNPAID').toUpperCase()));
- const reported=rows.filter(r=>String(r.PaymentStatus||'').toUpperCase()==='AGENT_REPORTED');
- return <div className="tc-modal-backdrop" onClick={()=>!loading&&!qrBusy&&setModal(null)}>
-  <div className="tc-crud-modal tc-invoice-link-modal" onClick={e=>e.stopPropagation()}>
-   <button className="tc-modal-close" onClick={()=>!loading&&!qrBusy&&setModal(null)}><X size={18}/></button>
-   <span className="tc-kicker">AGENT PAYABLE CONTROL</span><h2>Assign Payment Link</h2>
-   <p>Upload the predefined payment QR. Trusted Circle reads the QR payload and extracts the payment URL.</p>
-   <div className="tc-invoice-admin-list">
-    {loading&&!rows.length?<div className="tc-empty"><RefreshCw className="tc-spin" size={20}/><span>Loading invoices…</span></div>:
-     outstanding.length?outstanding.map(row=><div className="tc-invoice-admin-row" key={row.InvoiceID}>
-      <div><strong>{row.InvoiceNumber}</strong><small>{displayDate(row.InvoiceDate)} · {money(row.NetPayable)} payable · {row.PaymentStatus||'UNPAID'}</small></div>
-      <span className={'tc-status '+String(row.PaymentStatus||'UNPAID').toLowerCase()}>{row.PaymentStatus||'UNPAID'}</span>
-      <button onClick={()=>onEdit(row)}><Link2 size={14}/>{row.PaymentLink?'Edit Link':'Assign Link'}</button>
-     </div>):<div className="tc-empty"><ReceiptText size={20}/><strong>No outstanding invoices</strong><span>Generate an invoice first.</span></div>}
-   </div>
-   {reported.length>0&&<div className="tc-payment-hint"><strong>{reported.length} agent payment report{reported.length>1?'s':''} awaiting admin verification.</strong> Use the email Received/Pending/Failed actions or the Receivables control.</div>}
-   {invoice&&<div className="tc-link-editor">
-    <label>Invoice<select value={invoice.InvoiceID} disabled><option>{invoice.InvoiceNumber} · {money(invoice.NetPayable)}</option></select></label>
-    <label>Payment QR / Image<input type="file" accept="image/*" disabled={qrBusy} onChange={e=>onQrUpload&&onQrUpload(e.target.files?.[0])}/><small className="tc-field-note">{qrBusy?'Reading QR…':'Upload the predefined amount QR image. The decoded URL will appear below.'}</small></label>
-    <div className="tc-qr-readout"><QrCode size={18}/><div><small>Extracted Payment Link</small><strong>{modal.paymentLink||'No link extracted yet'}</strong></div></div>
-    <label>Payment Link<input value={modal.paymentLink||''} onChange={e=>setModal({...modal,paymentLink:e.target.value})} placeholder="https://…"/></label>
-    <div className="tc-link-editor-actions"><button onClick={()=>setModal(null)} disabled={loading||qrBusy}>Cancel</button><button className="tc-save-button" disabled={loading||qrBusy||!/^(?:https?:\/\/|upi:\/\/pay\?)/i.test(String(modal.paymentLink||''))} onClick={onSave}>{loading?'Saving…':'Save Payment Link'}</button></div>
-   </div>}
-   <button className="tc-secondary-action" onClick={onRefresh} disabled={loading||qrBusy}><RefreshCw size={14}/>Refresh Invoice List</button>
-  </div>
- </div>
-}
 function InvoiceHistoryModal({rows,loading,onClose,onRefresh,onAssign}){
  const ordered=[...rows].sort((a,b)=>new Date(b.InvoiceDate||b.CreatedAt||0)-new Date(a.InvoiceDate||a.CreatedAt||0));
  return <div className="tc-modal-backdrop" onClick={()=>!loading&&onClose()}><div className="tc-crud-modal tc-invoice-history-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={onClose}><X size={18}/></button><span className="tc-kicker">INVOICE HISTORY</span><h2>Agent Invoice History</h2><p>Every invoice remains recorded here, including payment reports and failed attempts.</p><div className="tc-invoice-history-list">{loading?<div className="tc-empty"><RefreshCw className="tc-spin" size={20}/><span>Loading invoices…</span></div>:ordered.length?ordered.map(row=><div className="tc-invoice-history-row" key={row.InvoiceID}><div><strong>{row.InvoiceNumber}</strong><small>{displayDate(row.InvoiceDate)} · Agent {row.AgentID||'—'}</small></div><div><span className={'tc-status '+String(row.PaymentStatus||'UNPAID').toLowerCase()}>{row.PaymentStatus||'UNPAID'}</span><strong>{money(row.NetPayable)}</strong></div><div className="tc-invoice-history-actions">{row.PdfUrl&&<button onClick={()=>window.open(row.PdfUrl,'_blank','noopener,noreferrer')}><ExternalLink size={14}/>PDF</button>}{!['PAID','SETTLED'].includes(String(row.PaymentStatus||'').toUpperCase())&&<button onClick={()=>onAssign&&onAssign(row)}><Link2 size={14}/>Assign Link</button>}</div></div>):<div className="tc-empty"><FileText size={20}/><strong>No invoices yet</strong></div>}</div><button className="tc-secondary-action" onClick={onRefresh} disabled={loading}><RefreshCw size={14}/>Refresh</button></div></div>
