@@ -60,7 +60,16 @@ function renderHome(d){
 
 async function agents(){
  let search='',editing=null,schema=[]
- const render=async()=>{const [data,sch]=await Promise.all([agentBusinessApi.list('Agents',{search},getToken()),agentBusinessApi.schema('Agents',getToken())]);schema=sch?.fields||[];const rows=data?.items||[]
+ const render=async()=>{
+ const cached=readCache('agents_'+search)
+ if(cached){schema=cached.schema||schema;renderAgentRows(cached.items||[])}
+ const [data,sch]=await Promise.all([agentBusinessApi.list('Agents',{search},getToken()),agentBusinessApi.schema('Agents',getToken())])
+ schema=sch?.fields||[]
+ const rows=data?.items||[]
+ writeCache('agents_'+search,{items:rows,schema})
+ renderAgentRows(rows)
+ }
+ const renderAgentRows=(rows)=>{
  const body='<main class="tc-content"><div class="tc-page-head"><div><span class="tc-kicker">AGENT MANAGEMENT</span><h1 class="tc-title">Agents</h1><p class="tc-subtitle">Manage agent profiles, access and passwords.</p></div><div class="tc-actions"><button class="tc-btn" id="refresh">↻</button><button class="tc-btn primary" id="add">＋ Add</button></div></div><div class="tc-search">⌕<input id="search" placeholder="Search agents" value="'+esc(search)+'"></div><div id="records" class="tc-list">'+(rows.length?rows.map((r,i)=>recordCard(r,i,'Agents')).join(''):'<div class="tc-empty"><strong>No agents found</strong><span>Add an agent or change your search.</span></div>')+'</div></main>'
  root.innerHTML=shell('agents',body)
  document.getElementById('profileBtn').onclick=profileModal
