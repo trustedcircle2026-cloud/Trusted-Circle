@@ -345,3 +345,14 @@
   .ap-command-actions{grid-template-columns:repeat(3,1fr)}
   .ap-client-grid{grid-template-columns:1fr}
 }
+
+
+/* Center the phone preview and login surface on desktop */
+@media(min-width:761px){
+  html,body,#root{min-height:100%;margin:0}
+  body{display:flex;justify-content:center;align-items:flex-start;background:#fff}
+  #root{width:430px;min-height:100vh;flex:0 0 430px}
+  .agent-portal-page{width:430px!important;min-height:100vh!important;margin:0!important}
+  .agent-login-shell{width:430px;min-height:100vh;margin:0 auto}
+  .agent-login-card{margin-left:auto;margin-right:auto}
+}
