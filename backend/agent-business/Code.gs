@@ -322,12 +322,20 @@ function agentAddClient_(p){
   // Legacy endpoint kept for compatibility. New workflow is policy-first and never creates a payment request here.
   return agentAddPolicy_(p);
 }
+function normalizeDob_(value){
+  var raw=String(value||'').trim();
+  var m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m)return m[3]+'/'+m[2]+'/'+m[1];
+  m=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(m)return m[1]+'/'+m[2]+'/'+m[3];
+  return '';
+}
 function agentAddPolicy_(p){
   var s=agentSession_(p.token),data=p.data||{};
-  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
+  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=normalizeDob_(data.DateOfBirth);
   if(!name)throw new Error('Client name is required.');
   if(!policyNumber)throw new Error('Policy number is required.');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dob))throw new Error('Enter date of birth in YYYY-MM-DD format.');
+  if(!dob)throw new Error('Enter a valid date of birth.');
   var ss=agentBusinessSpreadsheet_();
   var clients=cachedSheetRows_(ss.getSheetByName('Clients'),'Clients'),policies=cachedSheetRows_(ss.getSheetByName('Policies'),'Policies');
   if(clients.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.PolicyNumber).trim()===policyNumber;}))throw new Error('This policy is already added to your workspace.');
@@ -342,8 +350,8 @@ function agentEditPolicy_(p){
   if(!policyId)throw new Error('Policy ID is required.');
   var ss=agentBusinessSpreadsheet_(),policies=sheetRows_(ss.getSheetByName('Policies')),policy=policies.find(function(x){return String(x.PolicyID)===policyId&&String(x.AgentID)===s.AgentID;});
   if(!policy)throw new Error('Policy not found.');
-  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
-  if(!name||!policyNumber||!/^\d{4}-\d{2}-\d{2}$/.test(dob))throw new Error('Client name, policy number and date of birth are required.');
+  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=normalizeDob_(data.DateOfBirth);
+  if(!name||!policyNumber||!dob)throw new Error('Client name, policy number and date of birth are required.');
   var clients=sheetRows_(ss.getSheetByName('Clients')),client=clients.find(function(x){return String(x.ClientID)===String(policy.ClientID)&&String(x.AgentID)===s.AgentID;});
   if(!client)throw new Error('Client record not found.');
   var duplicate=clients.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)!==String(client.ClientID)&&String(x.PolicyNumber).trim()===policyNumber;});
