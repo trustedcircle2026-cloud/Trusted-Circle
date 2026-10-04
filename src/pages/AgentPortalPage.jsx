@@ -140,8 +140,9 @@ export default function AgentPortalPage(){
       <button className="ap-earnings-stat" onClick={()=>setActiveTab('invoices')}><CheckCircle2 size={20}/><strong>{money(earningsToDate)}</strong><span>Earnings Till Date</span><small>Received discount</small></button>
     </div>
     {payableAmount>0?<div className="ap-payable-box ap-home-payable-summary">
-      <div className="ap-payable-head"><div><span className="ap-eyebrow">PAYABLE NOW</span><h2>Amount Payable to Trusted Circle</h2><p>You have an outstanding invoice. Open Payables & Invoices to view and pay.</p></div><span className="ap-payable-total">{money(payableAmount)}</span></div>
-      <button className="ap-primary wide" onClick={()=>setActiveTab('invoices')}><WalletCards size={16}/>Open Payables & Invoices <ChevronRight size={15}/></button>
+      <div className="ap-payable-head"><div><span className="ap-eyebrow">PAYABLE NOW</span><h2>Amount Payable to Trusted Circle</h2><p>Latest invoice and payment are shown below.</p></div><span className="ap-payable-total">{money(payableAmount)}</span></div>
+      {invoices[0]&&<div className="ap-home-invoice-mini"><div><strong>{invoices[0].InvoiceNumber||'Invoice'}</strong><small>{displayDate(invoices[0].InvoiceDate)} · {String(invoices[0].PaymentStatus||'PAYABLE')}</small></div><strong>{money(invoices[0].NetPayable||0)}</strong><div className="ap-home-invoice-actions"><button className="ap-secondary" onClick={()=>downloadInvoice(invoices[0])}><Download size={13}/>Invoice</button><button className="ap-primary" onClick={()=>window.open(COMMON_AGENT_PAYMENT_LINK,'_blank','noopener,noreferrer')}><ExternalLink size={13}/>Pay</button></div></div>}
+      <button className="ap-secondary wide" onClick={()=>setActiveTab('invoices')}><WalletCards size={16}/>View Payables & Invoices <ChevronRight size={15}/></button>
     </div>:<div className="ap-next-cycle-card">
       <div><span className="ap-eyebrow">NO PENDING PAYABLE</span><h2>Ready for the next premium cycle?</h2><p>Raise a new premium payment request for any eligible client policy.</p></div>
       <button className="ap-primary" onClick={()=>setActiveTab('policies')}><Send size={15}/>Raise New Request</button>
