@@ -101,7 +101,6 @@ export default function AgentPortalPage(){
      <button className="ap-icon-header-btn ap-icon-header-danger" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={18}/></button>
     </div>
    </div>
-div>
    <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage saved clients and raise a premium payment request only when needed.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
