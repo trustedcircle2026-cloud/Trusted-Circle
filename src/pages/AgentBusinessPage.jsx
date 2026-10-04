@@ -122,12 +122,20 @@ export default function AgentBusinessPage(){
    if(!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return
    setLoading(true);setError('')
    try{
-     const [paymentsResult,requestsResult,paymentSchema]=await Promise.all([
+     const [paymentsResult,requestsResult,paymentSchema,clientsResult,cardsResult]=await Promise.all([
        agentBusinessApi.list('Payments',{search},adminToken),
        agentBusinessApi.list('PaymentRequests',{search},adminToken),
-       agentBusinessApi.schema('Payments',adminToken)
+       agentBusinessApi.schema('Payments',adminToken),
+       agentBusinessApi.list('Clients',{limit:500},adminToken),
+       agentBusinessApi.list('Cards',{limit:500},adminToken)
      ])
-     const payments=(paymentsResult.items||[]).map(row=>({...row,HistoryType:'PAYMENT'}))
+     const clientMap=new Map((clientsResult.items||[]).map(client=>[String(client.ClientID),client]))
+     const cardMap=new Map((cardsResult.items||[]).map(card=>[String(card.CardID),card]))
+     const payments=(paymentsResult.items||[]).map(row=>{
+       const client=clientMap.get(String(row.ClientID))||{}
+       const card=cardMap.get(String(row.CardID))||{}
+       return {...row,ClientName:row.ClientName||client.ClientName||'',PolicyNumber:row.PolicyNumber||client.PolicyNumber||'',DateOfBirth:row.DateOfBirth||client.DateOfBirth||'',CardNickname:row.CardNickname||card.CardName||card.Bank||'',HistoryType:'PAYMENT'}
+     })
      const requests=await enrichPaymentRequests(requestsResult.items||[])
      const historicalRequests=requests
        .filter(row=>!['PENDING','SUBMITTED'].includes(String(row.Status||row.RequestStatus||'').toUpperCase()))
