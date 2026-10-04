@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {ArrowRight,CheckCircle2,FileText,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards} from 'lucide-react'
+import {ArrowRight,Bell,CheckCircle2,CircleUserRound,FileText,Home,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
@@ -94,27 +94,38 @@ export default function AgentPortalPage(){
  return <div className="agent-portal-page">
   {loading&&<LoadingOverlay text={loadingText}/>}
   <main className="ap-main">
-   <div className="ap-command-menu ap-icon-header">
-    <div className="ap-command-brand ap-icon-brand"><img src={LOGO_URL} alt="Trusted Circle"/></div>
-    <div className="ap-command-actions ap-icon-actions">
-     <button className="ap-icon-header-btn" onClick={()=>load(session)} disabled={loading} title="Refresh workspace" aria-label="Refresh workspace"><RefreshCw size={18} className={loading?'spin':''}/></button>
-     <button className="ap-icon-header-btn ap-icon-header-primary" onClick={openAddPolicy} title="Add client and policy" aria-label="Add client and policy"><Plus size={20}/></button>
-     <button className="ap-icon-header-btn ap-icon-header-danger" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={18}/></button>
+   <header className="ap-mobile-header">
+    <div className="ap-mobile-brand">
+     <img src={LOGO_URL} alt="Trusted Circle"/>
+     <div><strong>Trusted Circle</strong><small>Agent Portal</small></div>
     </div>
-   </div>
+    <div className="ap-mobile-header-actions">
+     <button className="ap-header-action" onClick={()=>setActiveTab('requests')} aria-label="Payment requests" title="Payment requests">
+      <Bell size={21}/>{pending>0&&<span className="ap-header-badge">{pending}</span>}
+     </button>
+     <button className="ap-header-action" onClick={logout} aria-label="Sign out" title="Sign out"><CircleUserRound size={22}/></button>
+    </div>
+   </header>
    <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage saved clients and raise a premium payment request only when needed.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
-   <div className="ap-tabs">
-    <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><FileText size={15}/>My Clients</button>
-    <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={15}/>Payment Requests <span>{pending}</span></button>
-   </div>
+   <nav className="ap-tabs ap-reference-tabs" aria-label="Agent workspace">
+    <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}>
+      <Users size={23}/><span>My Clients</span>
+    </button>
+    <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}>
+      <Send size={23}/><span>Payment Requests</span>{pending>0&&<b>{pending}</b>}
+    </button>
+    <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}>
+      <Clock3 size={23}/><span>History</span>
+    </button>
+   </nav>
 
    {activeTab==='policies'?<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Add a client and policy once. Raise premium payment requests whenever required.</p></div><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add Client</button></div>
     <div className="ap-client-search"><div><Users size={15}/><input value={clientSearch} onChange={e=>setClientSearch(e.target.value)} placeholder="Search client or policy number"/></div>{clientSearch&&<button onClick={()=>setClientSearch('')}><X size={14}/></button>}</div>
     {filteredClients.length?<div className="ap-client-grid">{filteredClients.map(r=><div className="ap-client-card ap-policy-card" key={r.PolicyID||r.ClientID}>
-      <div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><span className="ap-status">{r.Status||'ACTIVE'}</span></div>
+      <div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><ChevronRight className="ap-client-chevron" size={20}/></div>
       <div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><FileText size={13}/>Policy</span></div>
       <div className="ap-client-bottom"><span>Latest request <b>{r.RequestStatus&&r.RequestStatus!=='PENDING'?r.RequestStatus:'Ready'}</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'READY').toLowerCase()}>{r.RequestStatus&&r.RequestStatus!=='PENDING'?r.RequestStatus:'READY'}</span></div>
       <div className="ap-card-actions ap-client-actions">
@@ -123,20 +134,35 @@ export default function AgentPortalPage(){
        <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())?'Requested':'Raise Request'}</button>
       </div>
     </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>{clientSearch?'No matching client':'No clients added yet'}</b><span>{clientSearch?'Try the client name or policy number.':'Add the client and policy details first. You can raise premium payment requests whenever required.'}</span>{!clientSearch&&<button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Client</button>}</div>}
-   </section>:<section className="ap-panel ap-data">
+   </section>:activeTab==='requests'?<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">PAYMENT WORKFLOW</span><h2>Payment Requests</h2><p>Track every request raised for your clients and its current status.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
     {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
-      <div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>Raised {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div>
+      <div className="ap-request-icon"><Send size={17}/></div>
+      <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>Raised {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div>
       <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
       {['PENDING','SUBMITTED'].includes(String(r.Status||'').toUpperCase())&&<button className="ap-secondary ap-cancel-request" disabled={loading} onClick={()=>cancelRequest(r.RequestID)}>Cancel</button>}
       <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Search My Clients and raise a request whenever a premium needs to be paid.</span></div>}
-   </section>}
-  </main>
+   </section>:activeTab==='history'?<section className="ap-panel ap-data ap-history-page-panel">
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">ACTIVITY</span><h2>History</h2><p>Review recent premium payment requests raised for your clients.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
+    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
+      <div className="ap-request-icon"><Clock3 size={17}/></div>
+      <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>{r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—'}</small></div>
+      <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
+      <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
+    </div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No history yet</b><span>Payment request activity will appear here after you raise a request.</span></div>}
+   </section>}}  </main>
 
   {history&&<div className="ap-modal-backdrop" onClick={()=>!historyLoading&&setHistory(null)}><div className="ap-modal ap-detail-modal ap-history-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>!historyLoading&&setHistory(null)}><X/></button><span className="ap-eyebrow">CLIENT PAYMENT HISTORY</span><h2>{history.client.ClientName}</h2><p className="ap-history-sub">Policy {history.client.PolicyNumber} · Request and payment status</p><div className="ap-history-summary"><div><small>Requests</small><strong>{history.totalRequests}</strong></div><div><small>Payments</small><strong>{history.totalPayments}</strong></div><div><small>Current</small><strong>{history.client.Status||'ACTIVE'}</strong></div></div>{historyLoading?<div className="ap-empty"><RefreshCw className="spin"/><span>Loading history…</span></div>:history.requests.length?<div className="ap-history-list">{history.requests.map(x=><div className="ap-history-item" key={x.RequestID}><div><strong>Premium Request</strong><small>{x.RequestedAt?new Date(x.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—'}</small></div><span className={'ap-request-pill '+String(x.Status||'PENDING').toLowerCase()}>{x.Status||'PENDING'}</span>{x.PaymentID&&<div className="ap-history-payment"><WalletCards size={13}/><span>Paid {x.PaymentDate?new Date(x.PaymentDate).toLocaleDateString('en-IN'):'—'} · {x.ReferenceNumber||'Payment recorded'}</span></div>}</div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No payment history</b><span>This client has not had a premium payment request yet.</span></div>}<button className="ap-primary wide" onClick={()=>setHistory(null)}>Close</button></div></div>}
 
   {detail&&<div className="ap-modal-backdrop" onClick={()=>setDetail(null)}><div className="ap-modal ap-detail-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>setDetail(null)}><X/></button><span className="ap-eyebrow">{detail.type.toUpperCase()}</span><h2>{detail.data.ClientName||'Client'}</h2><div className="ap-detail-grid">{Object.entries(detail.data).filter(([k])=>!['ClientID','RequestID'].includes(k)).map(([k,v])=><div key={k}><small>{k.replace(/([a-z])([A-Z])/g,'$1 $2')}</small><strong>{String(v??'—')}</strong></div>)}</div><button className="ap-primary wide" onClick={()=>setDetail(null)}>Close</button></div></div>}
+
+  <nav className="ap-bottom-nav" aria-label="Primary navigation">
+   <button className={activeTab==='policies'?'active':''} onClick={()=>{setActiveTab('policies');window.scrollTo({top:0,behavior:'smooth'})}}><Home size={22}/><span>Home</span></button>
+   <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><Users size={22}/><span>My Clients</span></button>
+   <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={22}/>{pending>0&&<b>{pending}</b>}<span>Requests</span></button>
+   <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}><Clock3 size={22}/><span>History</span></button>
+  </nav>
 
   {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
    <button className="ap-close" onClick={()=>!loading&&setShowForm(false)}><X/></button>
