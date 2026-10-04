@@ -5,8 +5,10 @@ import '../agent-portal.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
-const displayDate=value=>{const raw=String(value||'').trim();if(!raw)return '—';const d=new Date(raw);if(Number.isNaN(d.getTime()))return raw;return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
+const displayDate=value=>{const raw=String(value||'').trim();if(!raw)return '—';const dm=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(dm)return dm[1]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(dm[2])-1]+'-'+dm[3];const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);if(iso)return iso[3]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(iso[2])-1]+'-'+iso[1];const d=new Date(raw);if(Number.isNaN(d.getTime()))return raw;return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
 const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
+const inputDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:raw.slice(0,10)}
+const savedDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:raw}
 const loadingMessages=['Securing your agent session…','Loading your policy workspace……','Syncing your latest requests…','Preparing your workspace…']
 
 export default function AgentPortalPage(){
@@ -40,11 +42,11 @@ export default function AgentPortalPage(){
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const openAddPolicy=()=>{setError('');setNotice('');setEditingPolicyId('');setPolicyForm(emptyPolicy);setShowForm(true)}
- const openEditPolicy=r=>{setError('');setNotice('');setEditingPolicyId(r.PolicyID);setPolicyForm({ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||''});setShowForm(true)}
+ const openEditPolicy=r=>{setError('');setNotice('');setEditingPolicyId(r.PolicyID);setPolicyForm({ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:inputDob(r.DateOfBirth)});setShowForm(true)}
  const addPolicy=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Adding policy to your workspace…')
   try{
-   const data=await agentBusinessApi.agentAddPolicy(session,policyForm)
+   const data=await agentBusinessApi.agentAddPolicy(session,{...policyForm,DateOfBirth:savedDob(policyForm.DateOfBirth)})
    setClients(current=>[data.policy,...current]);setPolicyForm(emptyPolicy);setShowForm(false)
    setNotice('Client added successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
@@ -52,7 +54,7 @@ export default function AgentPortalPage(){
  const editPolicy=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Updating client and policy details…')
   try{
-   await agentBusinessApi.agentEditPolicy(session,{...policyForm,PolicyID:editingPolicyId})
+   await agentBusinessApi.agentEditPolicy(session,{...policyForm,DateOfBirth:savedDob(policyForm.DateOfBirth),PolicyID:editingPolicyId})
    await load(session);setPolicyForm(emptyPolicy);setEditingPolicyId('');setShowForm(false);setNotice('Client details updated successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
