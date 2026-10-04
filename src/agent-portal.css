@@ -878,3 +878,5 @@
 .ap-more-payable{margin:0}
 .ap-more-panel .ap-profile-logout{margin-top:2px}
 
+
+.ap-info-note>div{display:grid;gap:3px}.ap-info-note>div strong{font-size:9px;color:#31584a}.ap-info-note>div span{display:block}.ap-simple-submit .ap-wizard-head h2{letter-spacing:-.04em}.ap-simple-submit .ap-form-grid label{font-size:8px;font-weight:800;color:#56655e;letter-spacing:.02em}.ap-simple-submit .ap-form-grid input{margin-top:5px}
