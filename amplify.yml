@@ -28,6 +28,12 @@ frontend:
         - key: Cache-Control
           value: no-cache
   redirects:
+    - source: /agent-portal/
+      target: /agent-portal/index.html
+      status: '200'
+    - source: /agent-portal
+      target: /agent-portal/index.html
+      status: '200'
     - source: /admin-portal/
       target: /admin-portal/index.html
       status: '200'
