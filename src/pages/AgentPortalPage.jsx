@@ -134,27 +134,24 @@ export default function AgentPortalPage(){
        <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())?'Requested':'Raise Request'}</button>
       </div>
     </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>{clientSearch?'No matching client':'No clients added yet'}</b><span>{clientSearch?'Try the client name or policy number.':'Add the client and policy details first. You can raise premium payment requests whenever required.'}</span>{!clientSearch&&<button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Client</button>}</div>}
-   </section>:<section className="ap-panel ap-data">
+   </section>:activeTab==='requests'?<section className="ap-panel ap-data">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">PAYMENT WORKFLOW</span><h2>Payment Requests</h2><p>Track every request raised for your clients and its current status.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
     {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
-      <div className="ap-request-icon"><Send size={17}/></div><div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>Raised {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div>
+      <div className="ap-request-icon"><Send size={17}/></div>
+      <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>Raised {r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'just now'}</small></div>
       <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
       {['PENDING','SUBMITTED'].includes(String(r.Status||'').toUpperCase())&&<button className="ap-secondary ap-cancel-request" disabled={loading} onClick={()=>cancelRequest(r.RequestID)}>Cancel</button>}
       <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Search My Clients and raise a request whenever a premium needs to be paid.</span></div>}
    </section>:activeTab==='history'?<section className="ap-panel ap-data ap-history-page-panel">
-    <div className="ap-panel-head">
-      <div><span className="ap-eyebrow">ACTIVITY</span><h2>History</h2><p>Review recent premium payment requests raised for your clients.</p></div>
-      <button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button>
-    </div>
-    {latestRequests.length?<div className="ap-request-list ap-history-tab-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">ACTIVITY</span><h2>History</h2><p>Review recent premium payment requests raised for your clients.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
+    {latestRequests.length?<div className="ap-request-list">{latestRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
       <div className="ap-request-icon"><Clock3 size={17}/></div>
       <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber}</span><small>{r.RequestedAt?new Date(r.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—'}</small></div>
       <span className={'ap-request-pill '+String(r.Status||'PENDING').toLowerCase()}>{r.Status||'PENDING'}</span>
       <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No history yet</b><span>Payment request activity will appear here after you raise a request.</span></div>}
-
-  </main>
+   </section>}}  </main>
 
   {history&&<div className="ap-modal-backdrop" onClick={()=>!historyLoading&&setHistory(null)}><div className="ap-modal ap-detail-modal ap-history-modal" onClick={e=>e.stopPropagation()}><button className="ap-close" onClick={()=>!historyLoading&&setHistory(null)}><X/></button><span className="ap-eyebrow">CLIENT PAYMENT HISTORY</span><h2>{history.client.ClientName}</h2><p className="ap-history-sub">Policy {history.client.PolicyNumber} · Request and payment status</p><div className="ap-history-summary"><div><small>Requests</small><strong>{history.totalRequests}</strong></div><div><small>Payments</small><strong>{history.totalPayments}</strong></div><div><small>Current</small><strong>{history.client.Status||'ACTIVE'}</strong></div></div>{historyLoading?<div className="ap-empty"><RefreshCw className="spin"/><span>Loading history…</span></div>:history.requests.length?<div className="ap-history-list">{history.requests.map(x=><div className="ap-history-item" key={x.RequestID}><div><strong>Premium Request</strong><small>{x.RequestedAt?new Date(x.RequestedAt).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'—'}</small></div><span className={'ap-request-pill '+String(x.Status||'PENDING').toLowerCase()}>{x.Status||'PENDING'}</span>{x.PaymentID&&<div className="ap-history-payment"><WalletCards size={13}/><span>Paid {x.PaymentDate?new Date(x.PaymentDate).toLocaleDateString('en-IN'):'—'} · {x.ReferenceNumber||'Payment recorded'}</span></div>}</div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No payment history</b><span>This client has not had a premium payment request yet.</span></div>}<button className="ap-primary wide" onClick={()=>setHistory(null)}>Close</button></div></div>}
 
