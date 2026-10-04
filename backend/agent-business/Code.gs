@@ -286,6 +286,10 @@ function agentBootstrap_(p){
   var policies=cachedSheetRows_(ss.getSheetByName('Policies'),'Policies');
   var bills=cachedSheetRows_(ss.getSheetByName('PremiumBills'),'PremiumBills');
   var requests=cachedSheetRows_(ss.getSheetByName('PaymentRequests'),'PaymentRequests');
+  var payments=cachedSheetRows_(ss.getSheetByName('Payments'),'Payments');
+  var receipts=cachedSheetRows_(ensureBusinessSheet_(ss,'Receipts'),'Receipts');
+  var paymentMap={};payments.forEach(function(x){if(String(x.AgentID)===s.AgentID)paymentMap[String(x.PaymentID)]=x;});
+  var receiptMap={};receipts.forEach(function(x){receiptMap[String(x.PaymentID)]=x;});
   var ownClients=clients.filter(function(x){return String(x.AgentID)===s.AgentID;});
   var policyMap={};policies.forEach(function(x){if(String(x.AgentID)===s.AgentID)policyMap[String(x.ClientID)]=x;});
   var billMap={};bills.forEach(function(x){if(String(x.AgentID)===s.AgentID)billMap[String(x.ClientID)]=x;});
@@ -299,7 +303,7 @@ function agentBootstrap_(p){
     if(!current||nextTime>=currentTime)requestMap[key]=x;
   });
   var items=ownClients.slice().reverse().map(function(client){var policy=policyMap[String(client.ClientID)]||{},bill=billMap[String(client.ClientID)]||{},request=requestMap[String(client.ClientID)]||{};return safeAgentClient_(Object.assign({},client,policy,{PolicyID:policy.PolicyID||'',PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||''}));});
-  var reqItems=requests.filter(function(x){return String(x.AgentID)===s.AgentID;}).slice().reverse().map(function(req){var client=ownClients.find(function(x){return String(x.ClientID)===String(req.ClientID);})||{};var policy=policyMap[String(req.ClientID)]||{};return safeAgentRequest_(Object.assign({},req,{ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||policy.PolicyNumber||''}));});
+  var reqItems=requests.filter(function(x){return String(x.AgentID)===s.AgentID;}).slice().reverse().map(function(req){var client=ownClients.find(function(x){return String(x.ClientID)===String(req.ClientID);})||{};var policy=policyMap[String(req.ClientID)]||{};var pay=paymentMap[String(req.PaymentID||'')]||{};var receipt=receiptMap[String(pay.PaymentID||req.PaymentID||'')]||{};return safeAgentRequest_(Object.assign({},req,{ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||policy.PolicyNumber||'',PaymentDate:pay.PaymentDate||'',PaymentStatus:pay.Status||'',ReceiptUrl:receipt.ReceiptUrl||'',ReceiptFileId:receipt.ReceiptFileId||'',ReceiptFileName:receipt.FileName||''}));});
   var result={agent:safeAgent_(agent),clients:{items:items,total:items.length},requests:{items:reqItems,total:reqItems.length}};
   cachePutJson_('AGENT_BOOT_'+s.AgentID,result,15);
   return result;
@@ -551,7 +555,7 @@ function safeAgentClient_(c){
   return {ClientID:c.ClientID,PolicyID:c.PolicyID||'',ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt,PolicyType:c.PolicyType||'Policy',PremiumAmount:c.PremiumAmount||0,RequestStatus:c.RequestStatus||''};
 }
 function safeAgentRequest_(r){
-  return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',Notes:r.Notes||''};
+  return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',PaymentDate:r.PaymentDate||'',PaymentStatus:r.PaymentStatus||'',ReceiptUrl:r.ReceiptUrl||'',ReceiptFileId:r.ReceiptFileId||'',ReceiptFileName:r.ReceiptFileName||'',Notes:r.Notes||''};
 }
 function updateAgentUserLastLogin_(ss,id){var sheet=ss.getSheetByName('AgentUsers'),rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r.AgentUserID)===id;});if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.AgentUsers,values=rows[idx];var col=headers.indexOf('LastLoginAt');if(col>=0)sheet.getRange(idx+2,col+1).setValue(new Date().toISOString());}}
 function adminCreateAgent_(p){
