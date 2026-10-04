@@ -433,3 +433,67 @@
 @media(min-width:761px){
  .ap-client-actions{grid-template-columns:1fr 1fr 1.65fr}
 }
+
+
+/* =========================================================
+   Agent Portal — compact icon-only command header
+   ========================================================= */
+.ap-icon-header{
+  min-height:58px;
+  padding:8px 10px;
+  border-radius:18px;
+}
+.ap-icon-brand{min-width:0;flex:1}
+.ap-icon-brand img{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+}
+.ap-icon-actions{
+  display:flex!important;
+  grid-template-columns:none!important;
+  gap:7px;
+  flex:0 0 auto;
+}
+.ap-icon-header-btn{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  padding:0;
+  border:1px solid #dce9e2;
+  border-radius:12px;
+  background:#fff;
+  color:#26362e;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  transition:transform .2s ease,background .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+.ap-icon-header-btn:hover:not(:disabled){
+  transform:translateY(-2px);
+  border-color:#afd9c1;
+  background:#f1fbf5;
+  box-shadow:0 8px 18px #163f2a12;
+}
+.ap-icon-header-primary{
+  color:#fff;
+  background:#102018;
+  border-color:#102018;
+}
+.ap-icon-header-primary:hover:not(:disabled){
+  color:#fff;
+  background:#16834f;
+  border-color:#16834f;
+}
+.ap-icon-header-danger{color:#a84c43}
+.ap-icon-header-danger:hover:not(:disabled){
+  color:#a84c43;
+  background:#fff7f5;
+  border-color:#eccdc8;
+}
+.ap-icon-header-btn:disabled{opacity:.55;cursor:not-allowed}
+.ap-icon-header + .ap-page-head{margin-top:2px}
+@media(max-width:620px){
+  .ap-icon-header{margin-bottom:13px}
+  .ap-icon-header-btn{width:40px;height:40px;min-width:40px}
+}
