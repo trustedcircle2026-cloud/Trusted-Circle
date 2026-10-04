@@ -345,3 +345,56 @@
   }
   .ab-shell,.ab-main{width:430px!important;max-width:430px!important;min-width:430px!important}
 }
+
+
+/* =========================================================
+   LIGHT MOTION SYSTEM — white / black / soft green
+   ========================================================= */
+:root{
+  --tc-black:#102018;
+  --tc-black-soft:#26332d;
+  --tc-green:#16834f;
+  --tc-green-light:#eaf8f0;
+  --tc-green-pale:#f4fbf7;
+  --tc-line:#dce9e2;
+  --tc-white:#fff;
+}
+body{background:#fff}
+.agent-business-page{
+  color:var(--tc-black);
+  background:
+    radial-gradient(circle at 10% 0%,#effcf5 0,transparent 28%),
+    radial-gradient(circle at 92% 20%,#f7faf8 0,transparent 25%),
+    #fff;
+}
+.ab-main{background:linear-gradient(180deg,#fff 0%,#fbfdfc 55%,#f5faf7 100%)}
+.ab-topbar{background:#ffffffeb;border-bottom:1px solid var(--tc-line);backdrop-filter:blur(18px)}
+.ab-panel,.ab-table-panel,.ab-metric,.ab-welcome-strip{background:#fff;border-color:var(--tc-line)}
+.ab-primary{background:var(--tc-black);color:#fff;border-color:var(--tc-black);transition:transform .22s ease,box-shadow .22s ease,background .22s ease}
+.ab-primary:hover{background:var(--tc-green);transform:translateY(-2px);box-shadow:0 10px 24px #16834f24}
+.ab-secondary,.ab-small-action{background:#fff;color:var(--tc-black);border-color:var(--tc-line);transition:transform .2s ease,border-color .2s ease,background .2s ease}
+.ab-secondary:hover,.ab-small-action:hover{background:var(--tc-green-pale);border-color:#b8dcc8;transform:translateY(-2px)}
+.ab-sidebar{background:#102018!important}
+.ab-sidebar button{transition:transform .2s ease,background .2s ease,color .2s ease}
+.ab-sidebar button:hover{transform:translateX(3px);background:#ffffff0d}
+.ab-sidebar button.active{background:var(--tc-green)!important}
+.ab-section-head h2,.ab-welcome-strip h2,.ab-panel h3{color:var(--tc-black)}
+.ab-table-wrap tr{transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.ab-table-wrap tr:hover{transform:translateY(-2px);box-shadow:0 12px 28px #10201812;border-color:#bddcca}
+.ab-metric{transition:transform .25s ease,box-shadow .25s ease}
+.ab-metric:hover{transform:translateY(-3px);box-shadow:0 12px 28px #10201812}
+.ab-module-grid button{transition:transform .22s ease,box-shadow .22s ease}
+.ab-module-grid button:hover{transform:translateY(-3px);box-shadow:0 10px 22px #10201810}
+.ab-welcome-strip{animation:tcFadeUp .55s ease both}
+.ab-section-head{animation:tcFadeUp .45s ease both}
+.ab-table-panel{animation:tcFadeUp .55s .06s ease both}
+@keyframes tcFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tcFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes tcPulse{0%,100%{box-shadow:0 0 0 0 #16834f00}50%{box-shadow:0 0 0 6px #16834f0d}}
+.ab-metric-icon{animation:tcFloat 3.5s ease-in-out infinite}
+.ab-live-chip{animation:tcPulse 2.4s ease-in-out infinite}
+.ab-modal{animation:tcModalIn .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes tcModalIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
