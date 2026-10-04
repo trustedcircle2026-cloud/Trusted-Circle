@@ -564,3 +564,12 @@ body{background:#fff}
 
 /* Payment request card layout */
 .tc-request-title{min-width:0;flex:1}.tc-client-agent{display:flex;align-items:center;gap:9px;min-width:0}.tc-client-agent strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tc-client-agent span{font-size:8px;font-weight:800;color:#17623f;background:#edf8f2;border:1px solid #d6ebe0;border-radius:999px;padding:4px 7px;white-space:nowrap}.tc-request-copy-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;border-top:0;margin-top:10px}.tc-request-copy-grid>div{display:grid;grid-template-columns:1fr auto;gap:5px;align-content:center;padding:9px;border:1px solid #e5ece8;border-radius:10px;background:#fbfdfc;min-width:0}.tc-request-copy-grid>div small{grid-column:1/-1}.tc-request-copy-grid>div strong{font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tc-request-copy-grid>div button{height:25px;padding:0 7px}.tc-request-actions{grid-template-columns:minmax(0,1fr) auto auto}.tc-request-actions .tc-amazon-button{min-width:0}@media(max-width:480px){.tc-request-copy-grid{grid-template-columns:1fr}.tc-request-copy-grid>div{grid-template-columns:minmax(0,1fr) auto}.tc-client-agent{gap:6px}.tc-client-agent span{font-size:7px;padding:3px 6px}.tc-request-actions{grid-template-columns:1fr 1fr}.tc-request-actions .tc-amazon-button{grid-column:1/-1}}
+
+
+/* Invoice payment-link assignment */
+.tc-invoice-assign-modal{max-width:560px}
+.tc-qr-upload-box{border:1px dashed #b8c9bf;border-radius:18px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;background:#f7faf8;margin:18px 0}
+.tc-qr-upload-box strong{font-size:15px;color:#17231d}
+.tc-qr-upload-box span,.tc-qr-upload-box small{font-size:12px;color:#6d7b73}
+.tc-qr-upload-box input[type=file]{width:100%;max-width:320px}
+.tc-invoice-payment-pending{display:inline-flex;align-items:center;padding:9px 11px;border-radius:10px;background:#f3f6f4;color:#65736b;font-size:12px;font-weight:700}
