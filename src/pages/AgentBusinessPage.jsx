@@ -174,17 +174,17 @@ export default function AgentBusinessPage(){
  const enrichPaymentRequests=async(items)=>{
    if(!items.length)return items
    try{
-     const clientResult=await agentBusinessApi.list('Clients',{limit:500},adminToken)
-     const clients=clientResult.items||[]
+     const [clientResult,agentResult]=await Promise.all([
+       agentBusinessApi.list('Clients',{limit:500},adminToken),
+       agentBusinessApi.list('Agents',{limit:500},adminToken)
+     ])
+     const clients=clientResult.items||[],agents=agentResult.items||[]
      const byId=new Map(clients.map(client=>[String(client.ClientID),client]))
+     const agentById=new Map(agents.map(agent=>[String(agent.AgentID),agent]))
      return items.map(request=>{
        const client=byId.get(String(request.ClientID))||{}
-       return {
-         ...request,
-         ClientName:request.ClientName||client.ClientName||'',
-         PolicyNumber:request.PolicyNumber||client.PolicyNumber||'',
-         DateOfBirth:request.DateOfBirth||client.DateOfBirth||'',
-       }
+       const agent=agentById.get(String(request.AgentID))||{}
+       return {...request,ClientName:request.ClientName||client.ClientName||'',PolicyNumber:request.PolicyNumber||client.PolicyNumber||'',DateOfBirth:request.DateOfBirth||client.DateOfBirth||'',AgentName:request.AgentName||agent.AgentName||agent.Name||''}
      })
    }catch(e){return items}
  }
