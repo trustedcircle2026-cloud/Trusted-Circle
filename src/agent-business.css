@@ -533,3 +533,28 @@ body{background:#fff}
  .tc-payment-verify-modal,.tc-invoice-modal{max-height:92dvh;padding:17px}
  .tc-invoice-items{max-height:31dvh}
 }
+
+
+/* =========================================================
+   Admin — Payable & Invoice Link Control
+   ========================================================= */
+.tc-invoice-link-modal{max-width:720px!important}
+.tc-invoice-admin-list{display:grid;gap:8px;max-height:46vh;overflow:auto;margin:14px 0}
+.tc-invoice-admin-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:9px;padding:11px;border:1px solid #dfe8e3;border-radius:12px;background:#fff}
+.tc-invoice-admin-row strong{display:block;font-size:11px;color:#102018}
+.tc-invoice-admin-row small{display:block;margin-top:3px;font-size:8px;color:#77837d}
+.tc-invoice-admin-row .tc-status{white-space:nowrap}
+.tc-invoice-admin-row>button{min-height:34px;padding:0 10px;border:1px solid #cfe0d7;border-radius:9px;background:#f5faf7;color:#064f3b;font-size:9px;font-weight:800;display:flex;align-items:center;gap:5px;cursor:pointer}
+.tc-link-editor{padding:12px;border:1px solid #dce9e2;border-radius:13px;background:#f8fcfa}
+.tc-link-editor label{display:grid;gap:5px;margin-bottom:9px;font-size:9px;font-weight:700;color:#4d5c54}
+.tc-link-editor input,.tc-link-editor select{width:100%;min-height:42px;padding:0 11px;border:1px solid #d9e4de;border-radius:10px;background:#fff;color:#17231d;font-size:11px;outline:none}
+.tc-link-editor small{display:block;font-size:8px;color:#77837d;line-height:1.4}
+.tc-link-editor-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:8px;margin-top:11px}
+.tc-secondary-button{min-height:42px;padding:0 12px;border:1px solid #d9e4de;border-radius:10px;background:#fff;color:#24332b;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.tc-full-refresh{width:100%;margin-top:8px}
+@media(max-width:620px){
+  .tc-invoice-admin-row{grid-template-columns:1fr auto}
+  .tc-invoice-admin-row>button{grid-column:1/-1;width:100%;justify-content:center}
+  .tc-invoice-link-modal{width:min(96vw,720px)!important}
+}
+
