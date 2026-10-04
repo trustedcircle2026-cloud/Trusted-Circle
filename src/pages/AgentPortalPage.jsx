@@ -1,10 +1,11 @@
 import {useEffect,useMemo,useState} from 'react'
-import {ArrowRight,Bell,CheckCircle2,CircleUserRound,FileText,Home,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards,MoreHorizontal} from 'lucide-react'
+import {ArrowRight,Bell,CheckCircle2,CircleUserRound,Download,ExternalLink,FileText,Home,Link2,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards,MoreHorizontal} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
+const displayDate=value=>{const raw=String(value||'').trim();if(!raw)return '—';const d=new Date(raw);if(Number.isNaN(d.getTime()))return raw;return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
 const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
 const loadingMessages=['Securing your agent session…','Loading your policy workspace…','Syncing your latest requests…','Preparing your workspace…']
 
