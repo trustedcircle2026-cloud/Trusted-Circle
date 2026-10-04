@@ -68,6 +68,7 @@ export const agentBusinessApi={
   agentClientHistory:(token,clientId)=>request('agentClientHistory',{token,clientId}),
   agentInvoices:(token)=>request('agentInvoices',{token}),
   agentInvoicePdf:(token,invoiceId)=>request('agentInvoicePdf',{token,invoiceId}),
+  agentReportInvoicePaymentDone:(token,invoiceId)=>request('agentReportInvoicePaymentDone',{token,invoiceId}),
   assignInvoicePaymentLink:(invoiceId,paymentLink,adminToken)=>request('assignInvoicePaymentLink',{invoiceId,paymentLink,adminToken}),
   agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
