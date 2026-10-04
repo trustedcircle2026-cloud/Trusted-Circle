@@ -73,6 +73,16 @@ export default function AgentPortalPage(){
   catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0)}
+ const reportInvoicePaymentDone=async invoice=>{
+  if(!invoice?.InvoiceID)return;
+  if(!window.confirm('Have you completed the payment for '+(invoice.InvoiceNumber||'this invoice')+'? This will notify Trusted Circle Admin for verification.'))return;
+  setLoading(true);setError('');setNotice('');setLoadingText('Sending payment completion report to Admin…');
+  try{
+    await agentBusinessApi.agentReportInvoicePaymentDone(session,invoice.InvoiceID);
+    await load(session);
+    setNotice('Payment marked as done. Trusted Circle Admin has been notified for verification.');
+  }catch(e){setError(e.message)}finally{setLoading(false)}
+ }
  const downloadInvoice=async invoice=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentInvoicePdf(session,invoice.InvoiceID);const bytes=Uint8Array.from(atob(data.pdfBase64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||((invoice.InvoiceNumber||'Trusted-Circle-Invoice')+'.pdf');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}
  const pending=requests.filter(r=>!['PAID','COMPLETED','CANCELLED'].includes(String(r.Status||'').toUpperCase())).length
  const latestRequests=useMemo(()=>requests.slice(0,12),[requests])
@@ -126,7 +136,7 @@ export default function AgentPortalPage(){
     </div>
     <div className="ap-payable-box">
       <div className="ap-payable-head"><div><span className="ap-eyebrow">AGENT PAYABLE</span><h2>Amount Payable to Trusted Circle</h2><p>Net amount after the 2% Trusted Circle discount.</p></div><span className="ap-payable-total">{money(payableAmount)}</span></div>
-      <div className="ap-invoice-list ap-home-invoices">{invoices.length?invoices.slice(0,3).map(invoice=><AgentInvoiceCard key={invoice.InvoiceID} invoice={invoice} onDownload={downloadInvoice}/>):<div className="ap-invoice-empty"><FileText size={18}/><span>Your generated invoices will appear here.</span></div>}</div>
+      <div className="ap-invoice-list ap-home-invoices">{invoices.length?invoices.slice(0,3).map(invoice=><AgentInvoiceCard key={invoice.InvoiceID} invoice={invoice} onDownload={downloadInvoice} onPaymentDone={reportInvoicePaymentDone}/>):<div className="ap-invoice-empty"><FileText size={18}/><span>Your generated invoices will appear here.</span></div>}</div>
       {invoices.length>3&&<button className="ap-secondary wide" onClick={()=>setActiveTab('more')}>View All Invoices <ChevronRight size={15}/></button>}
     </div>
     <div className="ap-home-actions">
@@ -214,5 +224,5 @@ export default function AgentPortalPage(){
  </div>
 }
 
-function AgentInvoiceCard({invoice,onDownload}){const status=String(invoice.PaymentStatus||'UNPAID').toUpperCase();const payable=Number(invoice.NetPayable||0);return <div className="ap-invoice-card"><div className="ap-invoice-card-head"><div><strong>{invoice.InvoiceNumber||'Invoice'}</strong><small>{displayDate(invoice.InvoiceDate)} · {status}</small></div><span>{money(payable)}</span></div><div className="ap-invoice-meta"><span>Gross {money(invoice.TotalAmount||0)}</span><span>Discount 2% · {money(invoice.DiscountAmount||0)}</span></div><div className="ap-invoice-actions"><button className="ap-secondary" onClick={()=>onDownload(invoice)}><Download size={14}/>Download Invoice</button>{invoice.PaymentLink?<button className="ap-primary" onClick={()=>window.open(invoice.PaymentLink,'_blank','noopener,noreferrer')}><ExternalLink size={14}/>Pay {money(payable)}</button>:<button className="ap-secondary" disabled title="Admin has not assigned the payment link yet"><Link2 size={14}/>Pay Link Pending</button>}</div></div>}
+function AgentInvoiceCard({invoice,onDownload,onPaymentDone}){const status=String(invoice.PaymentStatus||'UNPAID').toUpperCase();const payable=Number(invoice.NetPayable||0);const reported=status==='AGENT_REPORTED';const paid=['PAID','SETTLED'].includes(status);return <div className="ap-invoice-card"><div className="ap-invoice-card-head"><div><strong>{invoice.InvoiceNumber||'Invoice'}</strong><small>{displayDate(invoice.InvoiceDate)} · {status}</small></div><span>{money(payable)}</span></div><div className="ap-invoice-meta"><span>Gross {money(invoice.TotalAmount||0)}</span><span>Discount 2% · {money(invoice.DiscountAmount||0)}</span></div><div className="ap-invoice-actions"><button className="ap-secondary" onClick={()=>onDownload(invoice)}><Download size={14}/>Download Invoice</button>{invoice.PaymentLink&&!paid&&!reported&&<><button className="ap-primary" onClick={()=>window.open(invoice.PaymentLink,'_blank','noopener,noreferrer')}><ExternalLink size={14}/>Pay {money(payable)}</button><button className="ap-secondary ap-payment-done" onClick={()=>onPaymentDone&&onPaymentDone(invoice)}><CheckCircle2 size={14}/>Payment Done</button></>}{reported&&<button className="ap-secondary" disabled><Clock3 size={14}/>Admin Verification Pending</button>}{paid&&<button className="ap-secondary" disabled><CheckCircle2 size={14}/>Payment Received</button>}{!invoice.PaymentLink&&!paid&&!reported&&<button className="ap-secondary" disabled title="Admin has not assigned the payment link yet"><Link2 size={14}/>Pay Link Pending</button>}</div></div>}
 function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-logo"><img src={LOGO_URL} alt="Trusted Circle"/><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
