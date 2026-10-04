@@ -338,7 +338,7 @@ function InvoiceLinkManagerModal({rows,loading,modal,setModal,onEdit,onSave,onRe
     <label>Payment QR / Image<input type="file" accept="image/*" disabled={qrBusy} onChange={e=>onQrUpload&&onQrUpload(e.target.files?.[0])}/><small className="tc-field-note">{qrBusy?'Reading QR…':'Upload the predefined amount QR image. The decoded URL will appear below.'}</small></label>
     <div className="tc-qr-readout"><QrCode size={18}/><div><small>Extracted Payment Link</small><strong>{modal.paymentLink||'No link extracted yet'}</strong></div></div>
     <label>Payment Link<input value={modal.paymentLink||''} onChange={e=>setModal({...modal,paymentLink:e.target.value})} placeholder="https://…"/></label>
-    <div className="tc-link-editor-actions"><button onClick={()=>setModal(null)} disabled={loading||qrBusy}>Cancel</button><button className="tc-save-button" disabled={loading||qrBusy||!/^https?:\\/\\//i.test(String(modal.paymentLink||''))} onClick={onSave}>{loading?'Saving…':'Save Payment Link'}</button></div>
+    <div className="tc-link-editor-actions"><button onClick={()=>setModal(null)} disabled={loading||qrBusy}>Cancel</button><button className="tc-save-button" disabled={loading||qrBusy||!/^https?:\/\//i.test(String(modal.paymentLink||''))} onClick={onSave}>{loading?'Saving…':'Save Payment Link'}</button></div>
    </div>}
    <button className="tc-secondary-action" onClick={onRefresh} disabled={loading||qrBusy}><RefreshCw size={14}/>Refresh Invoice List</button>
   </div>
