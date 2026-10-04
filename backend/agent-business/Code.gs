@@ -8,6 +8,7 @@
  * After setup, deploy this Apps Script as a Web App.
  */
 
+// Insurance agent receivables, invoice payment reporting and settlement workflow.
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
