@@ -136,7 +136,7 @@ export default function AgentPortalPage(){
       <button className="ap-secondary" onClick={()=>setActiveTab('history')}><Clock3 size={16}/>View History</button>
     </div>
    </section>:activeTab==='policies'?<section className="ap-panel ap-data">
-    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Add a client and policy once. Raise premium payment requests whenever required.</p></div><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add Client</button></div>
+    <div className="ap-panel-head"><div><span className="ap-eyebrow">CLIENT WORKSPACE</span><h2>My Clients</h2><p>Save your client's policy details once. You can raise a new premium request for every unpaid premium cycle.</p></div><button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add Client</button></div>
     <div className="ap-client-search"><div><Users size={15}/><input value={clientSearch} onChange={e=>setClientSearch(e.target.value)} placeholder="Search client or policy number"/></div>{clientSearch&&<button onClick={()=>setClientSearch('')}><X size={14}/></button>}</div>
     {filteredClients.length?<div className="ap-client-grid">{filteredClients.map(r=><div className="ap-client-card ap-policy-card" key={r.PolicyID||r.ClientID}>
       <div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><ChevronRight className="ap-client-chevron" size={20}/></div>
@@ -145,7 +145,7 @@ export default function AgentPortalPage(){
       <div className="ap-card-actions ap-client-actions">
        <button className="ap-secondary" onClick={()=>openHistory(r)}><Clock3 size={14}/>History</button>
        <button className="ap-secondary" onClick={()=>openEditPolicy(r)}><Edit3 size={14}/>Edit</button>
-       <button className="ap-primary ap-request-action" disabled={loading||['PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())?'Premium Paid':'Raise Request'}</button>
+       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{String(r.RequestStatus||'').toUpperCase()==='PENDING'?'Requested':String(r.RequestStatus||'').toUpperCase()==='SUBMITTED'?'In Process':String(r.RequestStatus||'').toUpperCase()==='PAID'||String(r.RequestStatus||'').toUpperCase()==='COMPLETED'?'New Premium Request':'Raise Request'}</button>
       </div>
     </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>{clientSearch?'No matching client':'No clients added yet'}</b><span>{clientSearch?'Try the client name or policy number.':'Add the client and policy details first. You can raise premium payment requests whenever required.'}</span>{!clientSearch&&<button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Client</button>}</div>}
    </section>:activeTab==='requests'?<section className="ap-panel ap-data">
@@ -201,14 +201,14 @@ export default function AgentPortalPage(){
 
   {showForm&&<div className="ap-modal-backdrop"><div className="ap-modal ap-wizard ap-simple-submit">
    <button className="ap-close" onClick={()=>!loading&&setShowForm(false)}><X/></button>
-   <div className="ap-wizard-head"><span className="ap-eyebrow">{editingPolicyId?'EDIT SAVED POLICY':'ADD NEW POLICY'}</span><h2>{editingPolicyId?'Edit Client & Policy':'Add Policy'}</h2><p>{editingPolicyId?'Update only the required client and policy details.':'Save the policy first. You can request payment later from My Policies.'}</p></div>
-   <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Payment</small></div>
+   <div className="ap-wizard-head"><span className="ap-eyebrow">{editingPolicyId?'EDIT SAVED POLICY':'ADD NEW POLICY'}</span><h2>{editingPolicyId?'Edit Client & Policy':'Add Policy'}</h2><p>{editingPolicyId?'Update the saved client and policy details.':'Add the client once. Premium payment requests are raised separately whenever a new premium is due.'}</p></div>
+   <div className="ap-simple-flow"><span>1</span><i></i><span>2</span><i></i><span>3</span><small>Client</small><small>Policy</small><small>Ready</small></div>
    <div className="ap-form-grid ap-three-fields">
-    <label>Client Name<input value={policyForm.ClientName} onChange={e=>setPolicyForm({...policyForm,ClientName:e.target.value})} placeholder="Full name"/></label>
-    <label>Policy Number<input value={policyForm.PolicyNumber} onChange={e=>setPolicyForm({...policyForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Policy number"/></label>
-    <label>Date of Birth<input type="date" value={policyForm.DateOfBirth} onChange={e=>setPolicyForm({...policyForm,DateOfBirth:e.target.value})}/></label>
+    <label>Client Full Name<input value={policyForm.ClientName} onChange={e=>setPolicyForm({...policyForm,ClientName:e.target.value})} placeholder="Enter client's full name" autoComplete="name"/></label>
+    <label>LIC Policy Number<input value={policyForm.PolicyNumber} onChange={e=>setPolicyForm({...policyForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Enter policy number" autoComplete="off"/></label>
+    <label>Client Date of Birth<input type="date" value={policyForm.DateOfBirth} onChange={e=>setPolicyForm({...policyForm,DateOfBirth:e.target.value})}/></label>
    </div>
-   <div className="ap-info-note"><ShieldCheck size={15}/><span>No premium amount, payment amount, due date or other policy details are required here. Admin verifies those details when you request payment.</span></div>
+   <div className="ap-info-note"><ShieldCheck size={15}/><div><strong>Client profile only</strong><span>No premium amount or payment details are required here. Add the client once; every premium payment request and payment history will be recorded separately.</span></div></div>
    <div className="ap-wizard-actions"><button className="ap-secondary" onClick={()=>setShowForm(false)} disabled={loading}>Cancel</button><button className="ap-primary ap-send" disabled={loading||!policyForm.ClientName||!policyForm.PolicyNumber||!policyForm.DateOfBirth} onClick={editingPolicyId?editPolicy:addPolicy}>{loading?<RefreshCw className="spin"/>:editingPolicyId?<CheckCircle2 size={15}/>:<Plus size={15}/>} {editingPolicyId?'Save Changes':'Add Policy'}<ArrowRight size={15}/></button></div>
   </div></div>}
  </div>
