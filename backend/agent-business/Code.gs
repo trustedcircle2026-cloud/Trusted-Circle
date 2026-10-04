@@ -353,10 +353,14 @@ function agentRequestPayment_(p){
   if(!policy)throw new Error('Policy not found for this client. Refresh the workspace.');
   policyId=String(policy.PolicyID);
   var requests=sheetRows_(ss.getSheetByName('PaymentRequests'));
-  // Agents may raise multiple requests for the same policy while premium payment is not yet completed.
-  // The only terminal state that blocks a new request is PAID/COMPLETED.
-  var paidRequest=requests.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.PolicyID||'')===policyId&&['PAID','COMPLETED'].includes(String(x.Status||'').toUpperCase());});
-  if(paidRequest)throw new Error('Premium is already paid for this policy. A new payment request cannot be raised.');
+  // One active request per policy at a time. Cancelled and paid requests are historical
+  // records and do not block the next premium cycle.
+  var activeRequest=requests.some(function(x){
+    return String(x.AgentID)===s.AgentID &&
+      String(x.PolicyID||'')===policyId &&
+      ['PENDING','SUBMITTED','IN PROCESS','PROCESSING'].includes(String(x.Status||'').toUpperCase());
+  });
+  if(activeRequest)throw new Error('A payment request is already in process for this policy. Wait until it is completed or cancelled.');
   var client=sheetRows_(ss.getSheetByName('Clients')).find(function(x){return String(x.ClientID)===String(policy.ClientID)&&String(x.AgentID)===s.AgentID;});
   if(!client)throw new Error('Client record not found.');
   var request=saveRow_(ss,'PaymentRequests',{RequestID:newId_('RequestID'),BillID:'',AgentID:s.AgentID,ClientID:client.ClientID,PolicyID:policyId,PremiumAmount:'',CustomerPayable:'',DiscountAmount:'',Status:'PENDING',RequestedAt:new Date().toISOString(),Notes:'Agent requested payment on behalf of client. Admin to verify premium details.'});
