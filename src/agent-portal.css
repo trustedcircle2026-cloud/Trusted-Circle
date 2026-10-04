@@ -825,3 +825,17 @@
  .ap-home-stats span{font-size:9px}
  .ap-bottom-nav button{font-size:9px}
 }
+
+
+/* Compact action-complete toast */
+.ap-banner.ap-success{
+ position:fixed!important;top:86px;left:50%;transform:translateX(-50%);z-index:700;
+ width:min(360px,calc(100vw - 28px));min-height:42px!important;margin:0!important;padding:10px 12px!important;
+ border:1px solid #bfe8d0!important;border-radius:12px!important;background:#effcf5!important;
+ box-shadow:0 10px 28px rgba(16,32,24,.12)!important;color:#16603f!important;font-size:11px!important;
+ display:flex!important;align-items:center!important;gap:8px!important;
+}
+.ap-banner.ap-success>svg{width:17px;height:17px;flex:0 0 auto;color:#16834f}
+.ap-banner.ap-success span{flex:1}
+.ap-banner.ap-success button{border:0;background:transparent;color:#4d705f;font-size:9px;font-weight:700;cursor:pointer;padding:4px}
+.ap-banner.ap-error{position:fixed!important;top:86px;left:50%;transform:translateX(-50%);z-index:700;width:min(360px,calc(100vw - 28px));margin:0!important}
