@@ -212,6 +212,7 @@ function agentBusinessRoute_(p){
   if(action==='createInvoice') return createInvoice_(p);
   if(action==='receivables') return listReceivables_(ss,p);
   if(action==='markReceivableReceived') return markReceivableReceived_(ss,p);
+  if(action==='assignInvoicePaymentLink') return assignInvoicePaymentLink_(p);
   if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
   if(action==='createAgent') return adminCreateAgent_(p);
   if(action==='setAgentPassword') return adminSetAgentPassword_(p);
@@ -437,8 +438,8 @@ function agentInvoices_(p){
         NetPayable:Number(x.NetPayable||0),
         Status:x.Status||'GENERATED',
         PdfUrl:x.PdfUrl||'',
-        PaymentLink:COMMON_AGENT_PAYMENT_LINK,
-        PaymentStatus:x.PaymentStatus||'UNPAID',
+        PaymentLink:x.PaymentLink||'',
+        PaymentStatus:x.PaymentStatus||'PAYABLE',
         PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''
       };
     }),
@@ -581,7 +582,7 @@ function agentReportInvoicePaymentDone_(p){
   if(!invoice)throw new Error('Invoice not found.');
   var current=String(invoice.PaymentStatus||'UNPAID').toUpperCase();
   if(['PAID','SETTLED'].includes(current))throw new Error('This invoice is already marked as received.');
-  if(!String(invoice.PaymentLink||'').trim()){invoice.PaymentLink=COMMON_AGENT_PAYMENT_LINK;invoice.PaymentLinkAssignedAt=new Date().toISOString();}
+  if(!String(invoice.PaymentLink||'').trim())throw new Error('Payment link has not been assigned by Admin for this invoice yet.');
   invoice.PaymentStatus='AGENT_REPORTED';
   invoice.Status='PAYMENT_REPORTED';
   invoice.AgentPaymentReportedAt=new Date().toISOString();
@@ -639,6 +640,30 @@ function invoicePaymentDecision_(p){
   invalidateSheetCache_('Invoices');invalidateSheetCache_('AgentReceivables');invalidateSheetCache_('MoneyLedger');
   var label=decision==='RECEIVED'?'Payment received and receivable settled.':decision==='PENDING'?'Payment kept pending for verification.':'Payment failed. Agent can try again using the payment link.';
   return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #dfe8e3;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>'+escapeHtml_(label)+'</h3><p>Invoice <b>'+escapeHtml_(invoice.InvoiceNumber||'')+'</b></p><p>You can close this window.</p></div>');
+}
+function assignInvoicePaymentLink_(p){
+  var invoiceId=String(p.invoiceId||'').trim();
+  var paymentLink=String(p.paymentLink||'').trim();
+  requireAdmin_(p);
+  if(!invoiceId)throw new Error('Invoice is required.');
+  if(!/^upi:\/\/pay(?:\?|$)/i.test(paymentLink))throw new Error('Only a valid UPI payment URL (upi://pay...) can be assigned.');
+  var ss=agentBusinessSpreadsheet_();
+  var sheet=ensureBusinessSheet_(ss,'Invoices');
+  var invoice=sheetRows_(sheet).find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  var status=String(invoice.PaymentStatus||'').toUpperCase();
+  if(['PAID','SETTLED','CANCELLED'].includes(status))throw new Error('A payment link cannot be assigned to a closed invoice.');
+  invoice.PaymentLink=paymentLink;
+  invoice.PaymentLinkAssignedAt=new Date().toISOString();
+  invoice.PaymentStatus='PAYABLE';
+  invoice.Status='PAYMENT_LINK_ASSIGNED';
+  invoice.UpdatedAt=new Date().toISOString();
+  saveRow_(ss,'Invoices',invoice);
+  invalidateSheetCache_('Invoices');
+  return {assigned:true,invoice:{
+    InvoiceID:invoice.InvoiceID,InvoiceNumber:invoice.InvoiceNumber,PaymentLink:invoice.PaymentLink,
+    PaymentLinkAssignedAt:invoice.PaymentLinkAssignedAt,PaymentStatus:invoice.PaymentStatus,Status:invoice.Status
+  }};
 }
 function agentInvoicePdf_(p){
   var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
@@ -945,7 +970,7 @@ function createInvoice_(p){
   var invoice=saveRow_(ss,'Invoices',{
     InvoiceID:invoiceId,InvoiceNumber:invoiceNumber,AgentID:agentId,InvoiceDate:invoiceDate,
     TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'GENERATING',
-    AgentEmail:String(agent.Email||'').trim(),PdfUrl:'',PdfFileId:'',PaymentLink:COMMON_AGENT_PAYMENT_LINK,PaymentStatus:'PAYABLE',PaymentLinkAssignedAt:new Date().toISOString(),AgentPaymentReportedAt:'',AgentPaymentReportedBy:'',PaymentDecisionAt:''
+    AgentEmail:String(agent.Email||'').trim(),PdfUrl:'',PdfFileId:'',PaymentLink:'',PaymentStatus:'PAYABLE',PaymentLinkAssignedAt:'',AgentPaymentReportedAt:'',AgentPaymentReportedBy:'',PaymentDecisionAt:''
   });
   var items=[];
   selected.forEach(function(x){
