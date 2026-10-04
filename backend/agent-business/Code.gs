@@ -34,6 +34,9 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','CreatedAt','UpdatedAt'],
+    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
+    AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
   }
 };
@@ -189,6 +192,9 @@ function agentBusinessRoute_(p){
   if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
+  if(action==='markPaymentPaid') return markPaymentPaid_(p);
+  if(action==='createInvoice') return createInvoice_(p);
+  if(action==='receivables') return listReceivables_(ss,p);
   if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
   if(action==='createAgent') return adminCreateAgent_(p);
   if(action==='setAgentPassword') return adminSetAgentPassword_(p);
@@ -474,6 +480,251 @@ function agentBusinessSpreadsheet_(){
   var id=PropertiesService.getScriptProperties().getProperty(AGENT_BUSINESS.SHEET_ID_PROPERTY);
   if(!id) throw new Error('Agent Business Sheet ID is not configured in Apps Script Properties.');
   return SpreadsheetApp.openById(id);
+}
+function ensureBusinessSheet_(ss,sheetName){
+  if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
+  var sheet=ss.getSheetByName(sheetName);
+  if(!sheet){
+    sheet=ss.insertSheet(sheetName);
+    sheet.getRange(1,1,1,AGENT_BUSINESS.SHEETS[sheetName].length).setValues([AGENT_BUSINESS.SHEETS[sheetName]]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1,1,1,sheet.getLastColumn()).setFontWeight('bold').setHorizontalAlignment('center').setWrap(true);
+  }else{
+    var headers=sheet.getLastRow()>0?sheet.getRange(1,1,1,Math.max(sheet.getLastColumn(),1)).getValues()[0].map(String):[];
+    AGENT_BUSINESS.SHEETS[sheetName].forEach(function(h){
+      if(headers.indexOf(h)<0){
+        sheet.getRange(1,sheet.getLastColumn()+1).setValue(h);
+        headers.push(h);
+      }
+    });
+  }
+  return sheet;
+}
+function markPaymentPaid_(p){
+  var requestId=String(p.requestId||'').trim();
+  var amount=Number(p.amount||0);
+  var paymentDate=String(p.paymentDate||'').trim();
+  var paymentMode=String(p.paymentMode||'').trim();
+  var cardId=String(p.cardId||'').trim();
+  if(!requestId)throw new Error('Payment request is required.');
+  if(!(amount>0))throw new Error('Enter the premium amount paid.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(paymentDate))throw new Error('Enter a valid payment date.');
+  if(!['Credit Card','Debit Card'].includes(paymentMode))throw new Error('Select Credit Card or Debit Card.');
+  if(!cardId)throw new Error('Select the card used for payment.');
+
+  var ss=agentBusinessSpreadsheet_();
+  var requests=sheetRows_(ss.getSheetByName('PaymentRequests'));
+  var request=requests.find(function(x){return String(x.RequestID)===requestId;});
+  if(!request)throw new Error('Payment request not found.');
+  var currentStatus=String(request.Status||'').toUpperCase();
+  if(!['PENDING','SUBMITTED'].includes(currentStatus))throw new Error('This request is already '+(currentStatus||'processed')+'.');
+
+  var clients=sheetRows_(ss.getSheetByName('Clients'));
+  var client=clients.find(function(x){return String(x.ClientID)===String(request.ClientID);})||{};
+  var agents=sheetRows_(ss.getSheetByName('Agents'));
+  var agent=agents.find(function(x){return String(x.AgentID)===String(request.AgentID);})||{};
+  var cards=sheetRows_(ss.getSheetByName('Cards'));
+  var card=cards.find(function(x){return String(x.CardID)===cardId;});
+  if(!card)throw new Error('Selected card was not found.');
+  if(String(card.Status||'ACTIVE').toUpperCase()==='INACTIVE')throw new Error('Selected card is inactive.');
+
+  var discount=Math.round(amount*AGENT_BUSINESS.DISCOUNT_RATE*100)/100;
+  var receivable=Math.max(0,Math.round((amount-discount)*100)/100);
+  var paymentId=newId_('PaymentID');
+  var now=new Date().toISOString();
+
+  var payment=saveRow_(ss,'Payments',{
+    PaymentID:paymentId,
+    RequestID:requestId,
+    BillID:request.BillID||'',
+    AgentID:request.AgentID||'',
+    ClientID:request.ClientID||'',
+    PremiumAmount:amount,
+    CustomerCollected:amount,
+    PaymentMode:paymentMode,
+    CardID:cardId,
+    PaymentDate:paymentDate,
+    ReferenceNumber:'',
+    ReceiptID:'',
+    Status:'PAID',
+    Notes:'Paid by Trusted Circle admin using '+paymentMode+' · '+String(card.CardName||card.Bank||'Card')
+  });
+
+  request.PremiumAmount=amount;
+  request.CustomerPayable=receivable;
+  request.DiscountAmount=discount;
+  request.Status='PAID';
+  request.ApprovedAt=now;
+  request.PaymentID=paymentId;
+  request.Notes='Payment verified by Admin. Paid using '+paymentMode+' · '+String(card.CardName||card.Bank||'Card');
+  saveRow_(ss,'PaymentRequests',request);
+
+  var receivableRow=saveRow_(ss,'AgentReceivables',{
+    ReceivableID:newId_('ReceivableID'),
+    AgentID:request.AgentID||'',
+    PaymentID:paymentId,
+    InvoiceID:'',
+    ClientID:request.ClientID||'',
+    ClientName:client.ClientName||'',
+    PolicyNumber:client.PolicyNumber||'',
+    DateOfBirth:client.DateOfBirth||'',
+    ReceivableAmount:receivable,
+    Status:'RECEIVABLE',
+    ReceivableDate:paymentDate,
+    SettledDate:'',
+    Notes:'Agent payable after 2% Trusted Circle discount'
+  });
+
+  var ledger=saveRow_(ss,'MoneyLedger',{
+    LedgerID:newId_('LedgerID'),
+    TransactionDate:paymentDate,
+    ReferenceType:'AGENT_RECEIVABLE',
+    ReferenceID:receivableRow.id,
+    AgentID:request.AgentID||'',
+    ClientID:request.ClientID||'',
+    PaymentID:paymentId,
+    Description:'Premium paid for '+(client.ClientName||'Client')+' · '+(client.PolicyNumber||'Policy')+' · Agent receivable',
+    MoneyIn:'',
+    MoneyOut:receivable,
+    Balance:'',
+    PaymentMode:paymentMode,
+    BankAccount:String(card.CardName||card.Bank||'Card'),
+    Category:'AGENT RECEIVABLE',
+    Status:'RECEIVABLE'
+  });
+
+  ['PaymentRequests','Payments','AgentReceivables','MoneyLedger'].forEach(invalidateSheetCache_);
+  cacheRemoveAgent_(request.AgentID);
+  return {
+    payment:safeAdminPayment_(payment.item,card),
+    requestId:requestId,
+    discountAmount:discount,
+    receivableAmount:receivable,
+    agent:{AgentID:agent.AgentID||'',AgentName:agent.AgentName||'',AgencyName:agent.AgencyName||'',Mobile:agent.Mobile||'',Email:agent.Email||'',Address:agent.Address||''},
+    client:{ClientID:client.ClientID||'',ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||'',DateOfBirth:client.DateOfBirth||''}
+  };
+}
+function safeAdminPayment_(payment,card){
+  return {PaymentID:payment.PaymentID,RequestID:payment.RequestID,AgentID:payment.AgentID,ClientID:payment.ClientID,PremiumAmount:Number(payment.PremiumAmount||0),CustomerCollected:Number(payment.CustomerCollected||0),PaymentMode:payment.PaymentMode,CardID:payment.CardID,CardNickname:card&& (card.CardName||card.Bank||'Card'),PaymentDate:payment.PaymentDate,Status:payment.Status};
+}
+function createInvoice_(p){
+  var agentId=String(p.agentId||'').trim();
+  var itemIds=Array.isArray(p.receivableIds)?p.receivableIds.map(String):[];
+  var invoiceDate=String(p.invoiceDate||'').trim();
+  if(!agentId)throw new Error('Agent is required.');
+  if(!itemIds.length)throw new Error('Select at least one receivable item.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate))throw new Error('Enter a valid invoice date.');
+
+  var ss=agentBusinessSpreadsheet_();
+  var agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(x){return String(x.AgentID)===agentId;});
+  if(!agent)throw new Error('Agent not found.');
+  var receivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'));
+  var selected=receivables.filter(function(x){return itemIds.indexOf(String(x.ReceivableID))>=0&&String(x.AgentID)===agentId&&String(x.Status||'').toUpperCase()==='RECEIVABLE'&& !String(x.InvoiceID||'').trim();});
+  if(!selected.length)throw new Error('No un-invoiced receivables were selected.');
+  var total=selected.reduce(function(sum,x){return sum+Number(x.ReceivableAmount||0);},0);
+  var invoiceDiscount=Math.round(total*0*100)/100; // item receivables already carry the 2% discount
+  var net=Math.round((total-invoiceDiscount)*100)/100;
+  var invoiceId=newId_('InvoiceID');
+  var invoiceNumber='TC-INV-'+Utilities.formatDate(new Date(invoiceDate+'T00:00:00'),Session.getScriptTimeZone(),'yyyyMMdd')+'-'+String(invoiceId).slice(-6);
+  var invoice=saveRow_(ss,'Invoices',{
+    InvoiceID:invoiceId,InvoiceNumber:invoiceNumber,AgentID:agentId,InvoiceDate:invoiceDate,
+    TotalAmount:total,DiscountRate:0,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'SENT',
+    AgentEmail:String(agent.Email||'').trim(),PdfUrl:''
+  });
+  var items=[];
+  selected.forEach(function(x){
+    var item=saveRow_(ss,'InvoiceItems',{
+      InvoiceItemID:newId_('InvoiceItemID'),InvoiceID:invoiceId,PaymentID:x.PaymentID||'',ClientID:x.ClientID||'',
+      ClientName:x.ClientName||'',PolicyNumber:x.PolicyNumber||'',DateOfBirth:x.DateOfBirth||'',
+      Amount:Number(x.ReceivableAmount||0),DiscountAmount:0,NetAmount:Number(x.ReceivableAmount||0)
+    });
+    items.push(item.item);
+    x.InvoiceID=invoiceId;
+    x.Status='INVOICED';
+    saveRow_(ss,'AgentReceivables',x);
+  });
+
+  var pdfResult=buildInvoicePdfAndSend_(agent,invoice.item,items);
+  invoice.item.PdfUrl=pdfResult.pdfUrl||'';
+  invoice.item.Status=pdfResult.sent?'SENT':'GENERATED';
+  saveRow_(ss,'Invoices',invoice.item);
+  invalidateSheetCache_('Invoices');invalidateSheetCache_('InvoiceItems');invalidateSheetCache_('AgentReceivables');
+  return {invoice:invoice.item,items:items,agent:{AgentName:agent.AgentName||'',Email:agent.Email||''},pdfBase64:pdfResult.pdfBase64,fileName:pdfResult.fileName,sent:pdfResult.sent,pdfUrl:pdfResult.pdfUrl||''};
+}
+function buildInvoicePdfAndSend_(agent,invoice,items){
+  var doc=DocumentApp.create(invoice.InvoiceNumber+' · Trusted Circle');
+  var body=doc.getBody();
+  body.setMarginTop(28).setMarginBottom(28).setMarginLeft(30).setMarginRight(30);
+  try{
+    var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();
+    var logoParagraph=body.appendParagraph('');
+    logoParagraph.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+    var image=logoParagraph.appendInlineImage(logo);
+    image.setWidth(72);image.setHeight(72);
+  }catch(e){}
+  var brand=body.appendParagraph('TRUSTED CIRCLE');
+  brand.setBold(true).setFontSize(20).setForegroundColor('#064f3b');
+  body.appendParagraph('Insurance Payment & Agent Receivable Invoice').setBold(true).setFontSize(12);
+  body.appendParagraph('Invoice No: '+invoice.InvoiceNumber+'    Invoice Date: '+formatInvoiceDate_(invoice.InvoiceDate)).setFontSize(9);
+  body.appendParagraph('');
+  body.appendParagraph('BILL TO').setBold(true).setFontSize(9);
+  body.appendParagraph(String(agent.AgentName||'Agent')+'\n'+String(agent.AgencyName||'')+'\n'+String(agent.Address||'')+'\n'+String(agent.Mobile||'')+'\n'+String(agent.Email||'')).setFontSize(9);
+  body.appendParagraph('');
+  var table=body.appendTable([['S.No','Client Name','Policy No.','DOB','Amount']]);
+  table.getRow(0).editAsText().setBold(true);
+  items.forEach(function(x,i){table.appendTableRow().appendTableCell(String(i+1)).getParentTableRow();});
+  // Rebuild rows explicitly because Apps Script table row chaining is awkward.
+  var last=table.getNumRows();
+  for(var i=1;i<last;i++){}
+  // Replace the placeholder row content with actual item data.
+  for(var j=1;j<last;j++){
+    var cells=table.getRow(j).getNumCells();
+    while(cells<5){table.getRow(j).appendTableCell('');cells++;}
+    var x=items[j-1];
+    table.getRow(j).getCell(0).setText(String(j));
+    table.getRow(j).getCell(1).setText(String(x.ClientName||''));
+    table.getRow(j).getCell(2).setText(String(x.PolicyNumber||''));
+    table.getRow(j).getCell(3).setText(formatInvoiceDate_(x.DateOfBirth||''));
+    table.getRow(j).getCell(4).setText(formatMoney_(x.Amount||0));
+  }
+  body.appendParagraph('');
+  body.appendParagraph('Gross Receivable: '+formatMoney_(invoice.TotalAmount)).setBold(true);
+  body.appendParagraph('Discount: 0% (2% customer discount already applied at payment stage)');
+  body.appendParagraph('TOTAL PAYABLE: '+formatMoney_(invoice.NetPayable)).setBold(true).setFontSize(12).setForegroundColor('#064f3b');
+  body.appendParagraph('');
+  body.appendParagraph('Payment is payable by the above agent to Trusted Circle. This invoice consolidates premium payments funded by Trusted Circle on behalf of the listed clients.');
+  doc.saveAndClose();
+  Utilities.sleep(500);
+  var pdf=doc.getAs(MimeType.PDF).setName(invoice.InvoiceNumber+'.pdf');
+  var file=DriveApp.createFile(pdf);
+  file.setName(invoice.InvoiceNumber+'.pdf');
+  var sent=false;
+  if(String(agent.Email||'').trim() && MailApp.getRemainingDailyQuota()>0){
+    MailApp.sendEmail({
+      to:String(agent.Email).trim(),
+      subject:'Trusted Circle Invoice '+invoice.InvoiceNumber,
+      body:'Dear '+String(agent.AgentName||'Agent')+',\n\nPlease find attached the Trusted Circle premium payment receivable invoice '+invoice.InvoiceNumber+'.\n\nTotal payable: '+formatMoney_(invoice.NetPayable)+'\n\nRegards,\nTrusted Circle',
+      htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the Trusted Circle premium payment receivable invoice <b>'+escapeHtml_(invoice.InvoiceNumber)+'</b>.</p><p><b>Total payable: '+formatMoney_(invoice.NetPayable)+'</b></p><p>Regards,<br>Trusted Circle</p>',
+      attachments:[pdf],
+      name:'Trusted Circle'
+    });
+    sent=true;
+  }
+  try{DriveApp.getFileById(doc.getId()).setTrashed(true);}catch(e){}
+  return {pdfBase64:Utilities.base64Encode(pdf.getBytes()),fileName:invoice.InvoiceNumber+'.pdf',sent:sent,pdfUrl:file.getUrl()};
+}
+function formatInvoiceDate_(value){
+  var raw=String(value||'').trim();if(!raw)return '';
+  var d=new Date(raw);
+  if(Number.isNaN(d.getTime())){var m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return m[3]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(m[2])-1]+'-'+m[1];return raw;}
+  return Utilities.formatDate(d,Session.getScriptTimeZone(),'dd-MMM-yyyy');
+}
+function formatMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function escapeHtml_(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function listReceivables_(ss,p){
+  var agentId=String(p.agentId||'').trim();
+  var rows=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')).filter(function(x){return !agentId||String(x.AgentID)===agentId;});
+  return {items:rows,total:rows.length};
 }
 function listRows_(ss,sheetName,p){
   if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
