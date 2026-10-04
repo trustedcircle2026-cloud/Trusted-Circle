@@ -62,6 +62,7 @@ export const agentBusinessApi={
   agentEditPolicy:(token,data)=>request('agentEditPolicy',{token,data}),
   agentRequestPayment:(token,policyId)=>request('agentRequestPayment',{token,data:{PolicyID:policyId}}),
   agentCancelPaymentRequest:(token,requestId)=>request('agentCancelPaymentRequest',{token,requestId}),
+  agentClientHistory:(token,clientId)=>request('agentClientHistory',{token,clientId}),
   agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
 };
