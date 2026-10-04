@@ -179,6 +179,7 @@ function agentBusinessRoute_(p){
   if(action==='agentEditPolicy') return agentEditPolicy_(p);
   if(action==='agentRequestPayment') return agentRequestPayment_(p);
   if(action==='agentCancelPaymentRequest') return agentCancelPaymentRequest_(p);
+  if(action==='agentClientHistory') return agentClientHistory_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
   var ss=agentBusinessSpreadsheet_();
@@ -395,6 +396,27 @@ function agentPaymentRequests_(p){
   policies.forEach(function(x){policyMap[String(x.PolicyID)]=x;});
   return {items:rows.reverse().map(function(r){var c=clientMap[String(r.ClientID)]||{},p=policyMap[String(r.PolicyID)]||{};return safeAgentRequest_(Object.assign({},r,{ClientName:c.ClientName||'',PolicyNumber:c.PolicyNumber||p.PolicyNumber||''}));}),total:rows.length};
   */
+}
+function agentClientHistory_(p){
+  var s=agentSession_(p.token),clientId=String(p.clientId||'').trim();
+  if(!clientId)throw new Error('Client is required.');
+  var ss=agentBusinessSpreadsheet_();
+  var clients=cachedSheetRows_(ss.getSheetByName('Clients'),'Clients');
+  var client=clients.find(function(x){return String(x.ClientID)===clientId&&String(x.AgentID)===s.AgentID;});
+  if(!client)throw new Error('Client not found.');
+  var policies=cachedSheetRows_(ss.getSheetByName('Policies'),'Policies').filter(function(x){return String(x.ClientID)===clientId&&String(x.AgentID)===s.AgentID;});
+  var policyIds={};policies.forEach(function(x){policyIds[String(x.PolicyID)]=true;});
+  var requests=cachedSheetRows_(ss.getSheetByName('PaymentRequests'),'PaymentRequests').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
+  var payments=cachedSheetRows_(ss.getSheetByName('Payments'),'Payments').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
+  var bills=cachedSheetRows_(ss.getSheetByName('PremiumBills'),'PremiumBills').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
+  var policy=policies[0]||{};
+  var paymentMap={};payments.forEach(function(x){paymentMap[String(x.RequestID)]=x;});
+  var billMap={};bills.forEach(function(x){billMap[String(x.BillID)]=x;});
+  var requestItems=requests.map(function(r){
+    var pay=paymentMap[String(r.RequestID)]||{},bill=billMap[String(r.BillID)]||{};
+    return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',PolicyNumber:r.PolicyNumber||client.PolicyNumber||policy.PolicyNumber||'',Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',ApprovedAt:r.ApprovedAt||'',PremiumAmount:r.PremiumAmount||bill.PremiumAmount||pay.PremiumAmount||0,CustomerPayable:r.CustomerPayable||bill.CustomerPayable||pay.CustomerCollected||0,PaymentID:r.PaymentID||pay.PaymentID||'',PaymentStatus:pay.Status||'',PaymentDate:pay.PaymentDate||'',ReferenceNumber:pay.ReferenceNumber||'',Notes:r.Notes||''};
+  });
+  return {client:{ClientID:client.ClientID,ClientName:client.ClientName,PolicyNumber:client.PolicyNumber,DateOfBirth:client.DateOfBirth,Status:client.Status},policy:policy&&{PolicyID:policy.PolicyID||'',PolicyNumber:policy.PolicyNumber||client.PolicyNumber||'',PolicyStatus:policy.PolicyStatus||'ACTIVE'},requests:requestItems,payments:payments.map(function(x){return {PaymentID:x.PaymentID,RequestID:x.RequestID,PremiumAmount:x.PremiumAmount||0,CustomerCollected:x.CustomerCollected||0,PaymentMode:x.PaymentMode||'',PaymentDate:x.PaymentDate||'',ReferenceNumber:x.ReferenceNumber||'',Status:x.Status||''};}),totalRequests:requestItems.length,totalPayments:payments.length};
 }
 function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
