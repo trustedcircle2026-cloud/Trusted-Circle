@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from 'react'
-import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Link2,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText} from 'lucide-react'
+import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Link2,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText,QrCode} from 'lucide-react'
+import jsQR from 'jsqr'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-business.css'
 
@@ -25,7 +26,7 @@ const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',ma
 const title=s=>String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2')
 
 export default function AgentBusinessPage(){
- const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false),[paymentModal,setPaymentModal]=useState(null),[paymentForm,setPaymentForm]=useState({amount:'',paymentDate:localIsoDate(),paymentMode:'Credit Card',cardId:''}),[cards,setCards]=useState([]),[paying,setPaying]=useState(false),[invoiceModal,setInvoiceModal]=useState(null),[invoiceRows,setInvoiceRows]=useState([]),[invoiceSelection,setInvoiceSelection]=useState([]),[invoiceDate,setInvoiceDate]=useState(localIsoDate()),[invoiceLoading,setInvoiceLoading]=useState(false),[invoiceAgents,setInvoiceAgents]=useState([]),[invoiceAdminRows,setInvoiceAdminRows]=useState([]),[invoiceAdminLoading,setInvoiceAdminLoading]=useState(false),[invoiceLinkModal,setInvoiceLinkModal]=useState(null),[invoiceLinkForm,setInvoiceLinkForm]=useState('')
+ const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false),[paymentModal,setPaymentModal]=useState(null),[paymentForm,setPaymentForm]=useState({amount:'',paymentDate:localIsoDate(),paymentMode:'Credit Card',cardId:''}),[cards,setCards]=useState([]),[paying,setPaying]=useState(false),[invoiceModal,setInvoiceModal]=useState(null),[invoiceRows,setInvoiceRows]=useState([]),[invoiceSelection,setInvoiceSelection]=useState([]),[invoiceDate,setInvoiceDate]=useState(localIsoDate()),[invoiceLoading,setInvoiceLoading]=useState(false),[invoiceAgents,setInvoiceAgents]=useState([]),[invoiceAdminRows,setInvoiceAdminRows]=useState([]),[invoiceAdminLoading,setInvoiceAdminLoading]=useState(false),[invoiceLinkModal,setInvoiceLinkModal]=useState(null),[invoiceLinkForm,setInvoiceLinkForm]=useState(''),[qrBusy,setQrBusy]=useState(false)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
  const openPaymentModal=async request=>{
@@ -64,6 +65,24 @@ export default function AgentBusinessPage(){
    try{const result=await agentBusinessApi.list('Invoices',{limit:500},adminToken);setInvoiceAdminRows(result.items||[])}catch(e){setError(e.message)}finally{setInvoiceAdminLoading(false)}
  }
  const openInvoiceLinkManager=async()=>{await loadAdminInvoices();setInvoiceLinkModal({invoiceId:'',paymentLink:''})}
+ const decodeInvoiceQr=async file=>{
+   if(!file)return;
+   setQrBusy(true);setError('');
+   try{
+     const bitmap=await createImageBitmap(file);
+     const max=1800,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+     const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+     const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,width,height);
+     const image=ctx.getImageData(0,0,width,height);
+     const code=jsQR(image.data,image.width,image.height,{inversionAttempts:'attemptBoth'});
+     if(!code?.data)throw new Error('No QR code was detected. Upload a clear QR image.');
+     const raw=String(code.data).trim();
+     if(!/^https?:\/\//i.test(raw))throw new Error('The QR code was read, but it does not contain a payment URL.');
+     setInvoiceLinkModal(prev=>prev?{...prev,paymentLink:raw}:{invoiceId:'',paymentLink:raw});
+     setNotice('Payment QR read successfully. Verify the extracted link before saving.');
+   }catch(e){setError(e.message||'Unable to read the QR image.')}
+   finally{setQrBusy(false)}
+ }
  const openInvoiceLinkEditor=invoice=>{setInvoiceLinkModal({invoiceId:invoice.InvoiceID,paymentLink:invoice.PaymentLink||''})}
  const saveInvoicePaymentLink=async()=>{
    if(!invoiceLinkModal||invoiceLinkModal.paymentLink===undefined)return;
@@ -281,7 +300,7 @@ export default function AgentBusinessPage(){
 
   {paymentModal&&<PaymentVerificationModal request={paymentModal} form={paymentForm} setForm={setPaymentForm} cards={cards} paying={paying} onClose={()=>setPaymentModal(null)} onSubmit={submitPayment}/>}
   {invoiceModal&&<InvoiceBuilderModal agentId={invoiceModal.agentId} agents={invoiceAgents} onAgentChange={changeInvoiceAgent} rows={invoiceRows} selection={invoiceSelection} setSelection={setInvoiceSelection} invoiceDate={invoiceDate} setInvoiceDate={setInvoiceDate} loading={invoiceLoading} onClose={()=>setInvoiceModal(null)} onSubmit={createInvoice}/>}
-  {invoiceLinkModal&&<InvoiceLinkManagerModal rows={invoiceAdminRows} loading={invoiceAdminLoading} modal={invoiceLinkModal} setModal={setInvoiceLinkModal} onEdit={openInvoiceLinkEditor} onSave={saveInvoicePaymentLink} onRefresh={loadAdminInvoices}/>}
+  {invoiceLinkModal&&<InvoiceLinkManagerModal rows={invoiceAdminRows} loading={invoiceAdminLoading} modal={invoiceLinkModal} setModal={setInvoiceLinkModal} onEdit={openInvoiceLinkEditor} onSave={saveInvoicePaymentLink} onRefresh={loadAdminInvoices} onQrUpload={decodeInvoiceQr} qrBusy={qrBusy}/>}
   {showForm&&<div className="tc-modal-backdrop" onClick={()=>{setShowForm(false);setEditing(false)}}><div className="tc-crud-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>{setShowForm(false);setEditing(false)}}><X size={18}/></button><span className="tc-kicker">{editing?'EDIT':'NEW'} {module==='Agents'?'AGENT':'RECORD'}</span><h2>{editing?'Edit ':'Add '}{title(module)}</h2><p>Manage the record details below.</p><div className="tc-form-grid">{schema.filter(f=>!['CreatedAt','UpdatedAt'].includes(f)).map(f=>{const isId=f===schema[0];if(isId)return <label key={f}>{title(f)}<input value={form[f]||''} disabled/></label>;return <label key={f}>{title(f)}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} disabled={editing&&['AgentID','AgentUserID'].includes(f)} placeholder={title(f)}/></label>})}{module==='Agents'&&!editing&&<label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="4-digit password"/></label>}</div><button className="tc-save-button" disabled={module==='Agents'&&!editing&&(!/^\d{10}$/.test(form.Mobile||'')||!/^\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{editing?'Update Record':module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
  </div>
 }
