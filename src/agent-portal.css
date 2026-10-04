@@ -356,3 +356,48 @@
   .agent-login-shell{width:430px;min-height:100vh;margin:0 auto}
   .agent-login-card{margin-left:auto;margin-right:auto}
 }
+
+
+/* =========================================================
+   LIGHT MOTION SYSTEM — white / black / soft green
+   ========================================================= */
+:root{
+  --tc-black:#102018;
+  --tc-green:#16834f;
+  --tc-green-light:#eaf8f0;
+  --tc-green-pale:#f5fbf7;
+  --tc-line:#dce9e2;
+}
+.agent-portal-page{
+  color:var(--tc-black);
+  background:
+    radial-gradient(circle at 5% 0%,#e9faf1 0,transparent 34%),
+    radial-gradient(circle at 96% 18%,#f5f8f6 0,transparent 28%),
+    #fff;
+}
+.ap-main{background:linear-gradient(180deg,#fff 0%,#fbfdfc 58%,#f4faf7 100%)}
+.ap-command-menu,.ap-panel,.ap-stat,.ap-client-card,.ap-request-card{background:#fff;border-color:var(--tc-line)}
+.ap-primary{background:var(--tc-black);color:#fff;border-color:var(--tc-black);transition:transform .22s ease,box-shadow .22s ease,background .22s ease}
+.ap-primary:hover{background:var(--tc-green);transform:translateY(-2px);box-shadow:0 10px 24px #16834f24}
+.ap-secondary{background:#fff;color:var(--tc-black);border-color:var(--tc-line);transition:transform .2s ease,border-color .2s ease,background .2s ease}
+.ap-secondary:hover{background:var(--tc-green-pale);border-color:#b8dcc8;transform:translateY(-2px)}
+.ap-command-primary{background:var(--tc-green)!important}
+.ap-command-box{transition:transform .22s ease,box-shadow .22s ease}
+.ap-command-box:hover{transform:translateY(-2px);box-shadow:0 9px 20px #10201812}
+.ap-page-head{animation:tcFadeUp .5s ease both}
+.ap-stat{transition:transform .25s ease,box-shadow .25s ease}
+.ap-stat:hover{transform:translateY(-3px);box-shadow:0 12px 28px #10201812}
+.ap-client-card,.ap-request-card{transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease}
+.ap-client-card:hover,.ap-request-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px #10201812;border-color:#bddcca}
+.ap-tabs{animation:tcFadeUp .45s .05s ease both}
+.ap-panel{animation:tcFadeUp .5s .1s ease both}
+.ap-avatar,.ap-request-icon{animation:tcFloat 3.8s ease-in-out infinite}
+.ap-request-pill.pending{animation:tcPulse 2.2s ease-in-out infinite}
+.ap-modal{animation:tcModalIn .28s cubic-bezier(.2,.8,.2,1) both}
+@keyframes tcFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tcFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes tcPulse{0%,100%{box-shadow:0 0 0 0 #16834f00}50%{box-shadow:0 0 0 6px #16834f0d}}
+@keyframes tcModalIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
