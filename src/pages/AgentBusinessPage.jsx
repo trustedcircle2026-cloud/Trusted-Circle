@@ -41,7 +41,7 @@ export default function AgentBusinessPage(){
  const login=async()=>{try{setError('');const r=await agentBusinessApi.adminLogin(adminPassword);localStorage.setItem('tc_agent_admin_session',r.token);setAdminToken(r.token);setAdminPassword('')}catch(e){setError(e.message)}}
  const logout=async()=>{try{if(adminToken)await agentBusinessApi.adminLogout(adminToken)}catch{}localStorage.removeItem('tc_agent_admin_session');setAdminToken('');setDashboard(null);setRows([])}
 
- if(!adminToken)return <div className="agent-business-page"><div className="tc-admin-login"><div className="tc-login-card"><div className="tc-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><span className="tc-kicker">SECURE ADMIN ACCESS</span><h1>Admin Sign In</h1><p>Sign in to manage Trusted Circle agents, payment requests and business operations.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus placeholder="Enter admin password"/></label>{error&&<div className="tc-toast tc-error"><X size={15}/><span>{error}</span></div>}<button className="tc-login-button" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
+ if(!adminToken)return <div className="agent-business-page"><div className="tc-admin-login"><div className="tc-login-card"><div className="tc-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Insurance Admin Portal</small></div></div><span className="tc-kicker">SECURE ADMIN ACCESS</span><h1>Admin Sign In</h1><p>Sign in to manage Trusted Circle agents, payment requests and insurance business operations.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus placeholder="Enter admin password"/></label>{error&&<div className="tc-toast tc-error"><X size={15}/><span>{error}</span></div>}<button className="tc-login-button" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
 
  const setPage=(tab)=>{
    setActiveTab(tab)
@@ -71,7 +71,7 @@ export default function AgentBusinessPage(){
 
    <section className="tc-admin-content">
     {activeTab==='home'&&<section className="tc-home">
-      <div className="tc-home-hero"><span className="tc-kicker">TRUSTED CIRCLE · ADMIN</span><h1>Admin Dashboard</h1><p>Manage agents, payment requests and business activity from one place.</p></div>
+      <div className="tc-home-hero"><span className="tc-kicker">TRUSTED CIRCLE · INSURANCE ADMIN</span><h1>Insurance Dashboard</h1><p>Manage agents, clients, policies, premium payments and business activity from one place.</p></div>
       <div className="tc-stat-grid">
        <button onClick={()=>setPage('agents')}><Users size={20}/><strong>{count('Agents')}</strong><span>Agents</span></button>
        <button onClick={()=>setPage('requests')}><Activity size={20}/><strong>{count('PaymentRequests')}</strong><span>Requests</span></button>
@@ -102,7 +102,7 @@ export default function AgentBusinessPage(){
     </section>}
 
     {activeTab==='more'&&<section className="tc-page tc-more-page">
-      <div className="tc-more-head"><div className="tc-more-icon"><Activity size={24}/></div><span className="tc-kicker">ADMIN TOOLS</span><h1>More</h1><p>Additional business modules and controls.</p></div>
+      <div className="tc-more-head"><div className="tc-more-icon"><Activity size={24}/></div><span className="tc-kicker">ADMIN TOOLS</span><h1>More</h1><p>Insurance business modules and controls.</p></div>
       <div className="tc-more-summary">
         <div className="tc-more-summary-icon"><BarChart3 size={22}/></div>
         <div><strong>Business Control Centre</strong><small>Everything beyond Agents, Requests and History.</small></div>
@@ -132,7 +132,7 @@ export default function AgentBusinessPage(){
    </nav>
   </main>
 
-  {profileOpen&&<div className="tc-modal-backdrop" onClick={()=>setProfileOpen(false)}><div className="tc-profile-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>setProfileOpen(false)}><X size={18}/></button><div className="tc-profile-avatar">A</div><span className="tc-kicker">ADMIN PROFILE</span><h2>Admin</h2><p>Trusted Circle Administrator</p><div className="tc-profile-detail"><small>Access</small><strong>Full Business Administration</strong></div><div className="tc-profile-detail"><small>Portal</small><strong>Trusted Circle Admin Portal</strong></div><button className="tc-more-logout" onClick={logout}><ShieldCheck size={16}/>Sign Out</button></div></div>}
+  {profileOpen&&<div className="tc-modal-backdrop" onClick={()=>setProfileOpen(false)}><div className="tc-profile-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>setProfileOpen(false)}><X size={18}/></button><div className="tc-profile-avatar">A</div><span className="tc-kicker">ADMIN PROFILE</span><h2>Admin</h2><p>Trusted Circle Administrator</p><div className="tc-profile-detail"><small>Access</small><strong>Full Business Administration</strong></div><div className="tc-profile-detail"><small>Portal</small><strong>Trusted Circle Insurance Admin Portal</strong></div><button className="tc-more-logout" onClick={logout}><ShieldCheck size={16}/>Sign Out</button></div></div>}
 
   {showForm&&<div className="tc-modal-backdrop" onClick={()=>{setShowForm(false);setEditing(false)}}><div className="tc-crud-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>{setShowForm(false);setEditing(false)}}><X size={18}/></button><span className="tc-kicker">{editing?'EDIT':'NEW'} {module==='Agents'?'AGENT':'RECORD'}</span><h2>{editing?'Edit ':'Add '}{title(module)}</h2><p>Manage the record details below.</p><div className="tc-form-grid">{schema.filter(f=>!['CreatedAt','UpdatedAt'].includes(f)).map(f=>{const isId=f===schema[0];if(isId)return <label key={f}>{title(f)}<input value={form[f]||''} disabled/></label>;return <label key={f}>{title(f)}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} disabled={editing&&['AgentID','AgentUserID'].includes(f)} placeholder={title(f)}/></label>})}{module==='Agents'&&!editing&&<label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="4-digit password"/></label>}</div><button className="tc-save-button" disabled={module==='Agents'&&!editing&&(!/^\d{10}$/.test(form.Mobile||'')||!/^\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{editing?'Update Record':module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
  </div>
