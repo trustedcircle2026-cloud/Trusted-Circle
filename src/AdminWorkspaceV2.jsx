@@ -20,7 +20,7 @@ export default function AdminWorkspaceV2(){
  const[search,setSearch]=useState('')
 
  useEffect(()=>{
-   if(!window.location.hash.replace(/^#\\/?/,'').startsWith('erp'))return
+   if(!window.location.hash.replace(/^#\/?/,'').startsWith('erp'))return
    const t=localStorage.getItem('tc_erp_session')
    const stored=JSON.parse(localStorage.getItem('tc_erp_admin_user')||'null')
    if(t){setToken(t);setUser(stored||{email:'trustedcircle2026@gmail.com'});loadData(t)}
@@ -163,7 +163,7 @@ function PageHead({kicker,title,text,action,loading}){
 }
 function SearchBox({value,setValue,placeholder}){return <div className="tam-search"><Users size={15}/><input value={value} onChange={e=>setValue(e.target.value)} placeholder={placeholder}/>{value&&<button onClick={()=>setValue('')}><X size={14}/></button>}</div>}
 function Empty({icon:Icon,title,text}){return <div className="tam-empty"><Icon size={21}/><strong>{title}</strong><span>{text}</span></div>}
-function apiError(e){const m=String(e?.message||'Request failed.');return /API request failed \\(404\\)/i.test(m)?'ERP backend returned 404. Update the Apps Script Web App deployment to the current backend version.':m}
+function apiError(e){const m=String(e?.message||'Request failed.');return /API request failed \(404\)/i.test(m)?'ERP backend returned 404. Update the Apps Script Web App deployment to the current backend version.':m}
 
 function Login({login,setLogin,loading,error,onSubmit}){
  const[showPassword,setShowPassword]=useState(false)
