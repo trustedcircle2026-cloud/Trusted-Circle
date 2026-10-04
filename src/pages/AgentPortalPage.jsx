@@ -57,6 +57,7 @@ export default function AgentPortalPage(){
   if(!policy.ClientID)return setError('Client reference is missing. Refresh the workspace.')
   if(!window.confirm('Request premium payment for this selected policy on behalf of the client?'))return
   setLoading(true);setError('');setNotice('');setLoadingText('Sending payment request to Admin…')
+  // Request is keyed by ClientID; backend resolves the owned policy server-side.
   try{
    const data=await agentBusinessApi.agentRequestPayment(session,{ClientID:policy.ClientID,PolicyID:policy.PolicyID||''})
    setRequests(current=>[data.paymentRequest,...current]);await load(session);setActiveTab('requests');setNotice('Payment request sent to Trusted Circle Admin.')
