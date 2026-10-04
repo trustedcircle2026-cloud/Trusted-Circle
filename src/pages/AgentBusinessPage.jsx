@@ -23,7 +23,7 @@ const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',ma
 const title=s=>String(s||'').replace(/([a-z])([A-Z])/g,'$1 $2')
 
 export default function AgentBusinessPage(){
- const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false)
+ const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
  const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const [r,s]=await Promise.all([agentBusinessApi.list(module,{search},adminToken),agentBusinessApi.schema(module,adminToken)]);setRows(r.items||[]);setSchema(s.fields||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
@@ -39,51 +39,90 @@ export default function AgentBusinessPage(){
  const login=async()=>{try{setError('');const r=await agentBusinessApi.adminLogin(adminPassword);localStorage.setItem('tc_agent_admin_session',r.token);setAdminToken(r.token);setAdminPassword('')}catch(e){setError(e.message)}}
  const logout=async()=>{try{if(adminToken)await agentBusinessApi.adminLogout(adminToken)}catch{}localStorage.removeItem('tc_agent_admin_session');setAdminToken('');setDashboard(null);setRows([])}
 
- if(!adminToken)return <div className="agent-business-page"><div className="ab-admin-login"><div className="ab-admin-login-card"><div className="ab-brand"><img className="ab-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><div className="ab-admin-lock">ADMIN ACCESS</div><h1>Admin Sign In</h1><p>Enter the administrator password to manage agents, clients, payments and business records.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus/></label>{error&&<div className="ab-error"><X size={16}/>{error}</div>}<button className="ab-primary wide" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
+ if(!adminToken)return <div className="agent-business-page"><div className="tc-admin-login"><div className="tc-login-card"><div className="tc-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div><span className="tc-kicker">SECURE ADMIN ACCESS</span><h1>Admin Sign In</h1><p>Sign in to manage Trusted Circle agents, payment requests and business operations.</p><label>Admin Password<input type="password" value={adminPassword} onChange={e=>setAdminPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&login()} autoFocus placeholder="Enter admin password"/></label>{error&&<div className="tc-toast tc-error"><X size={15}/><span>{error}</span></div>}<button className="tc-login-button" onClick={login} disabled={!adminPassword}><ShieldCheck size={16}/>Sign In</button><a href="./">Back to Trusted Circle</a></div></div></div>
 
- return <div className="agent-business-page">
-  <div className="ab-shell">
-   <aside className="ab-sidebar">
-    <div className="ab-brand"><img className="ab-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
-    <div className="ab-nav-label">CONTROL CENTER</div>
-    <button className={module==='__dashboard'?'active':''} onClick={()=>setModule('__dashboard')}><LayoutDashboard size={17}/>Dashboard</button>
-    {MODULES.map(m=>{const Icon=m.icon;return <button key={m.key} className={module===m.key?'active':''} onClick={()=>setModule(m.key)}><Icon size={17}/><span>{m.label}</span></button>})}
-    <div className="ab-side-note"><ShieldCheck size={16}/><span>Private business workspace</span></div>
-   </aside>
+ const setPage=(tab)=>{
+   setActiveTab(tab)
+   if(tab==='home'){setModule('__dashboard');return}
+   if(tab==='agents'){setModule('Agents');return}
+   if(tab==='requests'){setModule('PaymentRequests');return}
+   if(tab==='history'){setModule('Payments');return}
+   if(tab==='more'){setModule('__dashboard');return}
+ }
+ const titleForTab=activeTab==='home'?'Home':activeTab==='agents'?'Agents':activeTab==='requests'?'Requests':activeTab==='history'?'History':'More'
+ const currentRows=module==='PaymentRequests'?rows:module==='Payments'?rows:rows
+ const profileName='Admin'
+ const moreModules=MODULES.filter(m=>!['Agents','PaymentRequests','Payments'].includes(m.key))
 
-   <main className="ab-main">
-    <header className="ab-topbar"><div><span className="ab-eyebrow">TRUSTED CIRCLE · ADMIN PORTAL</span><h1>{module==='__dashboard'?'Admin Dashboard':title(module)}</h1></div><div className="ab-top-actions"><button onClick={()=>{if(module==='__dashboard')loadDashboard();else loadModule()}} disabled={refreshing}><RefreshCw size={16} className={refreshing?'spin':''}/>Refresh</button><button onClick={logout}>Logout</button><a href="./"><ArrowLeft size={16}/>Shopping</a></div></header>
+ return <div className="agent-business-page tc-admin-page">
+  <main className="tc-admin-shell">
+   <header className="tc-admin-header">
+    <div className="tc-admin-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
+    <div className="tc-admin-header-actions">
+      <button className="tc-icon-button" onClick={()=>setPage('requests')} aria-label="Payment requests"><Activity size={20}/>{count('PaymentRequests')>0&&<b>{count('PaymentRequests')}</b>}</button>
+      <button className="tc-profile-button" onClick={()=>setProfileOpen(true)} aria-label="Admin profile"><span>A</span><strong>Admin</strong><CircleDollarSign size={17}/></button>
+    </div>
+   </header>
 
-    {error&&<div className="ab-error"><X size={17}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
-    {notice&&<div className="ab-success"><CheckCircle2 size={17}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
+   {error&&<div className="tc-toast tc-error"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
+   {notice&&<div className="tc-toast tc-success"><CheckCircle2 size={15}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
 
-    {module==='__dashboard'?<section className="ab-content">
-      <div className="ab-welcome-strip"><div><span className="ab-eyebrow">TRUSTED CIRCLE · OPERATIONS</span><h2>Good to see you, Admin 👋</h2><p>Manage agents, payment requests, cards, cashback and settlements from one workspace.</p></div><div className="ab-live-chip"><span></span>LIVE WORKSPACE</div></div>
-      <div className="ab-metrics">
-       <Metric label="Payment Volume" value={money(metrics.paymentVolume)} icon={CircleDollarSign}/>
-       <Metric label="Customer Collected" value={money(metrics.customerCollected)} icon={WalletCards}/>
-       <Metric label="Expected Cashback" value={money(metrics.expectedCashback)} icon={BarChart3}/>
-       <Metric label="Actual Cashback" value={money(metrics.actualCashback)} icon={CheckCircle2}/>
-       <Metric label="Customer Discount" value={money(metrics.customerDiscount)} icon={Calculator}/>
-       <Metric label="Pending Bills" value={metrics.pendingBills||0} icon={FileText}/>
+   <section className="tc-admin-content">
+    {activeTab==='home'&&<section className="tc-home">
+      <div className="tc-home-hero"><span className="tc-kicker">TRUSTED CIRCLE · ADMIN</span><h1>Admin Dashboard</h1><p>Manage agents, payment requests and business activity from one place.</p></div>
+      <div className="tc-stat-grid">
+       <button onClick={()=>setPage('agents')}><Users size={20}/><strong>{count('Agents')}</strong><span>Agents</span></button>
+       <button onClick={()=>setPage('requests')}><Activity size={20}/><strong>{count('PaymentRequests')}</strong><span>Requests</span></button>
+       <button onClick={()=>setPage('history')}><CircleDollarSign size={20}/><strong>{count('Payments')}</strong><span>Payments</span></button>
       </div>
-      <div className="ab-grid">
-       <div className="ab-panel"><div className="ab-panel-head"><div><span className="ab-eyebrow">QUICK ACCESS</span><h3>Admin modules</h3></div></div><div className="ab-module-grid">{MODULES.slice(0,8).map(m=><button key={m.key} onClick={()=>setModule(m.key)}><m.icon size={20}/><strong>{m.label}</strong><small>{count(m.key)} records</small><ChevronRight size={15}/></button>)}</div></div>
-       <div className="ab-panel"><div className="ab-panel-head"><div><span className="ab-eyebrow">2% DISCOUNT ENGINE</span><h3>Payment calculator</h3></div></div><div className="ab-calc"><label>Premium Amount<input type="number" value={calc.premiumAmount} onChange={e=>setCalc({...calc,premiumAmount:e.target.value})}/></label><label>Discount %<input type="number" step=".01" value={Number(calc.discountRate)*100} onChange={e=>setCalc({...calc,discountRate:Number(e.target.value)/100})}/></label><label>Cashback %<input type="number" step=".01" value={Number(calc.cashbackRate)*100} onChange={e=>setCalc({...calc,cashbackRate:Number(e.target.value)/100})}/></label><button className="ab-primary" onClick={calculate}><Calculator size={16}/>Calculate</button>{calcResult&&<div className="ab-calc-result"><span>Customer Pays <strong>{money(calcResult.customerPayable)}</strong></span><span>Discount <strong>{money(calcResult.discountAmount)}</strong></span><span>Expected Cashback <strong>{money(calcResult.expectedCashback)}</strong></span><span>Expected Net Benefit <strong>{money(calcResult.expectedNetBenefit)}</strong></span></div>}</div></div>
-      </div>
-    </section>:<section className="ab-content">
-      <div className="ab-section-head"><div><span className="ab-eyebrow">DATABASE</span><h2>{title(module)}</h2><p>Manage records stored in the dedicated Agent Business Google Sheet.</p></div><button className="ab-primary" onClick={()=>{setForm({});setEditing(false);setShowForm(true)}}><Plus size={17}/>Add {module==='Agents'?'Agent':module==='Clients'?'Client':module==='Cards'?'Card':'Record'}</button></div>
-      <div className="ab-table-panel"><div className="ab-table-tools"><div className="ab-search"><Search size={16}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadModule()} placeholder={'Search '+title(module)}/></div><button onClick={loadModule}><RefreshCw size={15}/>Refresh</button></div>
-       {loading?<div className="ab-empty">Loading records…</div>:rows.length?<div className="ab-table-wrap"><table><thead><tr>{fields.map(f=><th key={f}>{title(f)}</th>)}<th>Actions</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{fields.map(f=><td key={f} data-label={title(f)}>{String(r[f]??'').length>55?String(r[f]).slice(0,55)+'…':String(r[f]??'')}</td>)}<td className="ab-row-actions"><button className="ab-small-action" onClick={()=>editRow(r)}>Edit</button><button className="ab-small-action danger" onClick={()=>deleteRow(r)}>Delete</button>{module==='Agents'&&<button className="ab-small-action" onClick={()=>resetAgentPassword(r.AgentID)}>Password</button>}</td></tr>)}</tbody></table></div>:<div className="ab-empty"><div className="ab-empty-icon"><FileText size={22}/></div><strong>No records yet</strong><span>Add your first record to start building the business database.</span><button className="ab-primary" onClick={()=>{setForm({});setShowForm(true)}}><Plus size={15}/>Add Record</button></div>}
-      </div>
+      <div className="tc-home-section"><div><span className="tc-kicker">AGENTS</span><h2>Agent Workspace</h2></div><button onClick={()=>setPage('agents')}>View all <ChevronRight size={15}/></button></div>
+      <div className="tc-agent-mini-grid">{(dashboard?.recentAgents||[]).slice(0,6).map((a,i)=><button key={i} onClick={()=>setPage('agents')}><span>{String(a.AgentName||a.Name||'?').charAt(0).toUpperCase()}</span><div><strong>{a.AgentName||a.Name||'Agent'}</strong><small>{a.Mobile||a.Phone||a.Email||'Agent account'}</small></div><ChevronRight size={15}/></button>)}</div>
+      {!(dashboard?.recentAgents||[]).length&&<div className="tc-empty"><Users size={22}/><strong>Agent workspace</strong><span>Open Agents to manage the agent records in your business database.</span><button onClick={()=>setPage('agents')}>Open Agents</button></div>}
+      <div className="tc-quick-grid"><button onClick={()=>setPage('requests')}><Activity size={18}/><span>Payment Requests</span><ChevronRight size={15}/></button><button onClick={()=>setPage('history')}><CircleDollarSign size={18}/><span>Payment History</span><ChevronRight size={15}/></button></div>
     </section>}
 
-   </main>
-  </div>
-  {showForm&&<div className="ab-modal-backdrop"><div className="ab-modal ab-crud-modal"><button className="ab-modal-x" onClick={()=>{setShowForm(false);setEditing(false)}}><X size={18}/></button><span className="ab-eyebrow">{editing?'EDIT':'NEW'} {module==='Agents'?'AGENT':'RECORD'}</span><h3>{editing?'Edit ':'Add '}{title(module)}</h3><p>{module==='Agents'?'Manage agent profile and access.':'Manage every field for this record. IDs are generated automatically for new records.'}</p><div className="ab-form-grid">{schema.filter(f=>!['CreatedAt','UpdatedAt'].includes(f)).map(f=>{const isId=f===schema[0],isAgentPassword=f==='Password';if(isId)return <label key={f}>{title(f)}<input value={form[f]||''} disabled/></label>;return <label key={f}>{title(f)}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} disabled={editing&&['AgentID','AgentUserID'].includes(f)} placeholder={title(f)}/></label>})}{module==='Agents'&&!editing&&<label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="4-digit password"/></label>}</div><button className="ab-primary wide" disabled={module==='Agents'&&!editing&&(!/^\d{10}$/.test(form.Mobile||'')||!/\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{editing?'Update Record':module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
+    {activeTab==='agents'&&<section className="tc-page">
+      <PageHeader kicker="AGENT MANAGEMENT" title="Agents" text="Manage agent profiles and access." onRefresh={()=>loadModule()} loading={loading} onAdd={()=>{setForm({});setEditing(false);setShowForm(true)}} addLabel="Add Agent"/>
+      <div className="tc-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadModule()} placeholder="Search agents"/></div>
+      <RecordList rows={rows} fields={fields} loading={loading} onEdit={editRow} onDelete={deleteRow} onPassword={resetAgentPassword} module="Agents"/>
+    </section>}
+
+    {activeTab==='requests'&&<section className="tc-page">
+      <PageHeader kicker="PAYMENT WORKFLOW" title="Requests" text="Review and process payment requests raised by agents." onRefresh={()=>loadModule()} loading={loading}/>
+      <div className="tc-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadModule()} placeholder="Search payment requests"/></div>
+      <RecordList rows={rows} fields={fields} loading={loading} onEdit={editRow} onDelete={deleteRow} module="PaymentRequests"/>
+    </section>}
+
+    {activeTab==='history'&&<section className="tc-page">
+      <PageHeader kicker="PAYMENT HISTORY" title="History" text="View completed payment records and receipts." onRefresh={()=>loadModule()} loading={loading}/>
+      <div className="tc-search"><Search size={15}/><input value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadModule()} placeholder="Search payment history"/></div>
+      <RecordList rows={rows} fields={fields} loading={loading} onEdit={editRow} onDelete={deleteRow} module="Payments"/>
+    </section>}
+
+    {activeTab==='more'&&<section className="tc-page tc-more-page">
+      <div className="tc-more-head"><div className="tc-more-icon"><Activity size={24}/></div><span className="tc-kicker">ADMIN TOOLS</span><h1>More</h1><p>Additional business modules and controls.</p></div>
+      <div className="tc-more-grid">{moreModules.map(m=><button key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><m.icon size={20}/><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}</div>
+      <button className="tc-more-logout" onClick={logout}><ShieldCheck size={16}/>Sign Out</button>
+    </section>}
+   </section>
+
+   <nav className="tc-bottom-nav">
+    <button className={activeTab==='home'?'active':''} onClick={()=>setPage('home')}><LayoutDashboard size={21}/><span>Home</span></button>
+    <button className={activeTab==='agents'?'active':''} onClick={()=>setPage('agents')}><Users size={21}/><span>Agents</span><small>{count('Agents')}</small></button>
+    <button className={activeTab==='requests'?'active':''} onClick={()=>setPage('requests')}><Activity size={21}/><span>Requests</span>{count('PaymentRequests')>0&&<small>{count('PaymentRequests')}</small>}</button>
+    <button className={activeTab==='history'?'active':''} onClick={()=>setPage('history')}><CircleDollarSign size={21}/><span>History</span></button>
+    <button className={activeTab==='more'?'active':''} onClick={()=>setPage('more')}><BarChart3 size={21}/><span>More</span></button>
+   </nav>
+  </main>
+
+  {profileOpen&&<div className="tc-modal-backdrop" onClick={()=>setProfileOpen(false)}><div className="tc-profile-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>setProfileOpen(false)}><X size={18}/></button><div className="tc-profile-avatar">A</div><span className="tc-kicker">ADMIN PROFILE</span><h2>Admin</h2><p>Trusted Circle Administrator</p><div className="tc-profile-detail"><small>Access</small><strong>Full Business Administration</strong></div><div className="tc-profile-detail"><small>Portal</small><strong>Trusted Circle Admin Portal</strong></div><button className="tc-more-logout" onClick={logout}><ShieldCheck size={16}/>Sign Out</button></div></div>}
+
+  {showForm&&<div className="tc-modal-backdrop" onClick={()=>{setShowForm(false);setEditing(false)}}><div className="tc-crud-modal" onClick={e=>e.stopPropagation()}><button className="tc-modal-close" onClick={()=>{setShowForm(false);setEditing(false)}}><X size={18}/></button><span className="tc-kicker">{editing?'EDIT':'NEW'} {module==='Agents'?'AGENT':'RECORD'}</span><h2>{editing?'Edit ':'Add '}{title(module)}</h2><p>Manage the record details below.</p><div className="tc-form-grid">{schema.filter(f=>!['CreatedAt','UpdatedAt'].includes(f)).map(f=>{const isId=f===schema[0];if(isId)return <label key={f}>{title(f)}<input value={form[f]||''} disabled/></label>;return <label key={f}>{title(f)}<input value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} disabled={editing&&['AgentID','AgentUserID'].includes(f)} placeholder={title(f)}/></label>})}{module==='Agents'&&!editing&&<label>4-Digit Password<input type="password" value={form.Password||''} onChange={e=>setForm({...form,Password:e.target.value.replace(/\D/g,'').slice(0,4)})} inputMode="numeric" maxLength="4" placeholder="4-digit password"/></label>}</div><button className="tc-save-button" disabled={module==='Agents'&&!editing&&(!/^\d{10}$/.test(form.Mobile||'')||!/^\d{4}$/.test(form.Password||'')||!form.AgentName)} onClick={save}><CheckCircle2 size={16}/>{editing?'Update Record':module==='Agents'?'Create Agent':'Save Record'}</button></div></div>}
  </div>
 }
 
+function PageHeader({kicker,title,text,onRefresh,loading,onAdd,addLabel}){return <div className="tc-page-head"><div><span className="tc-kicker">{kicker}</span><h1>{title}</h1><p>{text}</p></div><div className="tc-page-actions">{onRefresh&&<button onClick={onRefresh} disabled={loading}><RefreshCw size={15} className={loading?'tc-spin':''}/></button>}{onAdd&&<button className="tc-add-button" onClick={onAdd}><Plus size={16}/><span>{addLabel}</span></button>}</div></div>}
+function RecordList({rows,fields,loading,onEdit,onDelete,onPassword,module}){if(loading)return <div className="tc-empty"><RefreshCw className="tc-spin" size={22}/><span>Loading records…</span></div>;if(!rows.length)return <div className="tc-empty"><FileText size={22}/><strong>No records found</strong><span>Add records or refresh to load the latest data.</span></div>;return <div className="tc-record-list">{rows.map((r,i)=><div className="tc-record-card" key={i}><div className="tc-record-main"><span className="tc-record-avatar">{String(r.AgentName||r.ClientName||r.Name||r.PolicyNumber||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.AgentName||r.ClientName||r.Name||r.PolicyNumber||module}</strong><small>{r.Mobile||r.Phone||r.Email||r.PolicyNumber||r.Status||r.RequestStatus||'Record'}</small></div><ChevronRight size={17}/></div><div className="tc-record-fields">{fields.slice(0,5).map(f=><div key={f}><small>{title(f)}</small><span>{String(r[f]??'').length>60?String(r[f]).slice(0,60)+'…':String(r[f]??'')}</span></div>)}</div><div className="tc-record-actions"><button onClick={()=>onEdit(r)}>Edit</button><button className="danger" onClick={()=>onDelete(r)}>Delete</button>{module==='Agents'&&<button onClick={()=>onPassword(r.AgentID)}>Password</button>}</div></div>)}</div>}
 function agentTokenReady(token){return Boolean(token)}
 
 function Metric({label,value,icon:Icon}){return <div className="ab-metric"><span className="ab-metric-icon"><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>}
