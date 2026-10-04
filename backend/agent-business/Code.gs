@@ -147,7 +147,11 @@ function freshSetupAgentBusinessSheets(spreadsheetId){
 }
 
 function doGet(e){
-  return agentBusinessResponse_(agentBusinessRouteSafe_(e&&e.parameter?e.parameter:{}));
+  var p=e&&e.parameter?e.parameter:{};
+  if(String(p.action||'')==='invoicePaymentDecision'){
+    try{return invoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#a52b2b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
+  }
+  return agentBusinessResponse_(agentBusinessRouteSafe_(p));
 }
 function doPost(e){
   var input={};
