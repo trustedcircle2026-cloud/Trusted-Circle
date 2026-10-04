@@ -60,7 +60,7 @@ export const agentBusinessApi={
   agentAddClient:(token,data)=>request('agentAddClient',{token,data}),
   agentAddPolicy:(token,data)=>request('agentAddPolicy',{token,data}),
   agentEditPolicy:(token,data)=>request('agentEditPolicy',{token,data}),
-  agentRequestPayment:(token,policyId)=>request('agentRequestPayment',{token,data:{PolicyID:policyId}}),
+  agentRequestPayment:(token,policyOrClient)=>request('agentRequestPayment',{token,data:typeof policyOrClient==='object'?policyOrClient:{PolicyID:policyOrClient}}),
   agentCancelPaymentRequest:(token,requestId)=>request('agentCancelPaymentRequest',{token,requestId}),
   agentClientHistory:(token,clientId)=>request('agentClientHistory',{token,clientId}),
   agentLogout:(token)=>request('agentLogout',{token}),
