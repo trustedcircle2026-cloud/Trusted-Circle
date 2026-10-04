@@ -13,7 +13,7 @@ var AGENT_BUSINESS = {
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.5.0',
+  SETUP_VERSION: '1.6.0',
   SESSION_TTL_SECONDS: 21600,
   READ_CACHE_TTL_SECONDS: 30,
   SHEETS: {
@@ -34,7 +34,7 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
-    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','CreatedAt','UpdatedAt'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
@@ -183,6 +183,8 @@ function agentBusinessRoute_(p){
   if(action==='agentRequestPayment') return agentRequestPayment_(p);
   if(action==='agentCancelPaymentRequest') return agentCancelPaymentRequest_(p);
   if(action==='agentClientHistory') return agentClientHistory_(p);
+  if(action==='agentInvoices') return agentInvoices_(p);
+  if(action==='agentInvoicePdf') return agentInvoicePdf_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
   var ss=agentBusinessSpreadsheet_();
@@ -194,6 +196,7 @@ function agentBusinessRoute_(p){
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
   if(action==='createInvoice') return createInvoice_(p);
+  if(action==='assignInvoicePaymentLink') return assignInvoicePaymentLink_(p);
   if(action==='receivables') return listReceivables_(ss,p);
   if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
   if(action==='createAgent') return adminCreateAgent_(p);
@@ -371,6 +374,49 @@ function agentPaymentRequests_(p){
   policies.forEach(function(x){policyMap[String(x.PolicyID)]=x;});
   return {items:rows.reverse().map(function(r){var c=clientMap[String(r.ClientID)]||{},p=policyMap[String(r.PolicyID)]||{};return safeAgentRequest_(Object.assign({},r,{ClientName:c.ClientName||'',PolicyNumber:c.PolicyNumber||p.PolicyNumber||''}));}),total:rows.length};
   */
+}
+function agentInvoices_(p){
+  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
+  var invoices=cachedSheetRows_(ensureBusinessSheet_(ss,'Invoices'),'Invoices')
+    .filter(function(x){return String(x.AgentID)===String(s.AgentID);})
+    .sort(function(a,b){return new Date(b.InvoiceDate||b.CreatedAt||0).getTime()-new Date(a.InvoiceDate||a.CreatedAt||0).getTime();});
+  var outstanding=invoices.filter(function(x){return !['PAID','SETTLED','CANCELLED'].includes(String(x.PaymentStatus||'UNPAID').toUpperCase());})
+    .reduce(function(sum,x){return sum+Number(x.NetPayable||0);},0);
+  return {
+    items:invoices.map(function(x){
+      return {
+        InvoiceID:x.InvoiceID||'',
+        InvoiceNumber:x.InvoiceNumber||'',
+        InvoiceDate:x.InvoiceDate||'',
+        TotalAmount:Number(x.TotalAmount||0),
+        DiscountAmount:Number(x.DiscountAmount||0),
+        NetPayable:Number(x.NetPayable||0),
+        Status:x.Status||'GENERATED',
+        PdfUrl:x.PdfUrl||'',
+        PaymentLink:x.PaymentLink||'',
+        PaymentStatus:x.PaymentStatus||'UNPAID',
+        PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''
+      };
+    }),
+    total:invoices.length,
+    outstandingAmount:Math.round(outstanding*100)/100
+  };
+}
+function agentInvoicePdf_(p){
+  var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
+  if(!invoiceId)throw new Error('Invoice is required.');
+  var ss=agentBusinessSpreadsheet_();
+  var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId&&String(x.AgentID)===String(s.AgentID);});
+  if(!invoice)throw new Error('Invoice not found.');
+  var fileId=String(invoice.PdfFileId||'').trim();
+  if(!fileId){
+    var url=String(invoice.PdfUrl||'');
+    var m=url.match(/\/d\/([a-zA-Z0-9_-]+)/)||url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    fileId=m?m[1]:'';
+  }
+  if(!fileId)throw new Error('Invoice PDF is not available yet.');
+  var file=DriveApp.getFileById(fileId),blob=file.getBlob();
+  return {fileName:invoice.InvoiceNumber+'.pdf',pdfBase64:Utilities.base64Encode(blob.getBytes())};
 }
 function agentClientHistory_(p){
   var s=agentSession_(p.token),clientId=String(p.clientId||'').trim();
@@ -631,8 +677,8 @@ function createInvoice_(p){
   var invoiceNumber='TC-INV-'+Utilities.formatDate(new Date(invoiceDate+'T00:00:00'),Session.getScriptTimeZone(),'yyyyMMdd')+'-'+String(invoiceId).slice(-6);
   var invoice=saveRow_(ss,'Invoices',{
     InvoiceID:invoiceId,InvoiceNumber:invoiceNumber,AgentID:agentId,InvoiceDate:invoiceDate,
-    TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'SENT',
-    AgentEmail:String(agent.Email||'').trim(),PdfUrl:''
+    TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'GENERATING',
+    AgentEmail:String(agent.Email||'').trim(),PdfUrl:'',PdfFileId:'',PaymentLink:'',PaymentStatus:'UNPAID',PaymentLinkAssignedAt:''
   });
   var items=[];
   selected.forEach(function(x){
@@ -649,6 +695,7 @@ function createInvoice_(p){
 
   var pdfResult=buildInvoicePdfAndSend_(agent,invoice.item,items);
   invoice.item.PdfUrl=pdfResult.pdfUrl||'';
+  invoice.item.PdfFileId=pdfResult.pdfFileId||'';
   invoice.item.Status=pdfResult.sent?'SENT':'GENERATED';
   saveRow_(ss,'Invoices',invoice.item);
   invalidateSheetCache_('Invoices');invalidateSheetCache_('InvoiceItems');invalidateSheetCache_('AgentReceivables');
@@ -707,7 +754,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
     sent=true;
   }
   try{DriveApp.getFileById(doc.getId()).setTrashed(true);}catch(e){}
-  return {pdfBase64:Utilities.base64Encode(pdf.getBytes()),fileName:invoice.InvoiceNumber+'.pdf',sent:sent,pdfUrl:file.getUrl()};
+  return {pdfBase64:Utilities.base64Encode(pdf.getBytes()),fileName:invoice.InvoiceNumber+'.pdf',sent:sent,pdfUrl:file.getUrl(),pdfFileId:file.getId()};
 }
 function formatInvoiceDate_(value){
   var raw=String(value||'').trim();if(!raw)return '';
@@ -717,6 +764,30 @@ function formatInvoiceDate_(value){
 }
 function formatMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function escapeHtml_(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function assignInvoicePaymentLink_(p){
+  var invoiceId=String(p.invoiceId||'').trim();
+  var paymentLink=String(p.paymentLink||'').trim();
+  if(!invoiceId)throw new Error('Invoice is required.');
+  if(paymentLink && !/^https?:\\/\\//i.test(paymentLink))throw new Error('Enter a valid payment link starting with http:// or https://.');
+  var ss=agentBusinessSpreadsheet_();
+  var sheet=ensureBusinessSheet_(ss,'Invoices'),rows=sheetRows_(sheet);
+  var invoice=rows.find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  invoice.PaymentLink=paymentLink;
+  invoice.PaymentStatus=paymentLink?'PAYABLE':'UNPAID';
+  invoice.PaymentLinkAssignedAt=paymentLink?new Date().toISOString():'';
+  invoice.Status=paymentLink?'PAYABLE':'GENERATED';
+  saveRow_(ss,'Invoices',invoice);
+  invalidateSheetCache_('Invoices');
+  return {invoice:{
+    InvoiceID:invoice.InvoiceID,
+    InvoiceNumber:invoice.InvoiceNumber,
+    PaymentLink:invoice.PaymentLink,
+    PaymentStatus:invoice.PaymentStatus,
+    Status:invoice.Status,
+    NetPayable:Number(invoice.NetPayable||0)
+  }};
+}
 function listReceivables_(ss,p){
   var agentId=String(p.agentId||'').trim();
   var rows=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')).filter(function(x){return !agentId||String(x.AgentID)===agentId;});
