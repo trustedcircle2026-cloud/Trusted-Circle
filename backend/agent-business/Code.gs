@@ -13,7 +13,7 @@ var AGENT_BUSINESS = {
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.3.0',
+  SETUP_VERSION: '1.4.0',
   SESSION_TTL_SECONDS: 21600,
   READ_CACHE_TTL_SECONDS: 30,
   SHEETS: {
@@ -294,42 +294,9 @@ function agentClients_(p){
   */
 }
 function agentAddClient_(p){
-  var s=agentSession_(p.token),data=p.data||{};
-  var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
-  if(!name) throw new Error('Client name is required.');
-  if(!policyNumber) throw new Error('Policy number is required.');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)) throw new Error('Enter date of birth in YYYY-MM-DD format.');
-  var ss=agentBusinessSpreadsheet_();
-  var clientId=newId_('ClientID'),policyId=newId_('PolicyID'),requestId=newId_('RequestID');
-  var client=saveRow_(ss,'Clients',{
-    ClientID:clientId,AgentID:s.AgentID,ClientName:name,PolicyNumber:policyNumber,DateOfBirth:dob,
-    Status:'ACTIVE',Notes:'Submitted by agent portal'
-  });
-  var policy=saveRow_(ss,'Policies',{
-    PolicyID:policyId,AgentID:s.AgentID,ClientID:clientId,InsuranceCompany:'LIC',
-    PolicyNumber:policyNumber,PolicyType:'',PolicyHolder:name,InsuredPerson:name,
-    PremiumAmount:'',PremiumFrequency:'',NextDueDate:'',PolicyStatus:'ACTIVE',
-    Notes:'Policy details to be verified by Admin'
-  });
-  var request=saveRow_(ss,'PaymentRequests',{
-    RequestID:requestId,BillID:'',AgentID:s.AgentID,ClientID:clientId,
-    PremiumAmount:'',CustomerPayable:'',DiscountAmount:'',Status:'PENDING',
-    RequestedAt:new Date().toISOString(),Notes:'Agent submitted Client Name, Policy Number and DOB. Admin to verify premium details.'
-  });
-  saveRow_(ss,'Notifications',{
-    NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',
-    Type:'PAYMENT_REQUEST',Title:'New LIC payment request',
-    Message:name+' · Policy '+policyNumber+' · DOB '+dob+' · Agent '+s.AgentID,
-    Status:'UNREAD',CreatedAt:new Date().toISOString()
-  });
-  ['Clients','Policies','PaymentRequests','Notifications','PremiumBills'].forEach(invalidateSheetCache_);
-  cacheRemoveAgent_(s.AgentID);
-  return {
-    client:safeAgentClient_(client.item),
-    paymentRequest:safeAgentRequest_(Object.assign({},request.item,{ClientName:name,PolicyNumber:policyNumber})),
-    policyId:policyId
-  };
-}
+  // Legacy endpoint kept for compatibility. New workflow is policy-first and never creates a payment request here.
+  return agentAddPolicy_(p);
+  */
 function agentAddPolicy_(p){
   var s=agentSession_(p.token),data=p.data||{};
   var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
@@ -421,7 +388,7 @@ function agentClientHistory_(p){
 function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
 function safeAgentClient_(c){
-  return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt,PolicyType:c.PolicyType||'LIC Policy',PremiumAmount:c.PremiumAmount||0,RequestStatus:c.RequestStatus||'PENDING'};
+  return {ClientID:c.ClientID,ClientName:c.ClientName,PolicyNumber:c.PolicyNumber,DateOfBirth:c.DateOfBirth,Status:c.Status,CreatedAt:c.CreatedAt,PolicyType:c.PolicyType||'Policy',PremiumAmount:c.PremiumAmount||0,RequestStatus:c.RequestStatus||''};
 }
 function safeAgentRequest_(r){
   return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',ClientID:r.ClientID,ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',PremiumAmount:r.PremiumAmount||0,CustomerPayable:r.CustomerPayable||0,DiscountAmount:r.DiscountAmount||0,Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',Notes:r.Notes||''};
