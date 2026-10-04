@@ -67,19 +67,56 @@ export default function AgentBusinessPage(){
  const openInvoiceLinkManager=async()=>{await loadAdminInvoices();setInvoiceLinkModal({invoiceId:'',paymentLink:''})}
  const decodeInvoiceQr=async file=>{
    if(!file)return;
-   setQrBusy(true);setError('');
+   setQrBusy(true);setError('');setNotice('');
    try{
      const bitmap=await createImageBitmap(file);
-     const max=1800,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+     const max=2400,scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height)),width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
-     const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(bitmap,0,0,width,height);
-     const image=ctx.getImageData(0,0,width,height);
-     const code=jsQR(image.data,image.width,image.height,{inversionAttempts:'attemptBoth'});
-     if(!code?.data)throw new Error('No QR code was detected. Upload a clear QR image.');
-     const raw=String(code.data).trim();
-     if(!/^https?:\/\//i.test(raw))throw new Error('The QR code was read, but it does not contain a payment URL.');
+     const ctx=canvas.getContext('2d',{willReadFrequently:true});
+     ctx.imageSmoothingEnabled=true;ctx.drawImage(bitmap,0,0,width,height);
+
+     let raw='';
+     // Prefer the browser's native QR detector when available; it is more tolerant
+     // of WhatsApp screenshots and compressed QR images than a single jsQR pass.
+     if('BarcodeDetector' in window){
+       try{
+         const detector=new BarcodeDetector({formats:['qr_code']});
+         const found=await detector.detect(canvas);
+         raw=String(found?.find(x=>x.rawValue)?.rawValue||'').trim();
+       }catch{}
+     }
+
+     const tryImage=(imageData)=>{
+       const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'attemptBoth'});
+       return String(code?.data||'').trim();
+     };
+
+     if(!raw){
+       const base=ctx.getImageData(0,0,width,height);
+       raw=tryImage(base);
+       if(!raw){
+         const gray=new ImageData(width,height);
+         for(let i=0;i<base.data.length;i+=4){
+           const y=Math.round(base.data[i]*.299+base.data[i+1]*.587+base.data[i+2]*.114);
+           gray.data[i]=gray.data[i+1]=gray.data[i+2]=y;gray.data[i+3]=255;
+         }
+         raw=tryImage(gray);
+       }
+       if(!raw){
+         const gray=ctx.createImageData(width,height),base=ctx.getImageData(0,0,width,height);
+         for(let i=0;i<base.data.length;i+=4){
+           const y=(base.data[i]*77+base.data[i+1]*150+base.data[i+2]*29)>>8;
+           const v=y<150?0:255;
+           gray.data[i]=gray.data[i+1]=gray.data[i+2]=v;gray.data[i+3]=255;
+         }
+         raw=tryImage(gray);
+       }
+     }
+
+     if(!raw)throw new Error('No QR code was detected. Please upload the original QR image or a clear screenshot where the complete QR is visible.');
+     if(!/^https?:\/\//i.test(raw))throw new Error('QR detected, but it does not contain an HTTP/HTTPS payment link.');
      setInvoiceLinkModal(prev=>prev?{...prev,paymentLink:raw}:{invoiceId:'',paymentLink:raw});
-     setNotice('Payment QR read successfully. Verify the extracted link before saving.');
+     setNotice('Payment QR read successfully. The payment URL has been extracted.');
    }catch(e){setError(e.message||'Unable to read the QR image.')}
    finally{setQrBusy(false)}
  }
