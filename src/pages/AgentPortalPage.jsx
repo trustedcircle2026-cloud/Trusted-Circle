@@ -26,8 +26,13 @@ export default function AgentPortalPage(){
   let timer
   try{
    let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
-   const [data,invoiceData]=await Promise.all([agentBusinessApi.agentBootstrap(token),agentBusinessApi.agentInvoices(token)])
-   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[]);setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0));setEarningsToDate(Number(invoiceData.earningsToDate||0))
+   const data=await agentBusinessApi.agentBootstrap(token)
+   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
+   clearInterval(timer);setLoading(false)
+   agentBusinessApi.agentInvoices(token).then(invoiceData=>{
+    setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0));setEarningsToDate(Number(invoiceData.earningsToDate||0))
+   }).catch(()=>{})
+   return
   }catch(e){
    localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
   }finally{clearInterval(timer);setLoading(false)}
