@@ -14,7 +14,7 @@ const loadingMessages=['Securing your agent session…','Loading your policy wor
 
 export default function AgentPortalPage(){
  const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
- const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[invoices,setInvoices]=useState([]),[payableAmount,setPayableAmount]=useState(0),[earningsToDate,setEarningsToDate]=useState(0)
+ const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[receipts,setReceipts]=useState([]),[invoices,setInvoices]=useState([]),[payableAmount,setPayableAmount]=useState(0),[earningsToDate,setEarningsToDate]=useState(0)
  const[mobile,setMobile]=useState(''),[password,setPassword]=useState('')
  const[policyForm,setPolicyForm]=useState(emptyPolicy),[showForm,setShowForm]=useState(false),[editingPolicyId,setEditingPolicyId]=useState('')
  const[clientSearch,setClientSearch]=useState(''),[history,setHistory]=useState(null),[historyLoading,setHistoryLoading]=useState(false)
@@ -29,12 +29,13 @@ export default function AgentPortalPage(){
    const data=await agentBusinessApi.agentBootstrap(token)
    setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
    clearInterval(timer);setLoading(false)
+   agentBusinessApi.agentPremiumReceipts(token).then(receiptData=>setReceipts(receiptData.items||[])).catch(()=>setReceipts([]))
    agentBusinessApi.agentInvoices(token).then(invoiceData=>{
     setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0));setEarningsToDate(Number(invoiceData.earningsToDate||0))
    }).catch(()=>{})
    return
   }catch(e){
-   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
+   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
   }finally{clearInterval(timer);setLoading(false)}
  }
  useEffect(()=>{
@@ -120,10 +121,10 @@ export default function AgentPortalPage(){
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const downloadInvoice=async invoice=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentInvoicePdf(session,invoice.InvoiceID);const bytes=Uint8Array.from(atob(data.pdfBase64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||((invoice.InvoiceNumber||'Trusted-Circle-Invoice')+'.pdf');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}
- const downloadOutstandingSummary=async()=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentOutstandingSummary(session);const bytes=Uint8Array.from(atob(data.base64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||'Outstanding-Summary.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}; const downloadReceipt=async item=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentReceiptFile(session,item.PaymentID);if(data.driveUrl){window.open(data.driveUrl,'_blank','noopener,noreferrer');return}const bytes=Uint8Array.from(atob(data.base64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:data.mimeType||'application/octet-stream'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||'Premium-Payment-Receipt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}
+ const downloadOutstandingSummary=async()=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentOutstandingSummary(session);const bytes=Uint8Array.from(atob(data.base64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||'Outstanding-Summary.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}; const downloadReceipt=async item=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentReceiptFile(session,item.PaymentID);const bytes=Uint8Array.from(atob(data.base64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:data.mimeType||'application/octet-stream'});const url=URL.createObjectURL(blob);const opened=window.open(url,'_blank');if(!opened){const a=document.createElement('a');a.href=url;a.download=data.fileName||item.ReceiptFileName||'Premium-Payment-Receipt';a.click()}setTimeout(()=>URL.revokeObjectURL(url),60000)}catch(e){setError(e.message)}finally{setLoading(false)}}
  const pending=requests.filter(r=>!['PAID','COMPLETED','CANCELLED'].includes(String(r.Status||'').toUpperCase())).length
  const latestRequests=useMemo(()=>requests.slice(0,12),[requests])
- const paidRequests=useMemo(()=>requests.filter(r=>String(r.Status||'').toUpperCase()==='PAID'&&r.PaymentID),[requests])
+ const paidRequests=useMemo(()=>receipts,[receipts])
  const filteredClients=useMemo(()=>{const q=clientSearch.trim().toLowerCase();if(!q)return clients;return clients.filter(r=>[r.ClientName,r.PolicyNumber,r.DateOfBirth].some(v=>String(v||'').toLowerCase().includes(q)))},[clients,clientSearch])
  const openHistory=async client=>{setHistoryLoading(true);setError('');try{const data=await agentBusinessApi.agentClientHistory(session,client.ClientID);setHistory(data)}catch(e){setError(e.message)}finally{setHistoryLoading(false)}}
 
@@ -205,10 +206,10 @@ export default function AgentPortalPage(){
     </div>)}</div>:<div className="ap-empty"><Send size={22}/><b>No payment requests yet</b><span>Search My Clients and raise a request whenever a premium needs to be paid.</span></div>}
    </section>:activeTab==='receipts'?<section className="ap-panel ap-data ap-history-page-panel">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">DOCUMENTS</span><h2>Premium Receipts</h2><p>Download receipts for premiums already paid by Trusted Circle.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
-    {paidRequests.length?<div className="ap-request-list">{paidRequests.map(r=><div className="ap-request-card" key={r.RequestID}>
+    {paidRequests.length?<div className="ap-request-list">{paidRequests.map(r=><div className="ap-request-card" key={r.PaymentID}>
       <div className="ap-request-icon"><CheckCircle2 size={17}/></div>
-      <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber||'—'}</span><small>{r.PaymentDate?displayDate(r.PaymentDate):r.RequestedAt?displayDate(r.RequestedAt):'—'} · Paid</small></div>
-      <button className="ap-secondary ap-receipt-download" title="Download premium receipt" onClick={()=>downloadReceipt(r)}><Download size={14}/>Receipt</button>
+      <div className="ap-request-main"><strong>{r.ClientName||'Client'}</strong><span>Policy {r.PolicyNumber||'—'}</span><small>{r.PaymentDate?displayDate(r.PaymentDate):'—'} · Paid · {money(r.PremiumAmount)}</small></div>
+      {r.ReceiptAvailable?<button className="ap-secondary ap-receipt-download" title="View premium receipt" onClick={()=>downloadReceipt(r)}><Download size={14}/>View Receipt</button>:<span className="ap-request-pill pending">Receipt Pending</span>}
     </div>)}</div>:<div className="ap-empty"><FileText size={22}/><b>No paid premium receipts</b><span>Receipts will appear here after Admin marks a premium payment as paid.</span></div>}
    </section>:activeTab==='history'?<section className="ap-panel ap-data ap-history-page-panel">
     <div className="ap-panel-head"><div><span className="ap-eyebrow">ACTIVITY</span><h2>History</h2><p>Review recent premium payment requests raised for your clients.</p></div><button className="ap-secondary" onClick={()=>load(session)} disabled={loading}><RefreshCw size={15}/>Refresh</button></div>
