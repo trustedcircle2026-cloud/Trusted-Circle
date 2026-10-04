@@ -11,7 +11,6 @@
 // Insurance agent receivables, invoice payment reporting and settlement workflow.
 var INSURANCE_PREMIUM_RECEIPT_FOLDER_ID='1G-JE7bQhmPBjFvvqGXBfHFdestw_DAhX';
 var TRUSTED_CIRCLE_INVOICE_FOLDER_ID='1XroGo-yhqvt-Vnp0ZPUAz1iw4cEuV2os';
-var COMMON_AGENT_PAYMENT_LINK='upi://pay?pa=llingesh836-7@okhdfcbank&pn=Lingeshwaran%20R&aid=uGICAgIC1rKa0NQ';
 
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
