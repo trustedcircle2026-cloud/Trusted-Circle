@@ -53,6 +53,7 @@ export const agentBusinessApi={
   createInvoice:(data,adminToken)=>request('createInvoice',{...data,adminToken}),
   listReceivables:(agentId,adminToken)=>request('receivables',{agentId,adminToken}),
   markReceivableReceived:(receivableId,adminToken)=>request('markReceivableReceived',{receivableId,adminToken}),
+  assignInvoicePaymentLink:(invoiceId,paymentLink,adminToken)=>request('assignInvoicePaymentLink',{invoiceId,paymentLink,adminToken}),
   schema:(sheet,adminToken)=>request('schema',{sheet,adminToken}),
   createAgent:(data,adminToken)=>request('createAgent',{data,adminToken}),
   setAgentPassword:(agentId,password,adminToken)=>request('setAgentPassword',{agentId,password,adminToken}),
