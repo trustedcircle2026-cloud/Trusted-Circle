@@ -145,7 +145,7 @@ export default function AgentPortalPage(){
       <div className="ap-card-actions ap-client-actions">
        <button className="ap-secondary" onClick={()=>openHistory(r)}><Clock3 size={14}/>History</button>
        <button className="ap-secondary" onClick={()=>openEditPolicy(r)}><Edit3 size={14}/>Edit</button>
-       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())?'Requested':'Raise Request'}</button>
+       <button className="ap-primary ap-request-action" disabled={loading||['PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{['PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())?'Premium Paid':'Raise Request'}</button>
       </div>
     </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>{clientSearch?'No matching client':'No clients added yet'}</b><span>{clientSearch?'Try the client name or policy number.':'Add the client and policy details first. You can raise premium payment requests whenever required.'}</span>{!clientSearch&&<button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Client</button>}</div>}
    </section>:activeTab==='requests'?<section className="ap-panel ap-data">
