@@ -464,7 +464,7 @@ function agentReportInvoicePaymentDone_(p){
   if(!invoice)throw new Error('Invoice not found.');
   var current=String(invoice.PaymentStatus||'UNPAID').toUpperCase();
   if(['PAID','SETTLED'].includes(current))throw new Error('This invoice is already marked as received.');
-  if(!String(invoice.PaymentLink||'').trim())throw new Error('Payment link is not assigned to this invoice yet.');
+  if(!String(invoice.PaymentLink||'').trim()){invoice.PaymentLink=COMMON_AGENT_PAYMENT_LINK;invoice.PaymentLinkAssignedAt=new Date().toISOString();}
   invoice.PaymentStatus='AGENT_REPORTED';
   invoice.Status='PAYMENT_REPORTED';
   invoice.AgentPaymentReportedAt=new Date().toISOString();
