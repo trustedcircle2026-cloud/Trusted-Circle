@@ -45,7 +45,14 @@ async function bootstrap(){
 }
 
 async function home(){
- const d=await agentBusinessApi.dashboard(getToken()),m=d?.metrics||{},c=d?.counts||{}
+ const cached=readCache('dashboard')
+ if(cached) renderHome(cached)
+ const d=await agentBusinessApi.dashboard(getToken())
+ writeCache('dashboard',d)
+ renderHome(d)
+}
+function renderHome(d){
+ const m=d?.metrics||{},c=d?.counts||{}
  const recent=d?.recentAgents||[]
  const body='<main class="tc-content"><span class="tc-kicker">TRUSTED CIRCLE · ADMIN</span><h1 class="tc-title">Admin Dashboard</h1><p class="tc-subtitle">Manage agents, payment requests and business activity from separate pages.</p><div class="tc-stats"><button class="tc-stat" onclick="location.href=\'agents.html\'">♙<strong>'+esc(c.Agents||0)+'</strong><span>Agents</span></button><button class="tc-stat" onclick="location.href=\'requests.html\'">↗<strong>'+esc(c.PaymentRequests||0)+'</strong><span>Requests</span></button><button class="tc-stat" onclick="location.href=\'history.html\'">₹<strong>'+esc(c.Payments||0)+'</strong><span>Payments</span></button></div><div class="tc-section-title"><div><span class="tc-kicker">WORKSPACE</span><h2>Recent Agents</h2></div><a class="tc-link" href="agents.html">View all →</a></div><div class="tc-list">'+(recent.length?recent.slice(0,6).map(a=>'<div class="tc-card"><div class="tc-row"><span class="tc-record-avatar">'+initials(a.AgentName||a.Name)+'</span><div class="tc-row-main"><strong>'+esc(a.AgentName||a.Name||'Agent')+'</strong><small>'+esc(a.Mobile||a.Email||'Agent account')+'</small></div></div></div>').join(''):'<div class="tc-empty"><strong>Agent workspace</strong><span>No recent agents found.</span><a class="tc-btn primary" href="agents.html">Open Agents</a></div>')+'</div><div class="tc-section-title"><div><span class="tc-kicker">QUICK ACCESS</span><h2>Business</h2></div></div><div class="tc-more"><button class="tc-more-card" onclick="location.href=\'requests.html\'"><b>↗</b><div><strong>Payment Requests</strong><small>Process requests raised by agents.</small></div><span>›</span></button><button class="tc-more-card" onclick="location.href=\'history.html\'"><b>₹</b><div><strong>Payment History</strong><small>Review completed payment records.</small></div><span>›</span></button></div></main>'
  root.innerHTML=shell('home',body,c)
@@ -88,7 +95,15 @@ function openForm(module,row,schema,refresh){
 
 async function requests(){
  let search=''
- const render=async()=>{const data=await agentBusinessApi.list('PaymentRequests',{search},getToken());const rows=data?.items||[]
+ const render=async()=>{
+ const cached=readCache('requests_'+search)
+ if(cached) renderRequestRows(cached)
+ const data=await agentBusinessApi.list('PaymentRequests',{search},getToken())
+ const rows=data?.items||[]
+ writeCache('requests_'+search,rows)
+ renderRequestRows(rows)
+ }
+ const renderRequestRows=(rows)=>{
  const body='<main class="tc-content"><div class="tc-page-head"><div><span class="tc-kicker">PAYMENT WORKFLOW</span><h1 class="tc-title">Payment Requests</h1><p class="tc-subtitle">Process requests raised by agents. Policy Number and DOB are shown here.</p></div><div class="tc-actions"><button class="tc-btn" id="refresh">↻</button></div></div><div class="tc-search">⌕<input id="search" placeholder="Search requests" value="'+esc(search)+'"></div><div class="tc-list">'+(rows.length?rows.map((r,i)=>paymentCard(r,i)).join(''):'<div class="tc-empty"><strong>No payment requests</strong><span>Requests raised by agents will appear here.</span></div>')+'</div></main>'
  root.innerHTML=shell('requests',body,{PaymentRequests:rows.length})
  document.getElementById('profileBtn').onclick=profileModal;document.getElementById('refresh').onclick=render;document.getElementById('search').onkeydown=e=>{if(e.key==='Enter'){search=e.target.value;render()}}
@@ -105,7 +120,15 @@ async function startPayment(r){const policy=r.PolicyNumber||r.PolicyNo||'',dob=r
 
 async function history(){
  let search=''
- const render=async()=>{const data=await agentBusinessApi.list('Payments',{search},getToken());const rows=data?.items||[]
+ const render=async()=>{
+ const cached=readCache('history_'+search)
+ if(cached) renderHistoryRows(cached)
+ const data=await agentBusinessApi.list('Payments',{search},getToken())
+ const rows=data?.items||[]
+ writeCache('history_'+search,rows)
+ renderHistoryRows(rows)
+ }
+ const renderHistoryRows=(rows)=>{
  const body='<main class="tc-content"><div class="tc-page-head"><div><span class="tc-kicker">PAYMENT HISTORY</span><h1 class="tc-title">History</h1><p class="tc-subtitle">Completed payments, receipts and settlement records.</p></div><button class="tc-btn" id="refresh">↻</button></div><div class="tc-search">⌕<input id="search" placeholder="Search payment history" value="'+esc(search)+'"></div><div class="tc-list">'+(rows.length?rows.map(r=>recordCard(r,0,'Payments')).join(''):'<div class="tc-empty"><strong>No payment history</strong><span>Completed payment records will appear here.</span></div>')+'</div></main>'
  root.innerHTML=shell('history',body);document.getElementById('profileBtn').onclick=profileModal;document.getElementById('refresh').onclick=render;document.getElementById('search').onkeydown=e=>{if(e.key==='Enter'){search=e.target.value;render()}}
  rows.forEach((r,i)=>{const card=document.querySelectorAll('.tc-card')[i];if(!card)return;card.querySelector('[data-edit]').onclick=()=>alert('Payment history is read-only from this page.');card.querySelector('[data-delete]').onclick=()=>alert('Payment history is protected.')})
