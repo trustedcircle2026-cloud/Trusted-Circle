@@ -4,12 +4,13 @@ import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
+const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
 const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
 const loadingMessages=['Securing your agent session…','Loading your policy workspace…','Syncing your latest requests…','Preparing your workspace…']
 
 export default function AgentPortalPage(){
  const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
- const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([])
+ const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[invoices,setInvoices]=useState([]),[payableAmount,setPayableAmount]=useState(0)
  const[mobile,setMobile]=useState(''),[password,setPassword]=useState('')
  const[policyForm,setPolicyForm]=useState(emptyPolicy),[showForm,setShowForm]=useState(false),[editingPolicyId,setEditingPolicyId]=useState('')
  const[clientSearch,setClientSearch]=useState(''),[history,setHistory]=useState(null),[historyLoading,setHistoryLoading]=useState(false)
@@ -22,9 +23,10 @@ export default function AgentPortalPage(){
   try{
    let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
    const data=await agentBusinessApi.agentBootstrap(token)
-   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
+   const invoiceData=await agentBusinessApi.agentInvoices(token)
+   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[]);setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0))
   }catch(e){
-   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setError(e.message)
+   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0);setError(e.message)
   }finally{clearInterval(timer);setLoading(false)}
  }
  useEffect(()=>{if(session)load(session)},[session])
@@ -69,7 +71,8 @@ export default function AgentPortalPage(){
   try{await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session);setNotice('Payment request cancelled successfully.')}
   catch(e){setError(e.message)}finally{setLoading(false)}
  }
- const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])}
+ const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0)}
+ const downloadInvoice=async invoice=>{try{setLoading(true);setError('');const data=await agentBusinessApi.agentInvoicePdf(session,invoice.InvoiceID);const bytes=Uint8Array.from(atob(data.pdfBase64),ch=>ch.charCodeAt(0));const blob=new Blob([bytes],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.fileName||((invoice.InvoiceNumber||'Trusted-Circle-Invoice')+'.pdf');a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setLoading(false)}}
  const pending=requests.filter(r=>!['PAID','COMPLETED','CANCELLED'].includes(String(r.Status||'').toUpperCase())).length
  const latestRequests=useMemo(()=>requests.slice(0,12),[requests])
  const filteredClients=useMemo(()=>{const q=clientSearch.trim().toLowerCase();if(!q)return clients;return clients.filter(r=>[r.ClientName,r.PolicyNumber,r.DateOfBirth].some(v=>String(v||'').toLowerCase().includes(q)))},[clients,clientSearch])
@@ -118,10 +121,16 @@ export default function AgentPortalPage(){
     <div className="ap-home-stats">
       <button onClick={()=>setActiveTab('policies')}><Users size={20}/><strong>{clients.length}</strong><span>My Clients</span></button>
       <button onClick={()=>setActiveTab('requests')}><Send size={20}/><strong>{pending}</strong><span>Pending Requests</span></button>
-      <button onClick={()=>setActiveTab('history')}><Clock3 size={20}/><strong>{requests.length}</strong><span>Total Requests</span></button>
+      <button onClick={()=>setActiveTab('more')}><WalletCards size={20}/><strong>{payableAmount?money(payableAmount):'₹0'}</strong><span>Payable Amount</span></button>
+    </div>
+    <div className="ap-payable-box">
+      <div className="ap-payable-head"><div><span className="ap-eyebrow">AGENT PAYABLE</span><h2>Amount Payable to Trusted Circle</h2><p>Net amount after the 2% Trusted Circle discount.</p></div><span className="ap-payable-total">{money(payableAmount)}</span></div>
+      <div className="ap-invoice-list ap-home-invoices">{invoices.length?invoices.slice(0,3).map(invoice=><AgentInvoiceCard key={invoice.InvoiceID} invoice={invoice} onDownload={downloadInvoice}/>):<div className="ap-invoice-empty"><FileText size={18}/><span>Your generated invoices will appear here.</span></div>}</div>
+      {invoices.length>3&&<button className="ap-secondary wide" onClick={()=>setActiveTab('more')}>View All Invoices <ChevronRight size={15}/></button>}
     </div>
     <div className="ap-home-actions">
-      <button className="ap-primary" onClick={openAddPolicy}><Plus size={16}/>Add Client</button>
+      <button className="ap-primary" onClick={()=>setActiveTab('more')}><WalletCards size={16}/>View Payables & Invoices</button>
+      <button className="ap-secondary" onClick={openAddPolicy}><Plus size={16}/>Add Client</button>
       <button className="ap-secondary" onClick={()=>setActiveTab('requests')}><Send size={16}/>Payment Requests</button>
       <button className="ap-secondary" onClick={()=>setActiveTab('history')}><Clock3 size={16}/>View History</button>
     </div>
@@ -156,8 +165,11 @@ export default function AgentPortalPage(){
       <button className="ap-icon-action" title="View client history" onClick={()=>{const client=clients.find(c=>String(c.ClientID)===String(r.ClientID));client?openHistory(client):setDetail({type:'Payment Request',data:r})}}><ChevronRight size={17}/></button>
     </div>)}</div>:<div className="ap-empty"><Clock3 size={22}/><b>No history yet</b><span>Payment request activity will appear here after you raise a request.</span></div>}
    </section>:activeTab==='more'?<section className="ap-panel ap-data ap-more-panel">
-    <div className="ap-more-head"><div className="ap-more-icon"><MoreHorizontal size={24}/></div><span className="ap-eyebrow">MORE</span><h2>More</h2><p>Additional agent tools and settings will be added here.</p></div>
-    <div className="ap-more-placeholder"><MoreHorizontal size={22}/><strong>Coming soon</strong><span>This page is reserved for the next Trusted Circle Agent Portal features.</span></div>
+    <div className="ap-more-head"><div className="ap-more-icon"><MoreHorizontal size={24}/></div><span className="ap-eyebrow">AGENT CENTRE</span><h2>More</h2><p>Payables, invoices, client tools and account options.</p></div>
+    <div className="ap-more-section"><span className="ap-more-section-title">PAYABLES & INVOICES</span><div className="ap-payable-box ap-more-payable"><div className="ap-payable-head"><div><span className="ap-eyebrow">OUTSTANDING</span><h2>Payable to Trusted Circle</h2></div><span className="ap-payable-total">{money(payableAmount)}</span></div><div className="ap-invoice-list">{invoices.length?invoices.map(invoice=><AgentInvoiceCard key={invoice.InvoiceID} invoice={invoice} onDownload={downloadInvoice}/>):<div className="ap-invoice-empty"><FileText size={18}/><span>No invoices have been generated for your account yet.</span></div>}</div></div></div>
+    <div className="ap-more-section"><span className="ap-more-section-title">CLIENT & POLICY</span><button className="ap-more-command" onClick={()=>setActiveTab('policies')}><Users size={18}/><div><strong>My Clients & Policies</strong><small>View, add and update your client policy records.</small></div><ChevronRight size={16}/></button></div>
+    <div className="ap-more-section"><span className="ap-more-section-title">PAYMENT WORKFLOW</span><button className="ap-more-command" onClick={()=>setActiveTab('requests')}><Send size={18}/><div><strong>Payment Requests</strong><small>Track premium requests raised for your clients.</small></div><ChevronRight size={16}/></button><button className="ap-more-command" onClick={()=>setActiveTab('history')}><Clock3 size={18}/><div><strong>Payment History</strong><small>Review previous request and payment activity.</small></div><ChevronRight size={16}/></button></div>
+    <div className="ap-more-section"><span className="ap-more-section-title">ACCOUNT</span><button className="ap-more-command" onClick={()=>setShowProfile(true)}><CircleUserRound size={18}/><div><strong>My Profile</strong><small>View your Trusted Circle agent account details.</small></div><ChevronRight size={16}/></button><button className="ap-secondary ap-profile-logout" onClick={logout}><LogOut size={16}/>Sign Out</button></div>
    </section>:null}  </main>
 
   {showProfile&&<div className="ap-modal-backdrop ap-profile-backdrop" onClick={()=>setShowProfile(false)}>
@@ -201,4 +213,5 @@ export default function AgentPortalPage(){
  </div>
 }
 
+function AgentInvoiceCard({invoice,onDownload}){const status=String(invoice.PaymentStatus||'UNPAID').toUpperCase();const payable=Number(invoice.NetPayable||0);return <div className="ap-invoice-card"><div className="ap-invoice-card-head"><div><strong>{invoice.InvoiceNumber||'Invoice'}</strong><small>{displayDate(invoice.InvoiceDate)} · {status}</small></div><span>{money(payable)}</span></div><div className="ap-invoice-meta"><span>Gross {money(invoice.TotalAmount||0)}</span><span>Discount 2% · {money(invoice.DiscountAmount||0)}</span></div><div className="ap-invoice-actions"><button className="ap-secondary" onClick={()=>onDownload(invoice)}><Download size={14}/>Download Invoice</button>{invoice.PaymentLink?<button className="ap-primary" onClick={()=>window.open(invoice.PaymentLink,'_blank','noopener,noreferrer')}><ExternalLink size={14}/>Pay {money(payable)}</button>:<button className="ap-secondary" disabled title="Admin has not assigned the payment link yet"><Link2 size={14}/>Pay Link Pending</button>}</div></div>}
 function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-logo"><img src={LOGO_URL} alt="Trusted Circle"/><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
