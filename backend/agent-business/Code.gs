@@ -476,6 +476,21 @@ function agentOutstandingSummary_(p){
   table.setBorderWidth(1);
   for(var r=0;r<table.getNumRows();r++){for(var col=0;col<table.getRow(r).getNumCells();col++){var cell=table.getCell(r,col);cell.editAsText().setFontSize(7);if(r===0){cell.setBackgroundColor('#eef5f1');cell.editAsText().setBold(true);}}}
   body.appendParagraph('');
+  var bankTitle=body.appendParagraph('TRUSTED CIRCLE BANK / PAYMENT DETAILS');
+  bankTitle.setBold(true).setFontSize(8).setForegroundColor('#064f3b').setSpacingAfter(2);
+  var bankTable=body.appendTable([
+    ['A/c No.','8949622673','IFSC Code','KKBK0008698'],
+    ['Home Branch','TRICHY - THILLAI NAGAR','UPI ID','6369175709@kotak811']
+  ]);
+  bankTable.setBorderWidth(1);
+  for(var bk=0;bk<bankTable.getNumRows();bk++){
+    for(var bc=0;bc<4;bc++){
+      var bankCell=bankTable.getCell(bk,bc);
+      bankCell.editAsText().setFontSize(8);
+      if(bc===0||bc===2){bankCell.setBackgroundColor('#f3f7f5');bankCell.editAsText().setBold(true);}
+    }
+  }
+  body.appendParagraph('').setSpacingAfter(1);
   var totals=body.appendTable([['TOTAL AMOUNT',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
   totals.setBorderWidth(1);for(var tr=0;tr<3;tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(9);totals.getCell(tr,1).editAsText().setBold(true).setFontSize(9);}
   body.appendParagraph('SYSTEM GENERATED SUMMARY — NO SIGNATURE REQUIRED.').setFontSize(7).setItalic(true).setSpacingBefore(10);
