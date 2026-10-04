@@ -70,6 +70,7 @@ export const agentBusinessApi={
   agentInvoices:(token)=>request('agentInvoices',{token}),
   agentInvoicePdf:(token,invoiceId)=>request('agentInvoicePdf',{token,invoiceId}),
  agentReceiptFile:(token,paymentId)=>request('agentReceiptFile',{token,paymentId}),
+ agentOutstandingSummary:(token)=>request('agentOutstandingSummary',{token}),
   agentReportInvoicePaymentDone:(token,invoiceId)=>request('agentReportInvoicePaymentDone',{token,invoiceId}),
   agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
