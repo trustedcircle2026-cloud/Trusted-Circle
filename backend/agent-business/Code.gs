@@ -598,6 +598,7 @@ function markPaymentPaid_(p){
   return {
     payment:safeAdminPayment_(payment.item,card),
     requestId:requestId,
+    receivableId:receivableRow.id,
     discountAmount:discount,
     receivableAmount:receivable,
     agent:{AgentID:agent.AgentID||'',AgentName:agent.AgentName||'',AgencyName:agent.AgencyName||'',Mobile:agent.Mobile||'',Email:agent.Email||'',Address:agent.Address||''},
@@ -672,21 +673,14 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   body.appendParagraph('');
   var table=body.appendTable([['S.No','Client Name','Policy No.','DOB','Amount']]);
   table.getRow(0).editAsText().setBold(true);
-  items.forEach(function(x,i){table.appendTableRow().appendTableCell(String(i+1)).getParentTableRow();});
-  // Rebuild rows explicitly because Apps Script table row chaining is awkward.
-  var last=table.getNumRows();
-  for(var i=1;i<last;i++){}
-  // Replace the placeholder row content with actual item data.
-  for(var j=1;j<last;j++){
-    var cells=table.getRow(j).getNumCells();
-    while(cells<5){table.getRow(j).appendTableCell('');cells++;}
-    var x=items[j-1];
-    table.getRow(j).getCell(0).setText(String(j));
-    table.getRow(j).getCell(1).setText(String(x.ClientName||''));
-    table.getRow(j).getCell(2).setText(String(x.PolicyNumber||''));
-    table.getRow(j).getCell(3).setText(formatInvoiceDate_(x.DateOfBirth||''));
-    table.getRow(j).getCell(4).setText(formatMoney_(x.Amount||0));
-  }
+  items.forEach(function(x,i){
+    var row=table.appendTableRow();
+    row.appendTableCell(String(i+1));
+    row.appendTableCell(String(x.ClientName||''));
+    row.appendTableCell(String(x.PolicyNumber||''));
+    row.appendTableCell(formatInvoiceDate_(x.DateOfBirth||''));
+    row.appendTableCell(formatMoney_(x.Amount||0));
+  });
   body.appendParagraph('');
   body.appendParagraph('Gross Receivable: '+formatMoney_(invoice.TotalAmount)).setBold(true);
   body.appendParagraph('Discount: 0% (2% customer discount already applied at payment stage)');
