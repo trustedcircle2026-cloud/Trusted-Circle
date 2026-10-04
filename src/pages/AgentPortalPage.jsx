@@ -191,7 +191,7 @@ export default function AgentPortalPage(){
     <div className="ap-more-section"><span className="ap-more-section-title">CLIENT & POLICY</span><button className="ap-more-command" onClick={()=>setActiveTab('policies')}><Users size={18}/><div><strong>My Clients & Policies</strong><small>View, add and update your client policy records.</small></div><ChevronRight size={16}/></button></div>
     <div className="ap-more-section"><span className="ap-more-section-title">PAYMENT WORKFLOW</span><button className="ap-more-command" onClick={()=>setActiveTab('requests')}><Send size={18}/><div><strong>Payment Requests</strong><small>Track premium requests raised for your clients.</small></div><ChevronRight size={16}/></button><button className="ap-more-command" onClick={()=>setActiveTab('history')}><Clock3 size={18}/><div><strong>Payment History</strong><small>View paid premiums and download receipts.</small></div><ChevronRight size={16}/></button></div>
     <div className="ap-more-section"><span className="ap-more-section-title">ACCOUNT</span><button className="ap-more-command" onClick={()=>setShowProfile(true)}><CircleUserRound size={18}/><div><strong>My Profile</strong><small>View your Trusted Circle agent account details.</small></div><ChevronRight size={16}/></button><button className="ap-secondary ap-profile-logout" onClick={logout}><LogOut size={16}/>Sign Out</button></div>
-   </section>:  </main>
+   </section>:null}  </main>
 
   {showProfile&&<div className="ap-modal-backdrop ap-profile-backdrop" onClick={()=>setShowProfile(false)}>
    <div className="ap-modal ap-profile-modal" onClick={e=>e.stopPropagation()}>
