@@ -172,7 +172,7 @@ function Login({login,setLogin,loading,error,onSubmit}){
    <div className="tam-login-icon"><ShieldCheck size={24}/></div><small className="tam-login-kicker">SECURE ADMIN ACCESS</small><h1>Welcome back.</h1><p>Sign in to manage Trusted Circle agent operations.</p>
    <form onSubmit={onSubmit}>
     <label>Email<input type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} required autoComplete="username"/></label>
-    <label>Password><div className="tam-password"><KeyRound size={15}/><input type={showPassword?'text':'password'} value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password"/><button type="button" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={15}/>:<Eye size={15}/>}</button></div></label>
+    <label>Password<div className="tam-password"><KeyRound size={15}/><input type={showPassword?'text':'password'} value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} required autoComplete="current-password"/><button type="button" onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={15}/>:<Eye size={15}/>}</button></div></label>
     {error&&<div className="tam-login-error"><AlertTriangle size={14}/>{error}</div>}
     <button className="tam-login-submit" disabled={loading}>{loading?<RefreshCw className="tam-spin"/>:<LogIn size={16}/>}<span>{loading?'Signing in…':'Sign In'}</span></button>
    </form>
