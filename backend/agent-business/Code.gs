@@ -9,6 +9,9 @@
  */
 
 // Insurance agent receivables, invoice payment reporting and settlement workflow.
+var INSURANCE_PREMIUM_RECEIPT_FOLDER_ID='1G-JE7bQhmPBjFvvqGXBfHFdestw_DAhX';
+var TRUSTED_CIRCLE_INVOICE_FOLDER_ID='1XroGo-yhqvt-Vnp0ZPUAz1iw4cEuV2os';
+
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
@@ -25,7 +28,7 @@ var AGENT_BUSINESS = {
     PremiumBills:['BillID','AgentID','ClientID','PolicyID','PolicyNumber','PremiumAmount','DueDate','BillDate','DiscountRate','DiscountAmount','CustomerPayable','PaymentStatus','ReceiptRequired','Notes','CreatedAt','UpdatedAt'],
     PaymentRequests:['RequestID','BillID','AgentID','ClientID','PolicyID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
     Payments:['PaymentID','RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerCollected','PaymentMode','CardID','PaymentDate','ReferenceNumber','ReceiptID','Status','Notes','CreatedAt','UpdatedAt'],
-    Receipts:['ReceiptID','PaymentID','ReceiptNumber','ReceiptUrl','ReceiptDate','Notes','CreatedAt'],
+    Receipts:['ReceiptID','PaymentID','ReceiptNumber','ReceiptUrl','ReceiptFileId','FileName','MimeType','ReceiptDate','Notes','CreatedAt','UpdatedAt'],
     Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CreatedAt','UpdatedAt'],
     CardRules:['RuleID','CardID','Category','Eligible','CashbackRate','CashbackType','MonthlyCap','MonthlyUsed','MonthlyRemaining','RewardConversion','EffectiveFrom','EffectiveTo','Notes','CreatedAt','UpdatedAt'],
     CardTransactions:['TransactionID','PaymentID','CardID','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','CreatedAt'],
@@ -413,6 +416,9 @@ function agentInvoices_(p){
     .sort(function(a,b){return new Date(b.InvoiceDate||b.CreatedAt||0).getTime()-new Date(a.InvoiceDate||a.CreatedAt||0).getTime();});
   var outstanding=invoices.filter(function(x){return !['PAID','SETTLED','CANCELLED'].includes(String(x.PaymentStatus||'UNPAID').toUpperCase());})
     .reduce(function(sum,x){return sum+Number(x.NetPayable||0);},0);
+  var receivedDiscount=cachedSheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'),'AgentReceivables')
+    .filter(function(x){return String(x.AgentID)===String(s.AgentID)&&String(x.Status||'').toUpperCase()==='RECEIVED';})
+    .reduce(function(sum,x){return sum+Number(x.DiscountAmount||0);},0);
   return {
     items:invoices.map(function(x){
       return {
@@ -430,7 +436,8 @@ function agentInvoices_(p){
       };
     }),
     total:invoices.length,
-    outstandingAmount:Math.round(outstanding*100)/100
+    outstandingAmount:Math.round(outstanding*100)/100,
+    earningsToDate:Math.round(receivedDiscount*100)/100
   };
 }
 function agentReportInvoicePaymentDone_(p){
@@ -527,14 +534,16 @@ function agentClientHistory_(p){
   var requests=cachedSheetRows_(ss.getSheetByName('PaymentRequests'),'PaymentRequests').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
   var payments=cachedSheetRows_(ss.getSheetByName('Payments'),'Payments').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
   var bills=cachedSheetRows_(ss.getSheetByName('PremiumBills'),'PremiumBills').filter(function(x){return String(x.AgentID)===s.AgentID&&String(x.ClientID)===clientId;}).slice().reverse();
+  var receipts=cachedSheetRows_(ensureBusinessSheet_(ss,'Receipts'),'Receipts');
+  var receiptByPayment={};receipts.forEach(function(x){receiptByPayment[String(x.PaymentID)]=x;});
   var policy=policies[0]||{};
   var paymentMap={};payments.forEach(function(x){paymentMap[String(x.RequestID)]=x;});
   var billMap={};bills.forEach(function(x){billMap[String(x.BillID)]=x;});
   var requestItems=requests.map(function(r){
     var pay=paymentMap[String(r.RequestID)]||{},bill=billMap[String(r.BillID)]||{};
-    return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',PolicyNumber:r.PolicyNumber||client.PolicyNumber||policy.PolicyNumber||'',Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',ApprovedAt:r.ApprovedAt||'',PremiumAmount:r.PremiumAmount||bill.PremiumAmount||pay.PremiumAmount||0,CustomerPayable:r.CustomerPayable||bill.CustomerPayable||pay.CustomerCollected||0,PaymentID:r.PaymentID||pay.PaymentID||'',PaymentStatus:pay.Status||'',PaymentDate:pay.PaymentDate||'',ReferenceNumber:pay.ReferenceNumber||'',Notes:r.Notes||''};
+    return {RequestID:r.RequestID,PolicyID:r.PolicyID||'',PolicyNumber:r.PolicyNumber||client.PolicyNumber||policy.PolicyNumber||'',Status:r.Status||'PENDING',RequestedAt:r.RequestedAt||'',ApprovedAt:r.ApprovedAt||'',PremiumAmount:r.PremiumAmount||bill.PremiumAmount||pay.PremiumAmount||0,CustomerPayable:r.CustomerPayable||bill.CustomerPayable||pay.CustomerCollected||0,PaymentID:r.PaymentID||pay.PaymentID||'',PaymentStatus:pay.Status||'',PaymentDate:pay.PaymentDate||'',ReferenceNumber:pay.ReferenceNumber||'',ReceiptUrl:(receiptByPayment[String(pay.PaymentID)]||{}).ReceiptUrl||'',ReceiptFileId:(receiptByPayment[String(pay.PaymentID)]||{}).ReceiptFileId||'',ReceiptFileName:(receiptByPayment[String(pay.PaymentID)]||{}).FileName||'',Notes:r.Notes||''};
   });
-  return {client:{ClientID:client.ClientID,ClientName:client.ClientName,PolicyNumber:client.PolicyNumber,DateOfBirth:client.DateOfBirth,Status:client.Status},policy:policy&&{PolicyID:policy.PolicyID||'',PolicyNumber:policy.PolicyNumber||client.PolicyNumber||'',PolicyStatus:policy.PolicyStatus||'ACTIVE'},requests:requestItems,payments:payments.map(function(x){return {PaymentID:x.PaymentID,RequestID:x.RequestID,PremiumAmount:x.PremiumAmount||0,CustomerCollected:x.CustomerCollected||0,PaymentMode:x.PaymentMode||'',PaymentDate:x.PaymentDate||'',ReferenceNumber:x.ReferenceNumber||'',Status:x.Status||''};}),totalRequests:requestItems.length,totalPayments:payments.length};
+  return {client:{ClientID:client.ClientID,ClientName:client.ClientName,PolicyNumber:client.PolicyNumber,DateOfBirth:client.DateOfBirth,Status:client.Status},policy:policy&&{PolicyID:policy.PolicyID||'',PolicyNumber:policy.PolicyNumber||client.PolicyNumber||'',PolicyStatus:policy.PolicyStatus||'ACTIVE'},requests:requestItems,payments:payments.map(function(x){return {PaymentID:x.PaymentID,RequestID:x.RequestID,PremiumAmount:x.PremiumAmount||0,CustomerCollected:x.CustomerCollected||0,PaymentMode:x.PaymentMode||'',PaymentDate:x.PaymentDate||'',ReferenceNumber:x.ReferenceNumber||'',ReceiptUrl:(receiptByPayment[String(x.PaymentID)]||{}).ReceiptUrl||'',ReceiptFileId:(receiptByPayment[String(x.PaymentID)]||{}).ReceiptFileId||'',ReceiptFileName:(receiptByPayment[String(x.PaymentID)]||{}).FileName||'',Status:x.Status||''};}),totalRequests:requestItems.length,totalPayments:payments.length};
 }
 function agentLogout_(p){var t=String(p.token||'').trim();if(t)CacheService.getScriptCache().remove(agentSessionKey_(t));return {loggedOut:true};}
 function safeAgent_(a){return {AgentID:a.AgentID,AgentName:a.AgentName,AgencyName:a.AgencyName,Mobile:a.Mobile,Email:a.Email,Status:a.Status,JoinedDate:a.JoinedDate};}
@@ -673,6 +682,14 @@ function markPaymentPaid_(p){
 
   var discount=Math.round(amount*AGENT_BUSINESS.DISCOUNT_RATE*100)/100;
   var receivable=Math.max(0,Math.round((amount-discount)*100)/100);
+  var receiptData=p.receipt||{};
+  var receiptName=String(receiptData.fileName||'').trim();
+  var receiptMime=String(receiptData.mimeType||'').trim();
+  var receiptBase64=String(receiptData.base64||'').trim();
+  if(!receiptName||!receiptMime||!receiptBase64)throw new Error('Premium payment receipt is required.');
+  if(!/^application\/pdf$|^image\/(jpeg|png|webp)$/.test(receiptMime))throw new Error('Receipt must be a PDF, JPG, PNG or WEBP file.');
+  if(receiptBase64.length>8*1024*1024)throw new Error('Receipt file is too large. Please upload a file below 6 MB.');
+
   var paymentId=newId_('PaymentID');
   var now=new Date().toISOString();
 
@@ -701,6 +718,24 @@ function markPaymentPaid_(p){
   request.PaymentID=paymentId;
   request.Notes='Payment verified by Admin. Paid using '+paymentMode+' · '+String(card.CardName||card.Bank||'Card');
   saveRow_(ss,'PaymentRequests',request);
+
+  var receiptFolder=DriveApp.getFolderById(INSURANCE_PREMIUM_RECEIPT_FOLDER_ID);
+  var receiptBlob=Utilities.newBlob(Utilities.base64Decode(receiptBase64),receiptMime,receiptName);
+  var receiptFile=receiptFolder.createFile(receiptBlob);
+  receiptFile.setName('Premium Receipt - '+paymentId+' - '+receiptName);
+  var receiptRecord=saveRow_(ss,'Receipts',{
+    ReceiptID:newId_('ReceiptID'),
+    PaymentID:paymentId,
+    ReceiptNumber:'TC-REC-'+String(paymentId).slice(-8),
+    ReceiptUrl:receiptFile.getUrl(),
+    ReceiptFileId:receiptFile.getId(),
+    FileName:receiptFile.getName(),
+    MimeType:receiptMime,
+    ReceiptDate:paymentDate,
+    Notes:'Premium payment receipt uploaded by Admin'
+  });
+  payment.item.ReceiptID=receiptRecord.id;
+  saveRow_(ss,'Payments',payment.item);
 
   var receivableRow=saveRow_(ss,'AgentReceivables',{
     ReceivableID:newId_('ReceivableID'),
@@ -738,7 +773,7 @@ function markPaymentPaid_(p){
     Status:'RECEIVABLE'
   });
 
-  ['PaymentRequests','Payments','AgentReceivables','MoneyLedger'].forEach(invalidateSheetCache_);
+  ['PaymentRequests','Payments','Receipts','AgentReceivables','MoneyLedger'].forEach(invalidateSheetCache_);
   cacheRemoveAgent_(request.AgentID);
   return {
     payment:safeAdminPayment_(payment.item,card),
@@ -747,7 +782,7 @@ function markPaymentPaid_(p){
     discountAmount:discount,
     receivableAmount:receivable,
     agent:{AgentID:agent.AgentID||'',AgentName:agent.AgentName||'',AgencyName:agent.AgencyName||'',Mobile:agent.Mobile||'',Email:agent.Email||'',Address:agent.Address||''},
-    client:{ClientID:client.ClientID||'',ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||'',DateOfBirth:client.DateOfBirth||''}
+    client:{ClientID:client.ClientID||'',ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||'',DateOfBirth:client.DateOfBirth||''},receipt:{ReceiptID:receiptRecord.id,ReceiptUrl:receiptFile.getUrl(),ReceiptFileId:receiptFile.getId(),FileName:receiptFile.getName(),MimeType:receiptMime}
   };
 }
 function safeAdminPayment_(payment,card){
@@ -887,7 +922,8 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   doc.saveAndClose();
   Utilities.sleep(500);
   var pdf=doc.getAs(MimeType.PDF).setName(invoice.InvoiceNumber+'.pdf');
-  var file=DriveApp.createFile(pdf);
+  var invoiceFolder=DriveApp.getFolderById(TRUSTED_CIRCLE_INVOICE_FOLDER_ID);
+  var file=invoiceFolder.createFile(pdf);
   file.setName(invoice.InvoiceNumber+'.pdf');
   var sent=false;
   if(String(agent.Email||'').trim() && MailApp.getRemainingDailyQuota()>0){
