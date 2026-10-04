@@ -28,7 +28,34 @@ export default function AgentBusinessPage(){
  const[adminToken,setAdminToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[adminPassword,setAdminPassword]=useState(''),[dashboard,setDashboard]=useState(null),[module,setModule]=useState('Agents'),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[refreshing,setRefreshing]=useState(false),[search,setSearch]=useState(''),[showForm,setShowForm]=useState(false),[form,setForm]=useState({}),[error,setError]=useState(''),[notice,setNotice]=useState(''),[calc,setCalc]=useState({premiumAmount:10000,discountRate:.02,cashbackRate:.05}),[calcResult,setCalcResult]=useState(null),[schema,setSchema]=useState([]),[editing,setEditing]=useState(false),[activeTab,setActiveTab]=useState('home'),[profileOpen,setProfileOpen]=useState(false)
 
  const loadDashboard=async()=>{if(!adminToken)return;setRefreshing(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(adminToken))}catch(e){if(/session expired|session is required|invalid admin password/i.test(e.message)){localStorage.removeItem('tc_agent_admin_session');setAdminToken('')}setError(e.message)}finally{setRefreshing(false)}}
- const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{const [r,s]=await Promise.all([agentBusinessApi.list(module,{search},adminToken),agentBusinessApi.schema(module,adminToken)]);setRows(r.items||[]);setSchema(s.fields||[])}catch(e){setError(e.message)}finally{setLoading(false)}}
+ const loadModule=async()=>{if(module==='__dashboard'||!agentTokenReady(adminToken)||!agentBusinessApi.isConfigured())return;setLoading(true);try{
+   const [r,s]=await Promise.all([agentBusinessApi.list(module,{search},adminToken),agentBusinessApi.schema(module,adminToken)])
+   let items=r.items||[]
+   // PaymentRequests only stores ClientID in the business database. Enrich each request
+   // from Clients so Admin always sees the policy number and DOB entered by the agent.
+   if(module==='PaymentRequests'&&items.length){
+     try{
+       const clientResult=await agentBusinessApi.list('Clients',{limit:500},adminToken)
+       const clients=clientResult.items||[]
+       const byId=new Map(clients.map(client=>[String(client.ClientID),client]))
+       items=items.map(request=>{
+         const client=byId.get(String(request.ClientID))||{}
+         return {
+           ...request,
+           ClientName:request.ClientName||client.ClientName||'',
+           PolicyNumber:request.PolicyNumber||client.PolicyNumber||'',
+           DateOfBirth:request.DateOfBirth||client.DateOfBirth||'',
+         }
+       })
+       // Requests view is intentionally an active-work queue. Paid/completed/cancelled
+       // requests belong in payment history, not the Requests tab.
+       items=items.filter(request=>!['PAID','COMPLETED','CANCELLED'].includes(String(request.Status||request.RequestStatus||'').toUpperCase()))
+     }catch(e){
+       // Keep the request list usable even if the client enrichment call fails.
+     }
+   }
+   setRows(items);setSchema(s.fields||[])
+ }catch(e){setError(e.message)}finally{setLoading(false)}}
  useEffect(()=>{if(!adminToken)return; if(module==='__dashboard')loadDashboard(); else loadModule()},[module,adminToken])
  const metrics=dashboard?.metrics||{}
  const count=key=>dashboard?.counts?.[key]||0
