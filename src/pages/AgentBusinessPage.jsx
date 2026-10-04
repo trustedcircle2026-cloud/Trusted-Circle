@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Link2,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText,QrCode,Upload} from 'lucide-react'
+import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText,Upload} from 'lucide-react'
 import jsQR from 'jsqr'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-business.css'
@@ -262,7 +262,6 @@ export default function AgentBusinessPage(){
         <span className="tc-more-group-title">AGENT RECEIVABLES</span>
         <button className="tc-more-item" onClick={()=>openInvoiceBuilder('')}><span className="tc-more-item-icon"><ReceiptText size={18}/></span><div><strong>Create Invoice</strong><small>Create a multi-client invoice from unpaid agent receivables.</small></div><ChevronRight size={16}/></button>
         <button className="tc-more-item" onClick={openInvoiceHistory}><span className="tc-more-item-icon"><FileText size={18}/></span><div><strong>Invoice History</strong><small>View generated, reported, paid and failed agent invoices.</small></div><ChevronRight size={16}/></button>
-        <button className="tc-more-item" onClick={openInvoiceLinkManager}><span className="tc-more-item-icon"><Link2 size={18}/></span><div><strong>Assign Payment Link</strong><small>Upload the predefined QR and extract its payment URL automatically.</small></div><ChevronRight size={16}/></button>
         <button className="tc-more-item" onClick={openReceivables}><span className="tc-more-item-icon"><WalletCards size={18}/></span><div><strong>Receivables</strong><small>Review agent balances and mark individual receivables as received.</small></div><ChevronRight size={16}/></button>
       </div>
       <div className="tc-more-group">
