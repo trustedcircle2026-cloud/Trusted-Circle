@@ -67,11 +67,6 @@ export default function AgentBusinessPage(){
  }
  const openInvoiceHistory=async()=>{await loadAdminInvoices();setInvoiceHistoryModal(true)}
  const openReceivables=async()=>{setReceivableLoading(true);setError('');try{const result=await agentBusinessApi.listReceivables('',adminToken);setReceivableRows(result.items||[]);setReceivableModal(true)}catch(e){setError(e.message)}finally{setReceivableLoading(false)}}
- const saveInvoicePaymentLink=async()=>{
-   if(!invoiceLinkModal||invoiceLinkModal.paymentLink===undefined)return;
-   setInvoiceAdminLoading(true);setError('');setNotice('');
-   try{const result=await agentBusinessApi.assignInvoicePaymentLink(invoiceLinkModal.invoiceId,invoiceLinkModal.paymentLink,adminToken);setInvoiceAdminRows(rows=>rows.map(row=>String(row.InvoiceID)===String(result.invoice.InvoiceID)?{...row,...result.invoice}:row));setNotice(result.invoice.PaymentLink?'Payable link assigned to '+result.invoice.InvoiceNumber+'.':'Payable link removed from '+result.invoice.InvoiceNumber+'.');setInvoiceLinkModal(null)}catch(e){setError(e.message)}finally{setInvoiceAdminLoading(false)}
- }
  const openInvoiceBuilder=async(agentId,preselect=[])=>{
    setError('');setInvoiceLoading(true);
    try{
