@@ -193,6 +193,7 @@ function agentBusinessRoute_(p){
   if(action==='agentClientHistory') return agentClientHistory_(p);
   if(action==='agentInvoices') return agentInvoices_(p);
   if(action==='agentInvoicePdf') return agentInvoicePdf_(p);
+  if(action==='agentReceiptFile') return agentReceiptFile_(p);
   if(action==='agentReportInvoicePaymentDone') return agentReportInvoicePaymentDone_(p);
   if(action==='invoicePaymentDecision') return invoicePaymentDecision_(p);
   if(action==='agentLogout') return agentLogout_(p);
@@ -443,6 +444,18 @@ function agentInvoices_(p){
     outstandingAmount:Math.round(outstanding*100)/100,
     earningsToDate:Math.round(receivedDiscount*100)/100
   };
+}
+function agentReceiptFile_(p){
+  var s=agentSession_(p.token),paymentId=String(p.paymentId||'').trim();
+  if(!paymentId)throw new Error('Payment is required.');
+  var ss=agentBusinessSpreadsheet_();
+  var payments=sheetRows_(ss.getSheetByName('Payments')),payment=payments.find(function(x){return String(x.PaymentID)===paymentId&&String(x.AgentID)===String(s.AgentID);});
+  if(!payment)throw new Error('Payment not found.');
+  var receipts=sheetRows_(ensureBusinessSheet_(ss,'Receipts')),receipt=receipts.find(function(x){return String(x.PaymentID)===paymentId;});
+  if(!receipt||!receipt.ReceiptFileId)throw new Error('Payment receipt is not available.');
+  var file=DriveApp.getFileById(String(receipt.ReceiptFileId));
+  var blob=file.getBlob();
+  return {paymentId:paymentId,fileName:receipt.FileName||file.getName(),mimeType:blob.getContentType(),base64:Utilities.base64Encode(blob.getBytes())};
 }
 function agentReportInvoicePaymentDone_(p){
   var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
