@@ -29,8 +29,8 @@ frontend:
           value: no-cache
   redirects:
     - source: /admin-portal/
-      target: /admin-portal.html
+      target: /admin-portal/index.html
       status: '200'
     - source: /admin-portal
-      target: /admin-portal.html
+      target: /admin-portal/index.html
       status: '200'
