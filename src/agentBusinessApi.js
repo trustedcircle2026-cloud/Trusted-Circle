@@ -4,7 +4,7 @@ async function request(action,payload={}){
   if(!API_URL) throw new Error('Agent Business backend URL is not configured. Set VITE_AGENT_BUSINESS_API_URL.');
 
   const controller=new AbortController();
-  const timeout=setTimeout(()=>controller.abort(),20000);
+  const timeout=setTimeout(()=>controller.abort(),45000);
   let response;
   try{
     response=await fetch(API_URL,{
@@ -17,7 +17,7 @@ async function request(action,payload={}){
     });
   }catch(error){
     if(error?.name==='AbortError'){
-      throw new Error('Agent Business backend timed out after 20 seconds. Check the Apps Script Web App deployment and Google Sheet access.');
+      throw new Error('Agent Business backend timed out after 45 seconds. Check the Apps Script Web App deployment and Google Sheet access.');
     }
     throw new Error('Unable to reach Agent Business backend. Check that the Apps Script Web App is deployed as a Web App with access set to Anyone, then update the deployment URL if it changed.');
   }finally{
