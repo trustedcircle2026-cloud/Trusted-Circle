@@ -208,7 +208,6 @@ function agentBusinessRoute_(p){
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
   if(action==='createInvoice') return createInvoice_(p);
-  if(action==='assignInvoicePaymentLink') return assignInvoicePaymentLink_(p);
   if(action==='receivables') return listReceivables_(ss,p);
   if(action==='markReceivableReceived') return markReceivableReceived_(ss,p);
   if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
@@ -966,30 +965,6 @@ function formatInvoiceDate_(value){
 }
 function formatMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function escapeHtml_(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function assignInvoicePaymentLink_(p){
-  var invoiceId=String(p.invoiceId||'').trim();
-  var paymentLink=String(p.paymentLink||'').trim();
-  if(!invoiceId)throw new Error('Invoice is required.');
-  if(paymentLink && !/^(?:https?:\/\/|upi:\/\/pay\?)/i.test(paymentLink))throw new Error('Enter a valid HTTPS payment link or UPI payment link starting with upi://pay?.');
-  var ss=agentBusinessSpreadsheet_();
-  var sheet=ensureBusinessSheet_(ss,'Invoices'),rows=sheetRows_(sheet);
-  var invoice=rows.find(function(x){return String(x.InvoiceID)===invoiceId;});
-  if(!invoice)throw new Error('Invoice not found.');
-  invoice.PaymentLink=paymentLink;
-  invoice.PaymentStatus=paymentLink?'PAYABLE':'UNPAID';
-  invoice.PaymentLinkAssignedAt=paymentLink?new Date().toISOString():'';
-  invoice.Status=paymentLink?'PAYABLE':'GENERATED';
-  saveRow_(ss,'Invoices',invoice);
-  invalidateSheetCache_('Invoices');
-  return {invoice:{
-    InvoiceID:invoice.InvoiceID,
-    InvoiceNumber:invoice.InvoiceNumber,
-    PaymentLink:invoice.PaymentLink,
-    PaymentStatus:invoice.PaymentStatus,
-    Status:invoice.Status,
-    NetPayable:Number(invoice.NetPayable||0)
-  }};
-}
 function markReceivableReceived_(ss,p){
   var id=String(p.receivableId||'').trim();
   if(!id)throw new Error('Receivable is required.');
