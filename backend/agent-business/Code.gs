@@ -329,10 +329,12 @@ function agentEditPolicy_(p){
   return {updated:true};
 }
 function agentRequestPayment_(p){
-  var s=agentSession_(p.token),policyId=String((p.data||{}).PolicyID||p.policyId||'').trim();
-  if(!policyId)throw new Error('Select a policy first.');
-  var ss=agentBusinessSpreadsheet_(),policies=sheetRows_(ss.getSheetByName('Policies')),policy=policies.find(function(x){return String(x.PolicyID)===policyId&&String(x.AgentID)===s.AgentID;});
-  if(!policy)throw new Error('Policy not found.');
+  var s=agentSession_(p.token),data=p.data||{},policyId=String(data.PolicyID||p.policyId||'').trim(),clientId=String(data.ClientID||p.clientId||'').trim();
+  var ss=agentBusinessSpreadsheet_(),policies=sheetRows_(ss.getSheetByName('Policies'));
+  var policy=policyId?policies.find(function(x){return String(x.PolicyID)===policyId&&String(x.AgentID)===s.AgentID;}):null;
+  if(!policy&&clientId) policy=policies.find(function(x){return String(x.ClientID)===clientId&&String(x.AgentID)===s.AgentID;});
+  if(!policy)throw new Error('Policy not found for this client. Refresh the workspace.');
+  policyId=String(policy.PolicyID);
   var requests=sheetRows_(ss.getSheetByName('PaymentRequests'));
   if(requests.some(function(x){return String(x.AgentID)===s.AgentID&&String(x.PolicyID||'')===policyId&&String(x.Status||'').toUpperCase()==='PENDING';}))throw new Error('A payment request is already pending for this policy.');
   var client=sheetRows_(ss.getSheetByName('Clients')).find(function(x){return String(x.ClientID)===String(policy.ClientID)&&String(x.AgentID)===s.AgentID;});
