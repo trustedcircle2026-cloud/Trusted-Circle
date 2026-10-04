@@ -77,3 +77,271 @@
 .ap-request-card{display:grid;grid-template-columns:38px minmax(0,1fr) auto auto auto;align-items:center}
 .ap-request-main{min-width:0}
 @media(max-width:700px){.ap-request-card{grid-template-columns:38px minmax(0,1fr) auto;}.ap-request-card .ap-cancel-request{grid-column:2;justify-self:start}.ap-request-card .ap-icon-action{grid-column:3;grid-row:1/3}.ap-card-actions{grid-template-columns:1fr 1.6fr}}
+
+
+/* =========================================================
+   MOBILE-ONLY AGENT PORTAL — production phone layout
+   ========================================================= */
+@media (max-width:760px){
+  .agent-portal-page{
+    width:100%;
+    min-height:100dvh;
+    overflow-x:hidden;
+    background:
+      radial-gradient(circle at 0 0,#dcfff0 0,transparent 38%),
+      radial-gradient(circle at 100% 22%,#eee9ff 0,transparent 34%),
+      #f5faf7;
+  }
+  .ap-main{
+    width:100%;
+    padding:10px 11px calc(28px + env(safe-area-inset-bottom));
+  }
+  .ap-command-menu{
+    position:sticky;
+    top:8px;
+    z-index:100;
+    display:block;
+    margin:0 0 12px;
+    padding:10px;
+    border-radius:17px;
+    background:#fffffff5;
+    box-shadow:0 10px 28px #163f2a12;
+  }
+  .ap-command-brand{
+    min-width:0;
+    width:100%;
+    padding:2px;
+  }
+  .ap-command-brand img{width:38px;height:38px;border-radius:12px}
+  .ap-command-brand strong{font-size:11px}
+  .ap-command-brand small{font-size:8px}
+  .ap-command-actions{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+    width:100%;
+    margin-top:8px;
+  }
+  .ap-command-box{
+    min-width:0;
+    min-height:43px;
+    padding:7px 5px;
+    border-radius:11px;
+    grid-template-columns:auto 1fr;
+    column-gap:5px;
+  }
+  .ap-command-box svg{width:14px;height:14px}
+  .ap-command-box span{font-size:8px;white-space:nowrap}
+  .ap-command-box small{font-size:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ap-page-head{
+    display:block;
+    margin:0 1px 10px;
+    padding:4px 2px 5px;
+  }
+  .ap-page-head h1{font-size:23px;line-height:1.12;margin:5px 0 3px}
+  .ap-page-head p{font-size:8px;line-height:1.45}
+  .ap-eyebrow{font-size:6.5px;letter-spacing:.12em}
+  .ap-banner{
+    margin:7px 0;
+    padding:9px 10px;
+    border-radius:11px;
+    font-size:8px;
+  }
+  .ap-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:7px;
+    margin:9px 0 10px;
+  }
+  .ap-stat{
+    min-width:0;
+    border-radius:14px;
+    padding:10px;
+    gap:2px 7px;
+  }
+  .ap-stat span{width:29px;height:29px;border-radius:9px}
+  .ap-stat span svg{width:14px;height:14px}
+  .ap-stat small{font-size:6.5px}
+  .ap-stat strong{font-size:14px;overflow:hidden;text-overflow:ellipsis}
+  .ap-tabs{
+    width:100%;
+    margin:0 0 9px;
+    padding:4px;
+    border-radius:13px;
+    gap:4px;
+    position:sticky;
+    top:105px;
+    z-index:80;
+    background:#f8fcf9ed;
+    backdrop-filter:blur(12px);
+  }
+  .ap-tabs button{
+    flex:1;
+    min-width:0;
+    justify-content:center;
+    padding:9px 5px;
+    font-size:8px;
+    border-radius:9px;
+  }
+  .ap-tabs button svg{width:13px;height:13px}
+  .ap-tabs button span{font-size:6px;padding:2px 5px}
+  .ap-panel{
+    width:100%;
+    padding:13px;
+    border-radius:18px;
+    box-shadow:0 10px 28px #163f2a0a;
+  }
+  .ap-panel-head{
+    align-items:flex-start;
+    gap:8px;
+    margin-bottom:11px;
+  }
+  .ap-panel-head>div{min-width:0}
+  .ap-panel h2{font-size:17px;margin:4px 0 2px}
+  .ap-panel-head p{font-size:7.5px;line-height:1.45;margin:0}
+  .ap-panel-head .ap-primary,.ap-panel-head .ap-secondary{
+    width:38px;height:38px;min-width:38px;padding:0;justify-content:center;font-size:0;border-radius:10px
+  }
+  .ap-panel-head .ap-primary svg,.ap-panel-head .ap-secondary svg{margin:0}
+  .ap-client-grid{grid-template-columns:1fr;gap:8px}
+  .ap-client-card{
+    padding:12px;
+    border-radius:15px;
+    box-shadow:0 6px 20px #163f2a08;
+  }
+  .ap-client-top{gap:8px}
+  .ap-avatar{width:34px;height:34px;border-radius:10px;font-size:11px}
+  .ap-client-top strong{font-size:10px}
+  .ap-client-top small{font-size:7px}
+  .ap-status{font-size:6.5px;padding:4px 6px}
+  .ap-client-meta{gap:11px;margin:10px 0;font-size:7px}
+  .ap-client-meta svg{width:11px;height:11px}
+  .ap-client-bottom{font-size:7px;padding-top:8px}
+  .ap-request-pill{font-size:6px;padding:4px 6px}
+  .ap-card-actions{
+    grid-template-columns:1fr 1.55fr;
+    gap:6px;
+    margin-top:9px;
+    padding-top:8px;
+  }
+  .ap-card-actions .ap-secondary,.ap-card-actions .ap-primary{
+    min-height:35px;
+    padding:7px 8px;
+    font-size:8px;
+    border-radius:9px;
+  }
+  .ap-card-actions svg{width:13px;height:13px}
+  .ap-request-list{gap:7px}
+  .ap-request-card{
+    grid-template-columns:32px minmax(0,1fr) auto;
+    gap:8px;
+    padding:10px;
+    border-radius:13px;
+  }
+  .ap-request-icon{width:32px;height:32px;border-radius:9px}
+  .ap-request-icon svg{width:14px;height:14px}
+  .ap-request-main strong{font-size:9px}
+  .ap-request-main span{font-size:7px;margin-top:2px}
+  .ap-request-main small{font-size:6px;margin-top:3px}
+  .ap-request-card .ap-cancel-request{
+    grid-column:2;
+    justify-self:start;
+    min-height:29px;
+    padding:6px 8px;
+    font-size:7px;
+    border-radius:8px;
+  }
+  .ap-request-card .ap-icon-action{
+    grid-column:3;
+    grid-row:1/3;
+    width:29px;height:29px;
+  }
+  .ap-empty{min-height:210px;padding:22px 12px;text-align:center}
+  .ap-empty b{font-size:11px}
+  .ap-empty span{font-size:8px;line-height:1.5;max-width:260px}
+  .ap-empty .ap-primary{min-height:37px;font-size:8px}
+  .ap-modal-backdrop{padding:8px;align-items:end}
+  .ap-modal,.ap-detail-modal{
+    width:100%!important;
+    max-width:none!important;
+    max-height:88dvh;
+    border-radius:22px 22px 11px 11px;
+    padding:18px 14px calc(14px + env(safe-area-inset-bottom));
+  }
+  .ap-wizard-head h2{font-size:20px}
+  .ap-wizard-head p{font-size:8px;line-height:1.5}
+  .ap-form-grid{grid-template-columns:1fr;gap:2px 0}
+  .ap-form-grid label{font-size:7.5px;margin-top:9px}
+  .ap-form-grid input{
+    padding:10px;
+    min-height:40px;
+    border-radius:10px;
+    font-size:12px;
+  }
+  .ap-simple-flow{margin:13px 0 4px;gap:5px}
+  .ap-simple-flow span{width:24px;height:24px;font-size:8px}
+  .ap-simple-flow i{height:1px}
+  .ap-simple-flow small{font-size:6px}
+  .ap-info-note{
+    margin-top:11px;
+    padding:9px;
+    font-size:7px;
+    line-height:1.45;
+    border-radius:10px;
+  }
+  .ap-info-note svg{width:13px;height:13px}
+  .ap-wizard-actions{
+    margin-top:13px;
+    padding-top:10px;
+    gap:6px;
+  }
+  .ap-wizard-actions .ap-secondary,.ap-wizard-actions .ap-primary{
+    min-height:39px;
+    padding:8px 10px;
+    font-size:8px;
+    border-radius:9px;
+  }
+  .ap-detail-modal h2{font-size:20px;margin:5px 0 12px}
+  .ap-detail-grid{grid-template-columns:1fr;gap:6px}
+  .ap-detail-grid>div{padding:9px;border-radius:9px}
+  .ap-detail-grid small{font-size:6px}
+  .ap-detail-grid strong{font-size:8px}
+  .ap-detail-modal .wide{min-height:39px;font-size:8px}
+  .ap-loading-overlay{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+  }
+  .ap-loader-card{
+    max-width:270px!important;
+    padding:4px!important;
+  }
+  .ap-loader-logo{width:52px!important;height:52px!important;margin-bottom:8px!important}
+  .ap-loader-logo img{width:45px!important;height:45px!important}
+  .ap-loader-card strong{font-size:9px!important}
+  .ap-loader-card small{font-size:6.5px!important}
+  .ap-loader-line{width:125px!important;margin-top:7px!important}
+  .agent-login-shell{min-height:100dvh;padding:15px 12px}
+  .agent-login-card{
+    width:100%;
+    max-width:390px;
+    border-radius:23px;
+    padding:22px 17px;
+  }
+  .agent-login-brand img{width:43px;height:43px}
+  .agent-login-brand strong{font-size:14px}
+  .agent-login-brand small{font-size:8px}
+  .agent-login-card h1{font-size:25px;margin:10px 0 5px}
+  .agent-login-card p{font-size:8px;line-height:1.55}
+  .agent-login-card label{font-size:8px;margin-top:13px}
+  .agent-login-card input{min-height:43px;padding:10px 11px;font-size:12px;border-radius:10px}
+  .agent-login-card .ap-primary{min-height:43px;margin-top:13px}
+  .agent-login-icon{width:45px;height:45px;border-radius:13px}
+}
+@media(min-width:761px){
+  /* Phone-sized preview on desktop; the production design target remains mobile. */
+  .agent-portal-page{width:430px;min-height:100vh;margin:0 auto;box-shadow:0 0 70px #102c2020}
+  .ap-main{padding:10px 11px 28px}
+  .ap-command-menu{display:block}
+  .ap-command-actions{grid-template-columns:repeat(3,1fr)}
+  .ap-client-grid{grid-template-columns:1fr}
+}
