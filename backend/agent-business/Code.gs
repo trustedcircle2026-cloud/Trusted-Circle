@@ -908,7 +908,7 @@ function assignInvoicePaymentLink_(p){
   var invoiceId=String(p.invoiceId||'').trim();
   var paymentLink=String(p.paymentLink||'').trim();
   if(!invoiceId)throw new Error('Invoice is required.');
-  if(paymentLink && !/^https?:\/\//i.test(paymentLink))throw new Error('Enter a valid payment link starting with http:// or https://.');
+  if(paymentLink && !/^(?:https?:\/\/|upi:\/\/pay\?)/i.test(paymentLink))throw new Error('Enter a valid HTTPS payment link or UPI payment link starting with upi://pay?.');
   var ss=agentBusinessSpreadsheet_();
   var sheet=ensureBusinessSheet_(ss,'Invoices'),rows=sheetRows_(sheet);
   var invoice=rows.find(function(x){return String(x.InvoiceID)===invoiceId;});
