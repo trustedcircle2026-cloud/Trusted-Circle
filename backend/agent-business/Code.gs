@@ -204,6 +204,7 @@ function agentBusinessRoute_(p){
   if(action==='createInvoice') return createInvoice_(p);
   if(action==='assignInvoicePaymentLink') return assignInvoicePaymentLink_(p);
   if(action==='receivables') return listReceivables_(ss,p);
+  if(action==='markReceivableReceived') return markReceivableReceived_(ss,p);
   if(action==='schema') return {sheet:String(p.sheet||''),fields:AGENT_BUSINESS.SHEETS[String(p.sheet||'')]||[]};
   if(action==='createAgent') return adminCreateAgent_(p);
   if(action==='setAgentPassword') return adminSetAgentPassword_(p);
@@ -925,6 +926,18 @@ function assignInvoicePaymentLink_(p){
     Status:invoice.Status,
     NetPayable:Number(invoice.NetPayable||0)
   }};
+}
+function markReceivableReceived_(ss,p){
+  var id=String(p.receivableId||'').trim();
+  if(!id)throw new Error('Receivable is required.');
+  var rows=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')),row=rows.find(function(x){return String(x.ReceivableID)===id;});
+  if(!row)throw new Error('Receivable not found.');
+  if(String(row.Status||'').toUpperCase()==='RECEIVED')return {receivable:row};
+  var now=new Date().toISOString();
+  row.Status='RECEIVED';row.SettledDate=now;saveRow_(ss,'AgentReceivables',row);
+  saveRow_(ss,'MoneyLedger',{LedgerID:newId_('LedgerID'),TransactionDate:now.slice(0,10),ReferenceType:'AGENT_RECEIVABLE_SETTLEMENT',ReferenceID:id,AgentID:row.AgentID||'',ClientID:row.ClientID||'',PaymentID:row.PaymentID||'',Description:'Agent receivable received · '+(row.ClientName||'Client'),MoneyIn:Number(row.ReceivableAmount||0),MoneyOut:'',Balance:'',PaymentMode:'Agent Settlement',BankAccount:'Trusted Circle',Category:'AGENT RECEIVABLE SETTLEMENT',Status:'RECEIVED'});
+  invalidateSheetCache_('AgentReceivables');invalidateSheetCache_('MoneyLedger');
+  return {receivable:row};
 }
 function listReceivables_(ss,p){
   var agentId=String(p.agentId||'').trim();
