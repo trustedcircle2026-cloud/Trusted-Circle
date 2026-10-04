@@ -34,7 +34,7 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
-    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','CreatedAt','UpdatedAt'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
@@ -185,6 +185,8 @@ function agentBusinessRoute_(p){
   if(action==='agentClientHistory') return agentClientHistory_(p);
   if(action==='agentInvoices') return agentInvoices_(p);
   if(action==='agentInvoicePdf') return agentInvoicePdf_(p);
+  if(action==='agentReportInvoicePaymentDone') return agentReportInvoicePaymentDone_(p);
+  if(action==='invoicePaymentDecision') return invoicePaymentDecision_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
   var ss=agentBusinessSpreadsheet_();
@@ -416,6 +418,72 @@ function agentInvoices_(p){
     total:invoices.length,
     outstandingAmount:Math.round(outstanding*100)/100
   };
+}
+function agentReportInvoicePaymentDone_(p){
+  var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
+  if(!invoiceId)throw new Error('Invoice is required.');
+  var ss=agentBusinessSpreadsheet_(),invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId&&String(x.AgentID)===String(s.AgentID);});
+  if(!invoice)throw new Error('Invoice not found.');
+  var current=String(invoice.PaymentStatus||'UNPAID').toUpperCase();
+  if(['PAID','SETTLED'].includes(current))throw new Error('This invoice is already marked as received.');
+  if(!String(invoice.PaymentLink||'').trim())throw new Error('Payment link is not assigned to this invoice yet.');
+  invoice.PaymentStatus='AGENT_REPORTED';
+  invoice.Status='PAYMENT_REPORTED';
+  invoice.AgentPaymentReportedAt=new Date().toISOString();
+  invoice.AgentPaymentReportedBy=String(s.AgentID);
+  saveRow_(ss,'Invoices',invoice);
+  var agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(x){return String(x.AgentID)===String(s.AgentID);})||{};
+  saveRow_(ss,'Notifications',{
+    NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',Type:'AGENT_PAYMENT_REPORTED',
+    Title:'Agent marked invoice payment as done',
+    Message:String(agent.AgentName||'Agent')+' · '+String(invoice.InvoiceNumber||invoiceId)+' · '+formatMoney_(invoice.NetPayable)+' reported as paid.',
+    Status:'UNREAD',CreatedAt:new Date().toISOString()
+  });
+  var email=String(PropertiesService.getScriptProperties().getProperty('AGENT_BUSINESS_ADMIN_EMAIL')||'trustedcircle2026@gmail.com').trim();
+  var base=ScriptApp.getService().getUrl()||'';
+  var buttons=['RECEIVED','PENDING','FAILED'].map(function(dec){
+    var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+    CacheService.getScriptCache().put('INV_REVIEW_'+token,JSON.stringify({invoiceId:invoiceId,decision:dec,agentId:s.AgentID}),21600);
+    return {decision:dec,url:base+'?action=invoicePaymentDecision&reviewToken='+encodeURIComponent(token)};
+  });
+  if(email&&base&&MailApp.getRemainingDailyQuota()>0){
+    var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto"><h2>Trusted Circle · Agent Payment Report</h2><p><b>'+escapeHtml_(agent.AgentName||'Agent')+'</b> marked invoice <b>'+escapeHtml_(invoice.InvoiceNumber||invoiceId)+'</b> as payment done.</p><p>Amount: <b>'+formatMoney_(invoice.NetPayable)+'</b></p><p>Please verify the payment and select an action:</p><p>'+
+      '<a href="'+buttons[0].url+'" style="display:inline-block;padding:12px 18px;background:#16834f;color:#fff;text-decoration:none;border-radius:8px;margin-right:8px">✓ Received</a>'+
+      '<a href="'+buttons[1].url+'" style="display:inline-block;padding:12px 18px;background:#d39a18;color:#fff;text-decoration:none;border-radius:8px;margin-right:8px">⏳ Pending</a>'+
+      '<a href="'+buttons[2].url+'" style="display:inline-block;padding:12px 18px;background:#c83f3f;color:#fff;text-decoration:none;border-radius:8px">! Failed — Try Again</a></p><p style="color:#777;font-size:12px">These secure review links expire in 6 hours.</p></div>';
+    MailApp.sendEmail({to:email,subject:'Payment Done Report · '+String(invoice.InvoiceNumber||invoiceId),body:'Agent marked '+String(invoice.InvoiceNumber||invoiceId)+' as payment done. Review the payment.',htmlBody:html,name:'Trusted Circle'});
+  }
+  invalidateSheetCache_('Invoices');invalidateSheetCache_('Notifications');
+  cacheRemoveAgent_(s.AgentID);
+  return {reported:true,invoice:{InvoiceID:invoice.InvoiceID,InvoiceNumber:invoice.InvoiceNumber,PaymentStatus:invoice.PaymentStatus,Status:invoice.Status}};
+}
+function invoicePaymentDecision_(p){
+  var token=String(p.reviewToken||'').trim();
+  if(!token)throw new Error('Review link is invalid.');
+  var raw=CacheService.getScriptCache().get('INV_REVIEW_'+token);
+  if(!raw)throw new Error('This review link has expired or has already been used.');
+  var review=JSON.parse(raw),decision=String(p.decision||review.decision||'').toUpperCase();
+  if(review.decision!==decision)throw new Error('Invalid review action.');
+  CacheService.getScriptCache().remove('INV_REVIEW_'+token);
+  var ss=agentBusinessSpreadsheet_(),invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===String(review.invoiceId);});
+  if(!invoice)throw new Error('Invoice not found.');
+  var now=new Date().toISOString();
+  if(decision==='RECEIVED'){
+    invoice.PaymentStatus='PAID';invoice.Status='PAID';invoice.PaymentDecisionAt=now;
+    var receivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')).filter(function(x){return String(x.InvoiceID)===String(invoice.InvoiceID)&&String(x.Status||'').toUpperCase()!=='RECEIVED';});
+    receivables.forEach(function(r){
+      r.Status='RECEIVED';r.SettledDate=now;saveRow_(ss,'AgentReceivables',r);
+      saveRow_(ss,'MoneyLedger',{LedgerID:newId_('LedgerID'),TransactionDate:now.slice(0,10),ReferenceType:'AGENT_RECEIVABLE_SETTLEMENT',ReferenceID:r.ReceivableID,AgentID:r.AgentID||'',ClientID:r.ClientID||'',PaymentID:r.PaymentID||'',Description:'Agent receivable received · '+(r.ClientName||'Client'),MoneyIn:Number(r.ReceivableAmount||0),MoneyOut:'',Balance:'',PaymentMode:'Agent Invoice',BankAccount:'Trusted Circle',Category:'AGENT RECEIVABLE SETTLEMENT',Status:'RECEIVED'});
+    });
+  }else if(decision==='PENDING'){
+    invoice.PaymentStatus='AGENT_REPORTED';invoice.Status='PAYMENT_PENDING';invoice.PaymentDecisionAt=now;
+  }else if(decision==='FAILED'){
+    invoice.PaymentStatus='UNPAID';invoice.Status='PAYMENT_FAILED';invoice.PaymentDecisionAt=now;invoice.AgentPaymentReportedAt='';
+  }else throw new Error('Unsupported payment decision.');
+  saveRow_(ss,'Invoices',invoice);
+  invalidateSheetCache_('Invoices');invalidateSheetCache_('AgentReceivables');invalidateSheetCache_('MoneyLedger');
+  var label=decision==='RECEIVED'?'Payment received and receivable settled.':decision==='PENDING'?'Payment kept pending for verification.':'Payment failed. Agent can try again using the payment link.';
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #dfe8e3;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>'+escapeHtml_(label)+'</h3><p>Invoice <b>'+escapeHtml_(invoice.InvoiceNumber||'')+'</b></p><p>You can close this window.</p></div>');
 }
 function agentInvoicePdf_(p){
   var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
