@@ -880,3 +880,7 @@
 
 
 .ap-info-note>div{display:grid;gap:3px}.ap-info-note>div strong{font-size:9px;color:#31584a}.ap-info-note>div span{display:block}.ap-simple-submit .ap-wizard-head h2{letter-spacing:-.04em}.ap-simple-submit .ap-form-grid label{font-size:8px;font-weight:800;color:#56655e;letter-spacing:.02em}.ap-simple-submit .ap-form-grid input{margin-top:5px}
+
+/* Loading screen accessibility */
+.ap-loading-screen,.ap-loading-screen *{color:#111827!important;text-shadow:none!important}
+.ap-loading-screen .ap-loading-copy,.ap-loading-screen .ap-loading-copy strong,.ap-loading-screen .ap-loading-copy span{color:#111827!important}
