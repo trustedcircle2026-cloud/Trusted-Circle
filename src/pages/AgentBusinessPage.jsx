@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,FileText,LayoutDashboard,Plus,RefreshCw,Search,ShieldCheck,Users,WalletCards,X} from 'lucide-react'
+import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,FileText,LayoutDashboard,Plus,RefreshCw,Search,ShieldCheck,Users,WalletCards,X} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-business.css'
 
@@ -60,7 +60,7 @@ export default function AgentBusinessPage(){
     <div className="tc-admin-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Admin Portal</small></div></div>
     <div className="tc-admin-header-actions">
       <button className="tc-icon-button" onClick={()=>setPage('requests')} aria-label="Payment requests"><Activity size={20}/>{count('PaymentRequests')>0&&<b>{count('PaymentRequests')}</b>}</button>
-      <button className="tc-profile-button" onClick={()=>setProfileOpen(true)} aria-label="Admin profile"><span>A</span><strong>Admin</strong><CircleDollarSign size={17}/></button>
+      <button className="tc-profile-button" onClick={()=>setProfileOpen(true)} aria-label="Admin profile"><span>A</span><strong>Admin</strong><CircleUserRound size={17}/></button>
     </div>
    </header>
 
