@@ -252,8 +252,8 @@ export default function AgentPortalPage(){
   <nav className="ap-bottom-nav" aria-label="Primary navigation">
    <button className={activeTab==='home'?'active':''} onClick={()=>{setActiveTab('home');window.scrollTo({top:0,behavior:'smooth'})}}><Home size={21}/><span>Home</span></button>
    <button className={activeTab==='policies'?'active':''} onClick={()=>setActiveTab('policies')}><Users size={21}/><span>My Clients</span></button>
-   <button className={activeTab==='requests'?'active':''} onClick={()=>setActiveTab('requests')}><Send size={21}/>{pending>0&&<b>{pending}</b>}<span>Requests</span></button>
    <button className={activeTab==='history'?'active':''} onClick={()=>setActiveTab('history')}><Clock3 size={21}/><span>History</span></button>
+   <button className={activeTab==='receipts'?'active':''} onClick={()=>setActiveTab('receipts')}><Download size={21}/><span>Receipts</span></button>
    <button className={activeTab==='more'?'active':''} onClick={()=>setActiveTab('more')}><MoreHorizontal size={21}/><span>More</span></button>
   </nav>
 
