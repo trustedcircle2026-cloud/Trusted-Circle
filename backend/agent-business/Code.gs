@@ -280,13 +280,12 @@ function agentBootstrap_(p){
   var billMap={};bills.forEach(function(x){if(String(x.AgentID)===s.AgentID)billMap[String(x.ClientID)]=x;});
   var requestMap={};requests.forEach(function(x){
     if(String(x.AgentID)!==s.AgentID)return;
-    var key=String(x.ClientID),status=String(x.Status||'').toUpperCase();
-    // Once any request for this client is paid, the policy is treated as paid for the current cycle.
-    if(status==='PAID'||status==='COMPLETED'){
-      requestMap[key]=Object.assign({},x,{Status:'PAID'});
-    }else if(!requestMap[key]||!['PAID','COMPLETED'].includes(String(requestMap[key].Status||'').toUpperCase())){
-      requestMap[key]=x;
-    }
+    var key=String(x.ClientID);
+    var current=requestMap[key];
+    var currentTime=new Date(current&&current.RequestedAt||current&&current.CreatedAt||0).getTime();
+    var nextTime=new Date(x.RequestedAt||x.CreatedAt||0).getTime();
+    // Client card reflects the latest request only. Historical requests/payments remain stored separately.
+    if(!current||nextTime>=currentTime)requestMap[key]=x;
   });
   var items=ownClients.slice().reverse().map(function(client){var policy=policyMap[String(client.ClientID)]||{},bill=billMap[String(client.ClientID)]||{},request=requestMap[String(client.ClientID)]||{};return safeAgentClient_(Object.assign({},client,policy,{PolicyID:policy.PolicyID||'',PremiumAmount:bill.PremiumAmount||policy.PremiumAmount||0,RequestStatus:request.Status||''}));});
   var reqItems=requests.filter(function(x){return String(x.AgentID)===s.AgentID;}).slice().reverse().map(function(req){var client=ownClients.find(function(x){return String(x.ClientID)===String(req.ClientID);})||{};var policy=policyMap[String(req.ClientID)]||{};return safeAgentRequest_(Object.assign({},req,{ClientName:client.ClientName||'',PolicyNumber:client.PolicyNumber||policy.PolicyNumber||''}));});
