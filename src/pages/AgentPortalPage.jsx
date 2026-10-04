@@ -43,14 +43,14 @@ export default function AgentPortalPage(){
   try{
    const data=await agentBusinessApi.agentAddPolicy(session,policyForm)
    setClients(current=>[data.policy,...current]);setPolicyForm(emptyPolicy);setShowForm(false)
-   setNotice('Policy added. Select it later whenever payment needs to be requested.')
+   setNotice('Client added successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const editPolicy=async()=>{
   setLoading(true);setError('');setNotice('');setLoadingText('Updating client and policy details…')
   try{
    await agentBusinessApi.agentEditPolicy(session,{...policyForm,PolicyID:editingPolicyId})
-   await load(session);setPolicyForm(emptyPolicy);setEditingPolicyId('');setShowForm(false);setNotice('Client and policy details updated successfully.')
+   await load(session);setPolicyForm(emptyPolicy);setEditingPolicyId('');setShowForm(false);setNotice('Client details updated successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const requestPayment=async policy=>{
@@ -60,13 +60,13 @@ export default function AgentPortalPage(){
   // Request is keyed by ClientID; backend resolves the owned policy server-side.
   try{
    const data=await agentBusinessApi.agentRequestPayment(session,{ClientID:policy.ClientID,PolicyID:policy.PolicyID||''})
-   setRequests(current=>[data.paymentRequest,...current]);await load(session);setActiveTab('requests');setNotice('Payment request sent to Trusted Circle Admin.')
+   setRequests(current=>[data.paymentRequest,...current]);await load(session);setActiveTab('requests');setNotice('Payment request sent successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const cancelRequest=async requestId=>{
   if(!window.confirm('Cancel this payment request?'))return
   setLoading(true);setError('');setNotice('');setLoadingText('Cancelling payment request…')
-  try{await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session);setNotice('Payment request cancelled.')}
+  try{await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session);setNotice('Payment request cancelled successfully.')}
   catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([])}
