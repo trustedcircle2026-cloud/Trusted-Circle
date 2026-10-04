@@ -296,7 +296,7 @@ function agentClients_(p){
 function agentAddClient_(p){
   // Legacy endpoint kept for compatibility. New workflow is policy-first and never creates a payment request here.
   return agentAddPolicy_(p);
-  */
+}
 function agentAddPolicy_(p){
   var s=agentSession_(p.token),data=p.data||{};
   var name=String(data.ClientName||'').trim(),policyNumber=String(data.PolicyNumber||'').trim(),dob=String(data.DateOfBirth||'').trim();
