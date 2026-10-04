@@ -93,15 +93,16 @@ export default function AgentPortalPage(){
  return <div className="agent-portal-page">
   {loading&&<LoadingOverlay text={loadingText}/>}
   <main className="ap-main">
-   <div className="ap-command-menu">
-    <div className="ap-command-brand"><img src={LOGO_URL} alt="Trusted Circle"/><div><strong>Trusted Circle</strong><small>Agent Portal · {agent.AgentName}</small></div></div>
-    <div className="ap-command-actions">
-     <button className="ap-command-box" onClick={()=>load(session)} disabled={loading}><RefreshCw size={16} className={loading?'spin':''}/><span>Refresh</span><small>Sync workspace</small></button>
-     <button className="ap-command-box ap-command-primary" onClick={openAddPolicy}><Plus size={16}/><span>Add Policy</span><small>Save client policy</small></button>
-     <button className="ap-command-box ap-command-danger" onClick={logout}><LogOut size={16}/><span>Sign Out</span><small>End session</small></button>
+   <div className="ap-command-menu ap-icon-header">
+    <div className="ap-command-brand ap-icon-brand"><img src={LOGO_URL} alt="Trusted Circle"/></div>
+    <div className="ap-command-actions ap-icon-actions">
+     <button className="ap-icon-header-btn" onClick={()=>load(session)} disabled={loading} title="Refresh workspace" aria-label="Refresh workspace"><RefreshCw size={18} className={loading?'spin':''}/></button>
+     <button className="ap-icon-header-btn ap-icon-header-primary" onClick={openAddPolicy} title="Add client and policy" aria-label="Add client and policy"><Plus size={20}/></button>
+     <button className="ap-icon-header-btn ap-icon-header-danger" onClick={logout} title="Sign out" aria-label="Sign out"><LogOut size={18}/></button>
     </div>
    </div>
-   <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Add clients and their policy details first. Raise a premium payment request only when you need us to pay the premium.</p></div></section>
+div>
+   <section className="ap-page-head"><div><span className="ap-eyebrow">TRUSTED CIRCLE · AGENT PORTAL</span><h1>Hello, {agent.AgentName?.split(' ')[0]||'Agent'} <span>👋</span></h1><p>Manage saved clients and raise a premium payment request only when needed.</p></div></section>
    {error&&<div className="ap-error ap-banner"><X size={15}/><span>{error}</span><button onClick={()=>setError('')}>Dismiss</button></div>}
    {notice&&<div className="ap-success ap-banner"><CheckCircle2 size={16}/><span>{notice}</span><button onClick={()=>setNotice('')}>Dismiss</button></div>}
    <div className="ap-stats"><Stat icon={FileText} label="Clients" value={clients.length} tone="green"/><Stat icon={Send} label="Payment Requests" value={requests.length} tone="blue"/><Stat icon={Clock3} label="Pending Requests" value={pending} tone="amber"/><Stat icon={ShieldCheck} label="Account Access" value="Active" tone="purple"/></div>
@@ -154,4 +155,3 @@ export default function AgentPortalPage(){
 }
 
 function LoadingOverlay({text}){return <div className="ap-loading-overlay"><div className="ap-loader-card"><div className="ap-loader-logo"><img src={LOGO_URL} alt="Trusted Circle"/><span></span></div><strong>{text}</strong><small>Trusted Circle is securely preparing your workspace.</small><div className="ap-loader-line"><i></i></div></div></div>}
-function Stat({icon:Icon,label,value,tone='green'}){return <div className={'ap-stat '+tone}><span><Icon size={18}/></span><small>{label}</small><strong>{value}</strong></div>}
