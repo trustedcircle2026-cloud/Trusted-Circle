@@ -36,7 +36,7 @@ var AGENT_BUSINESS = {
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
     Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
-    AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
+    AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
   }
 };
@@ -568,6 +568,8 @@ function markPaymentPaid_(p){
     ClientName:client.ClientName||'',
     PolicyNumber:client.PolicyNumber||'',
     DateOfBirth:client.DateOfBirth||'',
+    GrossAmount:amount,
+    DiscountAmount:discount,
     ReceivableAmount:receivable,
     Status:'RECEIVABLE',
     ReceivableDate:paymentDate,
@@ -622,14 +624,14 @@ function createInvoice_(p){
   var receivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'));
   var selected=receivables.filter(function(x){return itemIds.indexOf(String(x.ReceivableID))>=0&&String(x.AgentID)===agentId&&String(x.Status||'').toUpperCase()==='RECEIVABLE'&& !String(x.InvoiceID||'').trim();});
   if(!selected.length)throw new Error('No un-invoiced receivables were selected.');
-  var total=selected.reduce(function(sum,x){return sum+Number(x.ReceivableAmount||0);},0);
-  var invoiceDiscount=Math.round(total*0*100)/100; // item receivables already carry the 2% discount
-  var net=Math.round((total-invoiceDiscount)*100)/100;
+  var grossTotal=selected.reduce(function(sum,x){return sum+Number(x.GrossAmount||x.ReceivableAmount||0);},0);
+  var invoiceDiscount=Math.round(grossTotal*AGENT_BUSINESS.DISCOUNT_RATE*100)/100;
+  var net=Math.max(0,Math.round((grossTotal-invoiceDiscount)*100)/100);
   var invoiceId=newId_('InvoiceID');
   var invoiceNumber='TC-INV-'+Utilities.formatDate(new Date(invoiceDate+'T00:00:00'),Session.getScriptTimeZone(),'yyyyMMdd')+'-'+String(invoiceId).slice(-6);
   var invoice=saveRow_(ss,'Invoices',{
     InvoiceID:invoiceId,InvoiceNumber:invoiceNumber,AgentID:agentId,InvoiceDate:invoiceDate,
-    TotalAmount:total,DiscountRate:0,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'SENT',
+    TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'SENT',
     AgentEmail:String(agent.Email||'').trim(),PdfUrl:''
   });
   var items=[];
@@ -637,7 +639,7 @@ function createInvoice_(p){
     var item=saveRow_(ss,'InvoiceItems',{
       InvoiceItemID:newId_('InvoiceItemID'),InvoiceID:invoiceId,PaymentID:x.PaymentID||'',ClientID:x.ClientID||'',
       ClientName:x.ClientName||'',PolicyNumber:x.PolicyNumber||'',DateOfBirth:x.DateOfBirth||'',
-      Amount:Number(x.ReceivableAmount||0),DiscountAmount:0,NetAmount:Number(x.ReceivableAmount||0)
+      Amount:Number(x.GrossAmount||x.ReceivableAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetAmount:Number(x.ReceivableAmount||0)
     });
     items.push(item.item);
     x.InvoiceID=invoiceId;
@@ -682,8 +684,8 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
     row.appendTableCell(formatMoney_(x.Amount||0));
   });
   body.appendParagraph('');
-  body.appendParagraph('Gross Receivable: '+formatMoney_(invoice.TotalAmount)).setBold(true);
-  body.appendParagraph('Discount: 0% (2% customer discount already applied at payment stage)');
+  body.appendParagraph('Gross Premium Paid: '+formatMoney_(invoice.TotalAmount)).setBold(true);
+  body.appendParagraph('Less: Trusted Circle Discount ('+(Number(invoice.DiscountRate||0)*100).toFixed(0)+'%): '+formatMoney_(invoice.DiscountAmount));
   body.appendParagraph('TOTAL PAYABLE: '+formatMoney_(invoice.NetPayable)).setBold(true).setFontSize(12).setForegroundColor('#064f3b');
   body.appendParagraph('');
   body.appendParagraph('Payment is payable by the above agent to Trusted Circle. This invoice consolidates premium payments funded by Trusted Circle on behalf of the listed clients.');
