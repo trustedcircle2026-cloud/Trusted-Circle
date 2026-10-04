@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react'
+import {useEffect,useMemo,useRef,useState} from 'react'
 import {ArrowRight,Bell,CheckCircle2,CircleUserRound,Download,ExternalLink,FileText,Home,Link2,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards,MoreHorizontal} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-portal.css'
@@ -32,6 +32,35 @@ export default function AgentPortalPage(){
    localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
   }finally{clearInterval(timer);setLoading(false)}
  }
+ useEffect(()=>{
+  if(!session)return
+  let inactivityTimer
+  let lastActivity=Date.now()
+  const INACTIVITY_LIMIT=180000
+  const resetInactivity=()=>{
+    lastActivity=Date.now()
+    clearTimeout(inactivityTimer)
+    inactivityTimer=setTimeout(async()=>{
+      if(Date.now()-lastActivity<INACTIVITY_LIMIT){resetInactivity();return}
+      try{await agentBusinessApi.agentLogout(session)}catch{}
+      localStorage.removeItem('tc_agent_session')
+      setSession('')
+      setAgent(null)
+      setClients([])
+      setRequests([])
+      setInvoices([])
+      setPayableAmount(0)
+      setEarningsToDate(0)
+    },INACTIVITY_LIMIT)
+  }
+  const activityEvents=['pointerdown','pointermove','keydown','scroll','touchstart','wheel']
+  activityEvents.forEach(event=>window.addEventListener(event,resetInactivity,{passive:true}))
+  resetInactivity()
+  return()=>{
+    clearTimeout(inactivityTimer)
+    activityEvents.forEach(event=>window.removeEventListener(event,resetInactivity))
+  }
+ },[session])
  useEffect(()=>{if(session)load(session)},[session])
 
  const login=async()=>{
