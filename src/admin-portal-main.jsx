@@ -1,5 +1,6 @@
 import React,{lazy,Suspense} from 'react'
 import ReactDOM from 'react-dom/client'
+import './agent-business.css'
 
 const AgentBusinessPage=lazy(()=>import('./pages/AgentBusinessPage'))
 
