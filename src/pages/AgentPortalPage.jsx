@@ -13,7 +13,7 @@ const loadingMessages=['Securing your agent session…','Loading your policy wor
 
 export default function AgentPortalPage(){
  const[session,setSession]=useState(()=>localStorage.getItem('tc_agent_session')||'')
- const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[receipts,setReceipts]=useState([]),[invoices,setInvoices]=useState([]),[payableAmount,setPayableAmount]=useState(0),[earningsToDate,setEarningsToDate]=useState(0)
+ const[agent,setAgent]=useState(null),[clients,setClients]=useState([]),[requests,setRequests]=useState([]),[receipts,setReceipts]=useState([]),[invoices,setInvoices]=useState([]),[payableAmount,setPayableAmount]=useState(0),[earningsToDate,setEarningsToDate]=useState(0),[payableCheck,setPayableCheck]=useState(false)
  const[mobile,setMobile]=useState(''),[password,setPassword]=useState('')
  const[policyForm,setPolicyForm]=useState(emptyPolicy),[showForm,setShowForm]=useState(false),[editingPolicyId,setEditingPolicyId]=useState('')
  const[clientSearch,setClientSearch]=useState(''),[history,setHistory]=useState(null),[historyLoading,setHistoryLoading]=useState(false)
@@ -190,7 +190,7 @@ export default function AgentPortalPage(){
       <button onClick={()=>setActiveTab('invoices')}><WalletCards size={20}/><strong>{payableAmount?money(payableAmount):'₹0'}</strong><span>Payable Amount</span></button>
       <button className="ap-earnings-stat" onClick={()=>setActiveTab('invoices')}><CheckCircle2 size={20}/><strong>{money(earningsToDate)}</strong><span>Earnings Till Date</span><small>Received discount</small></button>
     </div>
-    {payableAmount>0?<div className="ap-payable-box ap-home-payable-summary">
+    {payableCheck?<div className="ap-payable-box ap-home-payable-summary ap-payable-pending"><div className="ap-payable-head"><div><span className="ap-eyebrow">PENDING PAYABLE</span><h2>Pending Payable Found</h2><p>We found a payable check in progress. Please wait while we securely fetch the amount and invoice details.</p></div><span className="ap-payable-pulse"><Clock3 size={20}/> Checking…</span></div></div>:payableAmount>0?<div className="ap-payable-box ap-home-payable-summary">
       <div className="ap-payable-head"><div><span className="ap-eyebrow">PAYABLE NOW</span><h2>Amount Payable to Trusted Circle</h2><p>Latest invoice and payment are shown below.</p></div><span className="ap-payable-total">{money(payableAmount)}</span></div>
       {(()=>{const payableInvoice=invoices.find(inv=>!['PAID','SETTLED','CANCELLED'].includes(String(inv.PaymentStatus||inv.Status||'UNPAID').toUpperCase()));return payableInvoice?<div className="ap-home-invoice-mini"><div><strong>{payableInvoice.InvoiceNumber||'Invoice'}</strong><small>{displayDate(payableInvoice.InvoiceDate)} · PAYABLE</small></div><strong>{money(payableInvoice.NetPayable||0)}</strong><div className="ap-home-invoice-actions"><button className="ap-secondary" onClick={()=>downloadInvoice(payableInvoice)}><Download size={13}/>Invoice</button>{payableInvoice.PaymentLink&&<button className="ap-primary" onClick={()=>window.open(payableInvoice.PaymentLink,'_blank','noopener,noreferrer')}><ExternalLink size={13}/>Pay</button>}</div></div>:null})()}
       <button className="ap-secondary wide" onClick={()=>setActiveTab('invoices')}><WalletCards size={16}/>View Payables & Invoices <ChevronRight size={15}/></button>
