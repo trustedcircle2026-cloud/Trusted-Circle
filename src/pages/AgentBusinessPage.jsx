@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useState} from 'react'
-import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText,Upload} from 'lucide-react'
+import {Activity,ArrowLeft,BarChart3,BriefcaseBusiness,Calculator,CardSim,CheckCircle2,ChevronRight,CircleDollarSign,CircleUserRound,Download,ExternalLink,FileText,LayoutDashboard,Link2,Plus,RefreshCw,Search,Send,ShieldCheck,Users,WalletCards,X,CreditCard,CalendarDays,ReceiptText,Upload} from 'lucide-react'
 import jsQR from 'jsqr'
 import {agentBusinessApi} from '../agentBusinessApi'
 import '../agent-business.css'
