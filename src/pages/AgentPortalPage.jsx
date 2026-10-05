@@ -20,22 +20,39 @@ export default function AgentPortalPage(){
  const[loading,setLoading]=useState(false),[loadingText,setLoadingText]=useState(loadingMessages[0]),[error,setError]=useState(''),[notice,setNotice]=useState('')
  const[activeTab,setActiveTab]=useState('home'),[detail,setDetail]=useState(null),[showProfile,setShowProfile]=useState(false)
 
+ const applyBootstrap=data=>{
+  setAgent(data?.agent||null)
+  setClients(data?.clients?.items||[])
+  setRequests(data?.requests?.items||[])
+ }
  const load=async token=>{
-  setLoading(true);setError('')
+  setError('')
+  const cacheKey='tc_agent_bootstrap_cache'
+  let hadCache=false
+  try{
+   const cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null')
+   if(cached?.time&&Date.now()-Number(cached.time)<30000&&cached.data?.agent){
+    applyBootstrap(cached.data);hadCache=true;setLoading(false)
+   }
+  }catch{}
   let timer
   try{
-   let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
+   if(!hadCache){
+    setLoading(true);let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
+   }
    const data=await agentBusinessApi.agentBootstrap(token)
-   setAgent(data.agent);setClients(data.clients?.items||[]);setRequests(data.requests?.items||[])
-   clearInterval(timer);setLoading(false)
+   try{sessionStorage.setItem(cacheKey,JSON.stringify({time:Date.now(),data}))}catch{}
+   applyBootstrap(data)
+   if(!hadCache)setLoading(false)
+   // Secondary data never blocks the first usable screen.
    agentBusinessApi.agentPremiumReceipts(token).then(receiptData=>setReceipts(receiptData.items||[])).catch(()=>setReceipts([]))
    agentBusinessApi.agentInvoices(token).then(invoiceData=>{
     setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0));setEarningsToDate(Number(invoiceData.earningsToDate||0))
    }).catch(()=>{})
-   return
   }catch(e){
-   localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
-  }finally{clearInterval(timer);setLoading(false)}
+   if(!hadCache){localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)}
+   else setError('Live sync failed. Showing your latest saved workspace data.')
+  }finally{clearInterval(timer);if(!hadCache)setLoading(false)}
  }
  useEffect(()=>{
   if(!session)return
