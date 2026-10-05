@@ -12,7 +12,8 @@ export default defineConfig({
         main: 'index.html',
         admin: 'admin.html',
         agentPortal: 'agent-portal/index.html',
-        adminInsurance: 'admin-portal/index.html'
+        adminInsurance: 'admin-portal/index.html',
+        apps: 'apps/index.html'
       }
     }
   }
