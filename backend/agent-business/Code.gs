@@ -11,6 +11,8 @@
 // Insurance agent receivables, invoice payment reporting and settlement workflow.
 var INSURANCE_PREMIUM_RECEIPT_FOLDER_ID='1G-JE7bQhmPBjFvvqGXBfHFdestw_DAhX';
 var TRUSTED_CIRCLE_INVOICE_FOLDER_ID='1XroGo-yhqvt-Vnp0ZPUAz1iw4cEuV2os';
+// Common fallback link: no fixed amount. It remains active until Admin assigns an invoice-specific UPI link.
+var COMMON_AGENT_PAYMENT_LINK='upi://pay?pa=llingesh836-7@okhdfcbank&pn=Lingeshwaran%20R&aid=uGICAgIC1rKa0NQ';
 
 var AGENT_BUSINESS = {
   NAME: 'Trusted Circle Agent Business',
@@ -437,7 +439,8 @@ function agentInvoices_(p){
         NetPayable:Number(x.NetPayable||0),
         Status:x.Status||'GENERATED',
         PdfUrl:x.PdfUrl||'',
-        PaymentLink:x.PaymentLink||'',
+        PaymentLink:x.PaymentLink||COMMON_AGENT_PAYMENT_LINK,
+        PaymentLinkAssigned:Boolean(String(x.PaymentLink||'').trim()),
         PaymentStatus:x.PaymentStatus||'PAYABLE',
         PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''
       };
@@ -581,7 +584,8 @@ function agentReportInvoicePaymentDone_(p){
   if(!invoice)throw new Error('Invoice not found.');
   var current=String(invoice.PaymentStatus||'UNPAID').toUpperCase();
   if(['PAID','SETTLED'].includes(current))throw new Error('This invoice is already marked as received.');
-  if(!String(invoice.PaymentLink||'').trim())throw new Error('Payment link has not been assigned by Admin for this invoice yet.');
+  var effectivePaymentLink=String(invoice.PaymentLink||COMMON_AGENT_PAYMENT_LINK).trim();
+  if(!effectivePaymentLink)throw new Error('Payment link is not available for this invoice.');
   invoice.PaymentStatus='AGENT_REPORTED';
   invoice.Status='PAYMENT_REPORTED';
   invoice.AgentPaymentReportedAt=new Date().toISOString();
@@ -652,6 +656,8 @@ function assignInvoicePaymentLink_(p){
   if(!invoice)throw new Error('Invoice not found.');
   var status=String(invoice.PaymentStatus||'').toUpperCase();
   if(['PAID','SETTLED','CANCELLED'].includes(status))throw new Error('A payment link cannot be assigned to a closed invoice.');
+  var invoiceStatus=String(invoice.Status||'').toUpperCase();
+  if(!['SENT','PAYMENT_LINK_ASSIGNED'].includes(invoiceStatus))throw new Error('The invoice must be sent to the Agent before an invoice-specific payment link can be assigned.');
   invoice.PaymentLink=paymentLink;
   invoice.PaymentLinkAssignedAt=new Date().toISOString();
   invoice.PaymentStatus='PAYABLE';
@@ -661,6 +667,7 @@ function assignInvoicePaymentLink_(p){
   invalidateSheetCache_('Invoices');
   return {assigned:true,invoice:{
     InvoiceID:invoice.InvoiceID,InvoiceNumber:invoice.InvoiceNumber,PaymentLink:invoice.PaymentLink,
+    PaymentLinkAssigned:true,
     PaymentLinkAssignedAt:invoice.PaymentLinkAssignedAt,PaymentStatus:invoice.PaymentStatus,Status:invoice.Status
   }};
 }
