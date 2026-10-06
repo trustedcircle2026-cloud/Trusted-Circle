@@ -39,6 +39,13 @@ async function walletRequest(action,payload={}){
       if(msg.token) data.session={token:String(msg.token),expiresAt:msg.expiresAt||''};
       else if(data.session&&data.session.token) data.session={token:String(data.session.token),expiresAt:data.session.expiresAt||''};
       if(msg.user) data.user=msg.user;
+      // Login challenge fields are exposed top-level by the Wallet backend.
+      // Normalize them so the login UI never loses the three options.
+      if(Array.isArray(msg.options)) data.options=msg.options.map(String);
+      if(msg.challengeId) data.challengeId=String(msg.challengeId);
+      if(msg.email) data.email=String(msg.email);
+      if(typeof msg.isNewUser==='boolean') data.isNewUser=msg.isNewUser;
+      if(msg.expiresInSeconds) data.expiresInSeconds=Number(msg.expiresInSeconds);
       finish(data);
     };
     window.addEventListener('message',onMessage);
