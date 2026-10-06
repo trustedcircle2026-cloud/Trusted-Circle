@@ -1,401 +1,293 @@
 /**
  * TRUSTED CIRCLE — WALLET SERVICES
- * Independent backend. This file NEVER calls the Shopping backend.
+ * Completely independent from Shopping.
  *
  * Script Properties:
- * SPREADSHEET_ID   = NEW Wallet Services Google Sheet ID
+ * SPREADSHEET_ID   = 1Q5-xDelfCBiYldQAnToDTuQRy4c_rZlHoDvtsaP1mNI
  * ADMIN_EMAIL      = trustedcircle2026@gmail.com
- * WALLET_ADMIN_KEY = private key for WalletAdminaddlink.html
+ * WALLET_ADMIN_KEY = private key (never commit)
  */
 
 const W = {
-  ADD: [500, 1000, 1500, 2000],
-  OTP_MS: 10 * 60 * 1000,
-  SESSION_MS: 60 * 60 * 1000,
-  RESERVATION_MS: 15 * 60 * 1000,
-  ACTION_MS: 24 * 60 * 60 * 1000,
-  S: {
-    U: 'WalletUsers',
-    O: 'WalletOTP',
-    S: 'WalletSessions',
-    W: 'Wallets',
-    T: 'WalletTransactions',
-    P: 'WalletPaymentLinks',
-    A: 'WalletAdminActions',
-    L: 'WalletAuditLogs'
-  }
+  ADD:[500,1000,1500,2000],
+  OTP_MS:10*60*1000,
+  SESSION_MS:24*60*60*1000,
+  RESERVATION_MS:15*60*1000,
+  ACTION_MS:24*60*60*1000,
+  S:{U:'WalletUsers',O:'WalletOTP',S:'WalletSessions',W:'Wallets',T:'WalletTransactions',P:'WalletPaymentLinks',A:'WalletAdminActions',L:'WalletAuditLogs'}
 };
 
-function doGet(e) {
-  try {
-    if (e && e.parameter && e.parameter.adminAction) return adminAction_(e.parameter);
-    return json_(route_(e && e.parameter || {}));
-  } catch (err) {
-    return json_({ ok:false, error:err.message });
-  }
+function doGet(e){
+  try{
+    if(e&&e.parameter&&e.parameter.adminAction)return adminAction_(e.parameter);
+    return json_(route_(e&&e.parameter||{}));
+  }catch(err){return json_({ok:false,error:err.message});}
+}
+function doPost(e){
+  try{return json_(route_(parse_(e)));}catch(err){return json_({ok:false,error:err.message});}
+}
+function route_(d){
+  const a=String(d.action||'health');
+  if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.0.0',status:'ok'};
+  if(a==='requestOtp')return requestOtp_(d);
+  if(a==='verifyOtp')return verifyOtp_(d);
+  if(a==='me')return{ok:true,data:{user:pubUser_(auth_(d.token))}};
+  if(a==='wallet')return wallet_(d);
+  if(a==='walletOrders')return walletOrders_(d);
+  if(a==='transactionStatus')return transactionStatus_(d);
+  if(a==='addMoney')return addMoney_(d);
+  if(a==='retryAddMoney')return retryAddMoney_(d);
+  if(a==='withdrawMoney')return withdrawMoney_(d);
+  if(a==='logout')return{ok:true,data:{loggedOut:logout_(d.token)}};
+  if(a==='adminAddPaymentLink')return adminAddPaymentLink_(d);
+  if(a==='adminAddPaymentLinkBulk')return adminAddPaymentLinkBulk_(d);
+  if(a==='adminPaymentStock')return adminPaymentStock_(d);
+  if(a==='adminRemovePaymentLink')return adminRemovePaymentLink_(d);
+  throw new Error('Unknown Wallet API action: '+a);
 }
 
-function doPost(e) {
-  try {
-    return json_(route_(parse_(e)));
-  } catch (err) {
-    return json_({ ok:false, error:err.message });
-  }
-}
-
-function route_(d) {
-  const action = String(d.action || 'health');
-  if (action === 'health') return {
-    ok:true,
-    service:'Trusted Circle Wallet Services',
-    version:'1.1.0',
-    status:'ok'
+/* CONFIG / SETUP */
+function props_(){return PropertiesService.getScriptProperties();}
+function requiredProp_(name){const v=String(props_().getProperty(name)||'').trim();if(!v)throw new Error('Missing Script Property: '+name);return v;}
+function spreadsheet_(){return SpreadsheetApp.openById(requiredProp_('SPREADSHEET_ID'));}
+function setupBackend(){
+  const headers={
+    WalletUsers:['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
+    WalletOTP:['OTPId','Email','OtpHash','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
+    WalletSessions:['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'],
+    Wallets:['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
+    WalletTransactions:['TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter','UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt','ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'],
+    WalletPaymentLinks:['PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID','ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes'],
+    WalletAdminActions:['ActionID','TransactionID','Action','TokenHash','ExpiresAt','UsedAt','CreatedAt'],
+    WalletAuditLogs:['AuditID','UserID','TransactionID','Action','Actor','Metadata','CreatedAt']
   };
-  if (action === 'requestOtp') return requestOtp_(d);
-  if (action === 'verifyOtp') return verifyOtp_(d);
-  if (action === 'me') return {ok:true,data:{user:pubUser_(auth_(d.token))}};
-  throw new Error('Unknown Wallet API action: ' + action);
-}
-
-/* ---------- SETUP ---------- */
-
-function props_() {
-  return PropertiesService.getScriptProperties();
-}
-
-function requiredProp_(name) {
-  const value = String(props_().getProperty(name) || '').trim();
-  if (!value) throw new Error('Missing Script Property: ' + name);
-  return value;
-}
-
-function spreadsheet_() {
-  return SpreadsheetApp.openById(requiredProp_('SPREADSHEET_ID'));
-}
-
-/**
- * Run this manually once in Apps Script.
- * It creates the complete Wallet Services business database.
- */
-function setupBackend() {
-  const headers = {
-    WalletUsers: ['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
-    WalletOTP: ['OTPId','Email','OtpHash','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
-    WalletSessions: ['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'],
-    Wallets: ['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
-    WalletTransactions: [
-      'TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter',
-      'UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt',
-      'ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'
-    ],
-    WalletPaymentLinks: [
-      'PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID',
-      'ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes'
-    ],
-    WalletAdminActions: ['ActionID','TransactionID','Action','TokenHash','ExpiresAt','UsedAt','CreatedAt'],
-    WalletAuditLogs: ['AuditID','UserID','TransactionID','Action','Actor','Metadata','CreatedAt']
-  };
-
-  const ss = spreadsheet_();
-
-  Object.keys(headers).forEach(name => {
-    const sh = ss.getSheetByName(name) || ss.insertSheet(name);
-    const h = headers[name];
-
-    if (sh.getLastRow() === 0) {
-      sh.getRange(1,1,1,h.length).setValues([h]);
-    }
-
-    sh.setFrozenRows(1);
-    sh.getRange(1,1,1,h.length).setFontWeight('bold');
-    sh.autoResizeColumns(1,h.length);
+  const ss=spreadsheet_();
+  Object.keys(headers).forEach(name=>{
+    const sh=ss.getSheetByName(name)||ss.insertSheet(name),h=headers[name];
+    if(sh.getLastRow()===0)sh.getRange(1,1,1,h.length).setValues([h]);
+    sh.setFrozenRows(1);sh.getRange(1,1,1,h.length).setFontWeight('bold');
   });
-
-  return {
-    ok:true,
-    spreadsheetId:ss.getId(),
-    sheets:Object.keys(headers)
-  };
+  return{ok:true,spreadsheetId:ss.getId(),sheets:Object.keys(headers)};
 }
 
-/* ---------- BASIC HELPERS ---------- */
-
-function parse_(e) {
-  const body = e && e.postData && e.postData.contents;
-  if (body) {
-    try { return JSON.parse(body); } catch (_) {}
-  }
-  return e && e.parameter || {};
+/* HELPERS */
+function parse_(e){const body=e&&e.postData&&e.postData.contents;if(body){try{return JSON.parse(body);}catch(_){}}return e&&e.parameter||{};}
+function json_(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);}
+function now_(){return new Date().toISOString();}
+function clean_(v,n){return String(v==null?'':v).trim().slice(0,n||500);}
+function email_(v){return clean_(v,200).toLowerCase();}
+function id_(p){return p+'_'+Utilities.getUuid().replace(/-/g,'').slice(0,20);}
+function token_(){return Utilities.getUuid()+'.'+Utilities.getUuid();}
+function hash_(v){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(v),Utilities.Charset.UTF_8));}
+function same_(a,b){a=String(a||'');b=String(b||'');if(a.length!==b.length)return false;let r=0;for(let i=0;i<a.length;i++)r|=a.charCodeAt(i)^b.charCodeAt(i);return r===0;}
+function req_(ok,msg){if(!ok)throw new Error(msg);}
+function rows_(name){
+  const sh=spreadsheet_().getSheetByName(name);if(!sh||sh.getLastRow()<2)return[];
+  const v=sh.getDataRange().getValues(),h=v[0].map(String);
+  return v.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]);return o;});
 }
-
-function json_(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+function addRow_(name,obj){
+  const sh=spreadsheet_().getSheetByName(name);if(!sh)throw new Error('Run setupBackend first. Missing sheet: '+name);
+  const h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];sh.appendRow(h.map(k=>obj[k]===undefined?'':obj[k]));
 }
-
-function now_() {
-  return new Date().toISOString();
-}
-
-function clean_(value, max) {
-  return String(value == null ? '' : value).trim().slice(0, max || 500);
-}
-
-function email_(value) {
-  return clean_(value, 200).toLowerCase();
-}
-
-function id_(prefix) {
-  return prefix + '_' + Utilities.getUuid().replace(/-/g,'').slice(0,20);
-}
-
-function token_() {
-  return Utilities.getUuid() + '.' + Utilities.getUuid();
-}
-
-function hash_(value) {
-  return Utilities.base64EncodeWebSafe(
-    Utilities.computeDigest(
-      Utilities.DigestAlgorithm.SHA_256,
-      String(value),
-      Utilities.Charset.UTF_8
-    )
-  );
-}
-
-function same_(a,b) {
-  a = String(a || '');
-  b = String(b || '');
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i=0;i<a.length;i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return result === 0;
-}
-
-function req_(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-function rows_(sheetName) {
-  const sh = spreadsheet_().getSheetByName(sheetName);
-  if (!sh || sh.getLastRow() < 2) return [];
-
-  const values = sh.getDataRange().getValues();
-  const headers = values[0].map(String);
-
-  return values.slice(1)
-    .filter(row => row.some(v => v !== ''))
-    .map(row => {
-      const item = {};
-      headers.forEach((key,i) => item[key] = row[i]);
-      return item;
-    });
-}
-
-function addRow_(sheetName, item) {
-  const sh = spreadsheet_().getSheetByName(sheetName);
-  if (!sh) throw new Error('Run setupBackend first. Missing sheet: ' + sheetName);
-
-  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
-  sh.appendRow(headers.map(key => item[key] === undefined ? '' : item[key]));
-}
-
-function find_(sheetName, key, value) {
-  const data = rows_(sheetName);
-  for (let i=0;i<data.length;i++) {
-    if (String(data[i][key]) === String(value)) return data[i];
-  }
-  return null;
-}
-
-function updateRow_(sheetName, key, value, patch) {
-  const sh = spreadsheet_().getSheetByName(sheetName);
-  const values = sh.getDataRange().getValues();
-  const headers = values[0].map(String);
-  const keyCol = headers.indexOf(key);
-
-  for (let r=1;r<values.length;r++) {
-    if (String(values[r][keyCol]) === String(value)) {
-      Object.keys(patch).forEach(name => {
-        const col = headers.indexOf(name);
-        if (col >= 0) sh.getRange(r+1,col+1).setValue(patch[name]);
-      });
-      return true;
-    }
+function find_(name,key,value){const a=rows_(name);for(let i=0;i<a.length;i++)if(String(a[i][key])===String(value))return a[i];return null;}
+function updateRow_(name,key,value,patch){
+  const sh=spreadsheet_().getSheetByName(name),v=sh.getDataRange().getValues(),h=v[0].map(String),kc=h.indexOf(key);
+  req_(kc>=0,'Missing column: '+key);
+  for(let r=1;r<v.length;r++)if(String(v[r][kc])===String(value)){
+    Object.keys(patch).forEach(k=>{const c=h.indexOf(k);if(c>=0)sh.getRange(r+1,c+1).setValue(patch[k]);});
+    return true;
   }
   return false;
 }
+function audit_(uid,tid,action,actor,metadata){addRow_(W.S.L,{AuditID:id_('WAUD'),UserID:uid,TransactionID:tid,Action:action,Actor:actor,Metadata:metadata||'',CreatedAt:now_()});}
+function pubUser_(u){return{userId:u.UserID,email:u.Email,name:u.Name,status:u.Status};}
+function pubTx_(t){return{transactionId:t.TransactionID,type:t.Type,amount:Number(t.Amount||0),status:t.Status,balanceBefore:Number(t.BalanceBefore||0),balanceAfter:Number(t.BalanceAfter||0),upiId:t.UPIId||'',paymentLink:t.PaymentLink||'',paymentLinkLabel:t.PaymentLinkLabel||'',attempt:Number(t.Attempt||1),parentTransactionId:t.ParentTransactionID||'',createdAt:t.CreatedAt,updatedAt:t.UpdatedAt,completedAt:t.CompletedAt||'',notes:t.Notes||''};}
 
-/* ---------- EMAIL OTP ---------- */
-
-function requestOtp_(d) {
-  const email = email_(d.email);
-  req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Enter a valid email address.');
-
-  const previous = rows_(W.S.O)
-    .filter(x => email_(x.Email) === email)
-    .pop();
-
-  if (previous && previous.LastSentAt &&
-      Date.now() - new Date(previous.LastSentAt).getTime() < 60000) {
-    throw new Error('Please wait before requesting another OTP.');
-  }
-
-  const otp = String(Math.floor(100000 + Math.random() * 900000));
-  const timestamp = now_();
-
-  addRow_(W.S.O, {
-    OTPId:id_('WOTP'),
-    Email:email,
-    OtpHash:hash_(otp),
-    ExpiresAt:new Date(Date.now()+W.OTP_MS).toISOString(),
-    UsedAt:'',
-    CreatedAt:timestamp,
-    LastSentAt:timestamp
-  });
-
-  MailApp.sendEmail({
-    to:email,
-    subject:'Trusted Circle Wallet Services - Login OTP',
-    name:'Trusted Circle',
-    replyTo:'info@trustedcircle.in',
-    body:'Your Trusted Circle Wallet Services OTP is ' + otp +
-      '. It expires in 10 minutes. Do not share this code.',
-    htmlBody:
-      '<div style="font-family:Arial;padding:24px">' +
-      '<h2 style="color:#0f5132">Trusted Circle Wallet Services</h2>' +
-      '<p>Your OTP is:</p>' +
-      '<div style="font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f3f6f4;text-align:center">' +
-      otp + '</div><p>Expires in 10 minutes. Do not share this OTP.</p></div>'
-  });
-
-  return {ok:true,data:{sent:true,email:email,expiresInSeconds:600}};
+/* AUTH */
+function requestOtp_(d){
+  const em=email_(d.email);req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em),'Enter a valid email address.');
+  const previous=rows_(W.S.O).filter(x=>email_(x.Email)===em).pop();
+  if(previous&&previous.LastSentAt&&Date.now()-new Date(previous.LastSentAt).getTime()<60000)throw new Error('Please wait before requesting another OTP.');
+  const otp=String(Math.floor(100000+Math.random()*900000)),ts=now_();
+  addRow_(W.S.O,{OTPId:id_('WOTP'),Email:em,OtpHash:hash_(otp),ExpiresAt:new Date(Date.now()+W.OTP_MS).toISOString(),UsedAt:'',CreatedAt:ts,LastSentAt:ts});
+  MailApp.sendEmail({to:em,subject:'Trusted Circle Wallet Services — Login OTP',name:'Trusted Circle',replyTo:'info@trustedcircle.in',body:'Your Trusted Circle Wallet Services OTP is '+otp+'. It expires in 10 minutes. Do not share this code.',htmlBody:'<div style="font-family:Arial;padding:24px"><h2 style="color:#0f5132">Trusted Circle Wallet Services</h2><p>Your OTP is:</p><div style="font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f3f6f4;text-align:center">'+otp+'</div><p>Expires in 10 minutes. Do not share this OTP.</p></div>'});
+  return{ok:true,data:{sent:true,email:em,expiresInSeconds:600}};
 }
-
-function verifyOtp_(d) {
-  const email = email_(d.email);
-  const otp = clean_(d.otp,20);
-
-  req_(
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && /^\d{6}$/.test(otp),
-    'Enter email and 6-digit OTP.'
-  );
-
-  const candidates = rows_(W.S.O).filter(x =>
-    email_(x.Email) === email && !x.UsedAt
-  );
-
-  req_(candidates.length, 'OTP not found. Request a new OTP.');
-
-  const latest = candidates[candidates.length-1];
-
-  req_(
-    new Date(latest.ExpiresAt).getTime() > Date.now(),
-    'OTP expired. Request a new OTP.'
-  );
-  req_(same_(latest.OtpHash,hash_(otp)), 'Invalid OTP.');
-
-  updateRow_(W.S.O,'OTPId',latest.OTPId,{UsedAt:now_()});
-
-  let user = find_(W.S.U,'Email',email);
-  const timestamp = now_();
-
-  if (!user) {
-    user = {
-      UserID:id_('WUSR'),
-      Email:email,
-      Name:clean_(d.name,100) || email.split('@')[0],
-      Status:'ACTIVE',
-      CreatedAt:timestamp,
-      UpdatedAt:timestamp,
-      LastLoginAt:timestamp
-    };
-
-    addRow_(W.S.U,user);
-
-    addRow_(W.S.W,{
-      WalletID:id_('WAL'),
-      UserID:user.UserID,
-      Balance:0,
-      ReservedBalance:0,
-      Currency:'INR',
-      Status:'ACTIVE',
-      CreatedAt:timestamp,
-      UpdatedAt:timestamp
-    });
-  }
-
-  req_(String(user.Status) === 'ACTIVE','Wallet account is inactive.');
-
-  updateRow_(W.S.U,'UserID',user.UserID,{
-    LastLoginAt:timestamp,
-    UpdatedAt:timestamp
-  });
-
-  const rawToken = token_();
-  const expiresAt = new Date(Date.now()+W.SESSION_MS).toISOString();
-
-  addRow_(W.S.S,{
-    SessionID:id_('WSES'),
-    UserID:user.UserID,
-    TokenHash:hash_(rawToken),
-    ExpiresAt:expiresAt,
-    CreatedAt:timestamp,
-    RevokedAt:'',
-    Status:'ACTIVE'
-  });
-
-  return {
-    ok:true,
-    data:{
-      user:pubUser_(user),
-      session:{token:rawToken,expiresAt:expiresAt}
-    }
-  };
+function verifyOtp_(d){
+  const em=email_(d.email),otp=clean_(d.otp,20);req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)&&/^\d{6}$/.test(otp),'Enter email and 6-digit OTP.');
+  const a=rows_(W.S.O).filter(x=>email_(x.Email)===em&&!x.UsedAt);req_(a.length,'OTP not found. Request a new OTP.');
+  const x=a[a.length-1];req_(new Date(x.ExpiresAt).getTime()>Date.now(),'OTP expired. Request a new OTP.');req_(same_(x.OtpHash,hash_(otp)),'Invalid OTP.');updateRow_(W.S.O,'OTPId',x.OTPId,{UsedAt:now_()});
+  let u=find_(W.S.U,'Email',em),ts=now_();
+  if(!u){u={UserID:id_('WUSR'),Email:em,Name:clean_(d.name,100)||em.split('@')[0],Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts,LastLoginAt:ts};addRow_(W.S.U,u);addRow_(W.S.W,{WalletID:id_('WAL'),UserID:u.UserID,Balance:0,ReservedBalance:0,Currency:'INR',Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts});}
+  req_(u.Status==='ACTIVE','Wallet account is inactive.');updateRow_(W.S.U,'UserID',u.UserID,{LastLoginAt:ts,UpdatedAt:ts});
+  const raw=token_(),exp=new Date(Date.now()+W.SESSION_MS).toISOString();addRow_(W.S.S,{SessionID:id_('WSES'),UserID:u.UserID,TokenHash:hash_(raw),ExpiresAt:exp,CreatedAt:ts,RevokedAt:'',Status:'ACTIVE'});
+  return{ok:true,data:{user:pubUser_(u),session:{token:raw,expiresAt:exp}}};
 }
-
-function auth_(rawToken) {
-  req_(rawToken,'Authentication required.');
-
-  const target = hash_(rawToken);
-  const sessions = rows_(W.S.S);
-
-  for (let i=sessions.length-1;i>=0;i--) {
-    const session = sessions[i];
-
-    if (session.Status === 'ACTIVE' && same_(session.TokenHash,target)) {
-      req_(
-        new Date(session.ExpiresAt).getTime() > Date.now(),
-        'Session expired.'
-      );
-
-      const user = find_(W.S.U,'UserID',session.UserID);
-      req_(user && user.Status === 'ACTIVE','Wallet account is inactive.');
-      return user;
-    }
-  }
-
+function auth_(raw){
+  req_(raw,'Authentication required.');const h=hash_(raw),a=rows_(W.S.S);
+  for(let i=a.length-1;i>=0;i--)if(a[i].Status==='ACTIVE'&&same_(a[i].TokenHash,h)){req_(new Date(a[i].ExpiresAt).getTime()>Date.now(),'Session expired.');const u=find_(W.S.U,'UserID',a[i].UserID);req_(u&&u.Status==='ACTIVE','Wallet account is inactive.');return u;}
   throw new Error('Invalid session.');
 }
+function logout_(raw){if(!raw)return false;const h=hash_(raw),a=rows_(W.S.S);for(let i=a.length-1;i>=0;i--)if(a[i].Status==='ACTIVE'&&same_(a[i].TokenHash,h)){updateRow_(W.S.S,'SessionID',a[i].SessionID,{Status:'REVOKED',RevokedAt:now_()});return true;}return false;}
 
-function pubUser_(user) {
-  return {
-    userId:user.UserID,
-    email:user.Email,
-    name:user.Name,
-    status:user.Status
-  };
+/* WALLET */
+function walletRow_(uid){const w=find_(W.S.W,'UserID',uid);req_(w,'Wallet not found.');return w;}
+function txs_(uid,limit){
+  const a=rows_(W.S.T).filter(x=>String(x.UserID)===String(uid));a.sort((x,y)=>new Date(y.CreatedAt)-new Date(x.CreatedAt));return a.slice(0,limit||250).map(pubTx_);
+}
+function wallet_(d){
+  const u=auth_(d.token),w=walletRow_(u.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
+  return{ok:true,data:{user:pubUser_(u),balance:balance,reservedBalance:reserved,availableBalance:balance-reserved,currency:'INR',addAmounts:W.ADD,transactions:txs_(u.UserID,50)}};
+}
+function walletOrders_(d){const u=auth_(d.token);return{ok:true,data:{transactions:txs_(u.UserID,500)}};}
+function transactionStatus_(d){const u=auth_(d.token),t=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(t&&String(t.UserID)===String(u.UserID),'Transaction not found.');return{ok:true,data:{transaction:pubTx_(t)}};}
+
+/* PAYMENT LINK STOCK */
+function releaseExpiredReservations_(){
+  rows_(W.S.P).forEach(x=>{
+    if(x.Status==='RESERVED'&&x.ExpiresAt&&new Date(x.ExpiresAt).getTime()<=Date.now())
+      updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now_(),Notes:'Reservation expired'});
+  });
+}
+function reservePaymentLink_(amount,tid){
+  releaseExpiredReservations_();
+  const a=rows_(W.S.P).filter(x=>Number(x.Denomination)===Number(amount)&&x.Status==='AVAILABLE');
+  req_(a.length,'No Wallet payment link is available for ₹'+amount+' right now.');
+  const x=a[0],ts=now_(),exp=new Date(Date.now()+W.RESERVATION_MS).toISOString();
+  updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
+  return{reservationId:x.PaymentLinkStockID,paymentLink:x.Link,label:x.Label||'',expiresAt:exp};
+}
+function releasePaymentLink_(rid,tid){
+  const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
+  req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
+  return updateRow_(W.S.P,'PaymentLinkStockID',rid,{Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now_(),Notes:'Reservation released'});
+}
+function consumePaymentLink_(rid,tid){
+  const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
+  req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
+  return updateRow_(W.S.P,'PaymentLinkStockID',rid,{Status:'USED',UsedAt:now_(),UpdatedAt:now_(),Notes:'Payment confirmed by admin'});
 }
 
-/* ---------- PLACEHOLD FOR NEXT WALLET MODULES ---------- */
-/*
-  Next module will add:
-  - Wallet Home reads
-  - Add Money + independent WalletPaymentLinks
-  - Received / Not Received / Rejected admin actions
-  - Retry
-  - Withdraw
-  - Wallet Orders
-  - Wallet Admin link stock management
-*/
+/* ADD MONEY */
+function addMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),amount=Number(d.amount);req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
+    const tid=id_('WTXN'),link=reservePaymentLink_(amount,tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
+    const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
+    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));
+    return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
+  }finally{lock.releaseLock();}
+}
+function retryAddMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),old=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(old&&String(old.UserID)===String(u.UserID),'Transaction not found.');req_(old.Status==='NOT_RECEIVED','Only a Not Received payment can be retried.');
+    const tid=id_('WTXN'),link=reservePaymentLink_(Number(old.Amount),tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
+    updateRow_(W.S.T,'TransactionID',old.TransactionID,{Status:'RETRY_CREATED',UpdatedAt:ts,Notes:'Retry created'});
+    const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:Number(old.Amount),Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:Number(old.Attempt||1)+1,ParentTransactionID:old.TransactionID,CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Retry payment',AdminNote:''};
+    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_RETRY','USER',old.TransactionID);
+    return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
+  }finally{lock.releaseLock();}
+}
+
+/* WITHDRAW */
+function withdrawMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),amount=Number(d.amount),upi=clean_(d.upiId,200),w=walletRow_(u.UserID),bal=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
+    req_(amount>0&&isFinite(amount),'Enter a valid withdrawal amount.');
+    req_(/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upi),'Enter a valid UPI ID.');
+    req_(amount<=bal-reserved,'Insufficient available wallet balance.');
+    const ts=now_(),tid=id_('WTXN');
+    updateRow_(W.S.W,'UserID',u.UserID,{ReservedBalance:reserved+amount,UpdatedAt:ts});
+    const t={TransactionID:tid,UserID:u.UserID,Type:'WITHDRAW',Amount:amount,Status:'WITHDRAWAL_REQUESTED',BalanceBefore:bal,BalanceAfter:bal,UPIId:upi,PaymentLink:'',PaymentLinkLabel:'',PaymentReservationId:'',Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Withdrawal requested',AdminNote:''};
+    addRow_(W.S.T,t);createWithdrawalActions_(t);audit_(u.UserID,tid,'WITHDRAW_REQUESTED','USER',JSON.stringify({amount:amount,upiId:upi}));
+    return{ok:true,data:{transaction:pubTx_(t)}};
+  }finally{lock.releaseLock();}
+}
+
+/* ADMIN STOCK */
+function walletAdminKey_(){return requiredProp_('WALLET_ADMIN_KEY');}
+function adminReq_(d){req_(same_(clean_(d.adminKey,500),walletAdminKey_()),'Invalid Wallet Admin Key.');}
+function adminAddPaymentLink_(d){
+  adminReq_(d);const amount=Number(d.denomination),link=clean_(d.link,2000),label=clean_(d.label,200);
+  req_(W.ADD.indexOf(amount)>=0,'Invalid denomination.');req_(/^https?:\/\//i.test(link),'Enter a valid payment gateway URL.');
+  const ts=now_(),id=id_('WPL');addRow_(W.S.P,{PaymentLinkStockID:id,Denomination:amount,Link:link,Label:label||('₹'+amount+' Wallet Payment'),Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UsedAt:'',CreatedAt:ts,UpdatedAt:ts,Notes:''});
+  audit_('SYSTEM','', 'ADMIN_PAYMENT_LINK_ADDED','ADMIN',JSON.stringify({id:id,amount:amount}));return{ok:true,data:{paymentLinkStockId:id}};
+}
+function adminAddPaymentLinkBulk_(d){
+  adminReq_(d);const amount=Number(d.denomination),label=clean_(d.label,200),links=String(d.links||'').split(/\r?\n/).map(x=>clean_(x,2000)).filter(Boolean);
+  req_(W.ADD.indexOf(amount)>=0,'Invalid denomination.');req_(links.length,'Paste at least one payment link.');
+  let added=0;const ts=now_();links.forEach(link=>{if(!/^https?:\/\//i.test(link))return;addRow_(W.S.P,{PaymentLinkStockID:id_('WPL'),Denomination:amount,Link:link,Label:label||('₹'+amount+' Wallet Payment'),Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UsedAt:'',CreatedAt:ts,UpdatedAt:ts,Notes:'Bulk added'});added++;});
+  req_(added,'No valid payment gateway links were found.');audit_('SYSTEM','','ADMIN_PAYMENT_LINK_BULK_ADDED','ADMIN',JSON.stringify({amount:amount,added:added}));return{ok:true,data:{added:added}};
+}
+function adminPaymentStock_(d){
+  adminReq_(d);releaseExpiredReservations_();const links=rows_(W.S.P),summary={};
+  W.ADD.forEach(a=>summary[String(a)]={denomination:a,available:0,reserved:0,used:0,removed:0});
+  links.forEach(x=>{const s=summary[String(Number(x.Denomination))];if(!s)return;if(x.Status==='AVAILABLE')s.available++;else if(x.Status==='RESERVED')s.reserved++;else if(x.Status==='USED')s.used++;else if(x.Status==='REMOVED')s.removed++;});
+  return{ok:true,data:{summary:Object.keys(summary).map(k=>summary[k]),links:links.map(x=>({paymentLinkStockId:x.PaymentLinkStockID,denomination:Number(x.Denomination),link:x.Link,label:x.Label||'',status:x.Status,walletTransactionId:x.WalletTransactionID||'',reservedAt:x.ReservedAt||'',expiresAt:x.ExpiresAt||'',usedAt:x.UsedAt||''}))}};
+}
+function adminRemovePaymentLink_(d){
+  adminReq_(d);const id=clean_(d.paymentLinkStockId,100),x=find_(W.S.P,'PaymentLinkStockID',id);req_(x,'Payment link not found.');req_(x.Status==='AVAILABLE','Only an AVAILABLE payment link can be removed.');
+  updateRow_(W.S.P,'PaymentLinkStockID',id,{Status:'REMOVED',UpdatedAt:now_(),Notes:'Removed by Wallet Admin'});audit_('SYSTEM','', 'ADMIN_PAYMENT_LINK_REMOVED','ADMIN',id);return{ok:true,data:{removed:true}};
+}
+
+/* ADMIN ACTION EMAILS */
+function adminEmail_(){return props_().getProperty('ADMIN_EMAIL')||'trustedcircle2026@gmail.com';}
+function actionToken_(tid,action){const raw=token_();addRow_(W.S.A,{ActionID:id_('WACT'),TransactionID:tid,Action:action,TokenHash:hash_(raw),ExpiresAt:new Date(Date.now()+W.ACTION_MS).toISOString(),UsedAt:'',CreatedAt:now_()});return raw;}
+function actionUrl_(raw,action){return ScriptApp.getService().getUrl()+'?adminAction='+encodeURIComponent(action)+'&token='+encodeURIComponent(raw);}
+function createAdminActions_(t){
+  const r=actionToken_(t.TransactionID,'RECEIVED'),n=actionToken_(t.TransactionID,'NOT_RECEIVED'),x=actionToken_(t.TransactionID,'REJECTED');
+  const h='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Amount:</b> ₹'+t.Amount+'</p><p><b>Payment link:</b> '+esc_(t.PaymentLinkLabel||'Wallet Payment')+'</p>'+btn_('✓ Received',actionUrl_(r,'RECEIVED'),'#0f5132')+btn_('! Not Received',actionUrl_(n,'NOT_RECEIVED'),'#b26a00')+btn_('✕ Rejected',actionUrl_(x,'REJECTED'),'#b42318');
+  MailApp.sendEmail({to:adminEmail_(),subject:'Trusted Circle Wallet — Add Money ₹'+t.Amount,body:'Wallet Add Money request '+t.TransactionID,htmlBody:shell_('Wallet Add Money Request',h)});
+}
+function createWithdrawalActions_(t){
+  const a=actionToken_(t.TransactionID,'WITHDRAW_APPROVE'),r=actionToken_(t.TransactionID,'WITHDRAW_REJECT');
+  const h='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Amount:</b> ₹'+t.Amount+'</p><p><b>UPI ID:</b> '+esc_(t.UPIId)+'</p>'+btn_('✓ Approve Withdrawal',actionUrl_(a,'WITHDRAW_APPROVE'),'#0f5132')+btn_('✕ Reject Withdrawal',actionUrl_(r,'WITHDRAW_REJECT'),'#b42318');
+  MailApp.sendEmail({to:adminEmail_(),subject:'Trusted Circle Wallet — Withdrawal ₹'+t.Amount,body:'Wallet Withdrawal request '+t.TransactionID,htmlBody:shell_('Wallet Withdrawal Request',h)});
+}
+function adminAction_(p){
+  try{
+    const action=clean_(p.adminAction,50),token=clean_(p.token,500),h=hash_(token),a=rows_(W.S.A);let row=null;
+    for(let i=a.length-1;i>=0;i--)if(same_(a[i].TokenHash,h)){row=a[i];break;}
+    req_(row,'Admin action not found.');req_(!row.UsedAt,'This admin action has already been used.');req_(new Date(row.ExpiresAt).getTime()>Date.now(),'This admin action has expired.');req_(row.Action===action,'Invalid admin action.');
+    const t=find_(W.S.T,'TransactionID',row.TransactionID);req_(t,'Transaction not found.');
+    const lock=LockService.getScriptLock();lock.waitLock(20000);
+    try{
+      if(action==='RECEIVED')received_(t);
+      else if(action==='NOT_RECEIVED')notReceived_(t);
+      else if(action==='REJECTED')rejected_(t);
+      else if(action==='WITHDRAW_APPROVE')withdrawApprove_(t);
+      else if(action==='WITHDRAW_REJECT')withdrawReject_(t);
+      else throw new Error('Unsupported admin action.');
+      updateRow_(W.S.A,'ActionID',row.ActionID,{UsedAt:now_()});audit_(t.UserID,t.TransactionID,'ADMIN_'+action,'ADMIN','');
+      return html_('Trusted Circle Wallet','Action completed successfully.',true);
+    }finally{lock.releaseLock();}
+  }catch(err){return html_('Trusted Circle Wallet',err.message,false);}
+}
+function received_(t){
+  req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');const w=walletRow_(t.UserID),before=Number(w.Balance||0),after=before+Number(t.Amount);
+  if(t.PaymentReservationId)consumePaymentLink_(t.PaymentReservationId,t.TransactionID);
+  updateRow_(W.S.W,'UserID',t.UserID,{Balance:after,UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'COMPLETED',BalanceBefore:before,BalanceAfter:after,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Payment received'});
+}
+function notReceived_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'NOT_RECEIVED',UpdatedAt:now_(),Notes:'Admin marked payment not received'});}
+function rejected_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'REJECTED',UpdatedAt:now_(),Notes:'Payment rejected'});}
+function withdrawApprove_(t){
+  req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount),balance=Number(w.Balance||0);req_(reserved>=amount,'Reserved balance mismatch.');
+  updateRow_(W.S.W,'UserID',t.UserID,{Balance:balance-amount,ReservedBalance:reserved-amount,UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:balance-amount,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal approved'});
+}
+function withdrawReject_(t){
+  req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount);
+  updateRow_(W.S.W,'UserID',t.UserID,{ReservedBalance:Math.max(0,reserved-amount),UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_REJECTED',UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal rejected; amount released'});
+}
+
+/* HTML */
+function esc_(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function btn_(label,url,bg){return'<a href="'+esc_(url)+'" style="display:inline-block;margin:6px;padding:13px 20px;background:'+bg+';color:#fff;text-decoration:none;border-radius:9px;font-weight:bold">'+esc_(label)+'</a>';}
+function shell_(title,body){return'<div style="font-family:Arial;max-width:650px;margin:auto;padding:25px;background:#f4f7f5"><div style="background:#fff;padding:28px;border-radius:16px"><h2 style="color:#0f5132">'+esc_(title)+'</h2>'+body+'<p style="font-size:12px;color:#777">Trusted Circle Wallet Services · Admin links expire after 24 hours.</p></div></div>';}
+function html_(title,msg,success){return HtmlService.createHtmlOutput('<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#f4f7f5"><div style="max-width:520px;margin:15vh auto;padding:40px;background:#fff;border-radius:18px;text-align:center"><div style="font-size:50px;color:'+(success?'#0f5132':'#b42318')+'">'+(success?'✓':'!')+'</div><h2>'+esc_(title)+'</h2><p>'+esc_(msg)+'</p><a href="https://trustedcircle.shop/#/wallet-services" style="display:inline-block;padding:12px 20px;background:#0f5132;color:#fff;text-decoration:none;border-radius:9px">Open Wallet Services</a></div></body></html>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
