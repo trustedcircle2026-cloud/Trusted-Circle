@@ -1,6 +1,6 @@
 const WALLET_API_URL =
   import.meta.env.VITE_WALLET_APPS_SCRIPT_URL ||
-  'PASTE_WALLET_APPS_SCRIPT_EXEC_URL_HERE'
+  'https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec'
 
 async function walletRequest(action, payload = {}) {
   if (WALLET_API_URL.includes('PASTE_WALLET')) {
