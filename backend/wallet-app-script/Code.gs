@@ -5,8 +5,7 @@
  * Script Properties:
  * SPREADSHEET_ID = 1Q5-xDelfCBiYldQAnToDTuQRy4c_rZlHoDvtsaP1mNI
  * ADMIN_EMAIL = trustedcircle2026@gmail.com
- * SHOPPING_PAYMENT_API_URL = existing Shopping Apps Script /exec URL
- * SHOPPING_PAYMENT_BRIDGE_SECRET = same value as Shopping WALLET_BRIDGE_SECRET
+ * WALLET_ADMIN_KEY = private admin key stored only in Script Properties
  *
  * First run: setupBackend
  */
