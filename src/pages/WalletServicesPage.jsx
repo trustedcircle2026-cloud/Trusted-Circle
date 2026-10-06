@@ -70,9 +70,9 @@ function Login({onLogin}){
    setMessage('Verifying OTP…');
    try{
      const d=await walletApi.verifyOtp(email,otp,isNewUser?name.trim():name.trim());
-     const session=d?.session||d?.data?.session;
-     const verifiedUser=d?.user||d?.data?.user;
-     if(!session?.token)throw new Error('Wallet login response was incomplete. Please request a new OTP and try again.');
+     const session=d?.session||d?.data?.session||d?.data?.data?.session||((d?.token)?d:null);
+     const verifiedUser=d?.user||d?.data?.user||d?.data?.data?.user||null;
+     if(!session?.token)throw new Error('Login response did not contain a session token. Please try the OTP again.');
      localStorage.setItem(SESSION_KEY,session.token);
      onLogin(session.token,verifiedUser);
    }catch(err){setMessage(err.message)}finally{setBusy(false)}
