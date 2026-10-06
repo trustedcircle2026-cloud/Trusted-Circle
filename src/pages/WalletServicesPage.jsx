@@ -65,7 +65,7 @@ function WalletHome({token,user,onLogout}){
  const[wallet,setWallet]=useState(null),[orders,setOrders]=useState([]),[busy,setBusy]=useState(true),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false)
  const load=async()=>{setBusy(true);try{const[w,o]=await Promise.all([walletApi.wallet(token),walletApi.orders(token)]);setWallet(w);setOrders(o.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
  useEffect(()=>{load()},[])
- const startAdd=amount=>{setNotice('');walletApi.addMoney(token,amount).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt})}).catch(e=>setNotice(e.message))}
+ const startAdd=amount=>{setNotice('');walletApi.addMoney(token,amount).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt,token})}).catch(e=>setNotice(e.message))}
  const retry=tx=>{setNotice('');walletApi.retryAddMoney(token,tx.transactionId).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt})}).catch(e=>setNotice(e.message))}
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(token,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
  const openOrders=()=>{setModal({type:'orders'})}
