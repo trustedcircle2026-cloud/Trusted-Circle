@@ -62,7 +62,7 @@ function ProfileMenu({user,onLogout,onClose}){
 
 function WalletHome({token,user,onLogout}){
  const[wallet,setWallet]=useState(null),[orders,setOrders]=useState([]),[busy,setBusy]=useState(true),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
- const load=async()=>{setBusy(true);try{const[w,o]=await Promise.all([walletApi.wallet(token),walletApi.orders(token)]);setWallet(w);setOrders(o.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
+ const load=async()=>{setBusy(true);try{const w=await walletApi.wallet(token);setWallet(w);setOrders(w.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
  useEffect(()=>{load()},[])
  const openPaymentFlow=async(amount,retryTransaction=null)=>{
   setNotice('');
@@ -81,7 +81,7 @@ function WalletHome({token,user,onLogout}){
  const retry=tx=>openPaymentFlow(null,tx);
 
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(token,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
- const openOrders=()=>{setModal({type:'orders'})}
+ const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(token);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
  const balance=wallet?.balance||0,available=wallet?.availableBalance||0
  return <main className="wallet-services-page"><section className="wallet-services-shell">
