@@ -11,7 +11,7 @@ async function walletRequest(action,payload={}){
 }
 export const walletApi={
   requestOtp:email=>walletRequest('requestOtp',{email}),
-  verifyOtp:(email,otp)=>walletRequest('verifyOtp',{email,otp}),
+  verifyOtp:(email,otp,name)=>walletRequest('verifyOtp',{email,otp,name}),
   me:token=>walletRequest('me',{token}),
   wallet:token=>walletRequest('wallet',{token}),
   orders:token=>walletRequest('walletOrders',{token}),
