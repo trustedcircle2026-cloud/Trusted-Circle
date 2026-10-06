@@ -1,50 +1,137 @@
-# Wallet Services Backend
+# Trusted Circle Wallet Services Backend
 
-This backend is now **100% independent from Shopping**.
+Wallet Services is a **completely separate business system** from the existing Shopping website.
 
-### Separate systems
-- Shopping website: existing Shopping Apps Script + Shopping payment-link stock.
-- Wallet Services: this Apps Script + separate Wallet Google Sheet + WalletPaymentLinks stock.
-- Wallet never calls the Shopping backend for payment links.
+## Separation
 
-### Wallet sheet tabs created by setupBackend
-WalletUsers, WalletOTP, WalletSessions, Wallets, WalletTransactions, WalletPaymentLinks, WalletAdminActions, WalletAuditLogs.
+**Shopping**
+- Existing Shopping Google Sheet
+- Existing Shopping Apps Script
+- Existing Shopping payment links
 
-### Script Properties
-Set these in Apps Script:
-- SPREADSHEET_ID = your separate Wallet Google Sheet ID
+**Wallet Services**
+- New Wallet Google Sheet
+- New Wallet Apps Script
+- New Wallet payment-link stock
+- New Wallet users, wallets and transactions
+
+The Wallet backend does **not** call the Shopping backend and does **not** use Shopping payment-link stock.
+
+## 1. Create the new Wallet Google Sheet
+
+Create a completely new Google Sheet, for example:
+
+**Trusted Circle — Wallet Services**
+
+Do not copy the Shopping payment sheet into this file.
+
+The Apps Script setupBackend() function creates these tabs automatically:
+
+1. WalletUsers
+2. WalletOTP
+3. WalletSessions
+4. Wallets
+5. WalletTransactions
+6. WalletPaymentLinks
+7. WalletAdminActions
+8. WalletAuditLogs
+
+## 2. Configure Apps Script Properties
+
+In the Wallet Apps Script project open:
+
+**Project Settings → Script Properties**
+
+Add:
+
+- SPREADSHEET_ID = ID of the new Wallet Google Sheet
 - ADMIN_EMAIL = trustedcircle2026@gmail.com
-- WALLET_ADMIN_KEY = strong private admin key
+- WALLET_ADMIN_KEY = a strong private key
 
 Never commit WALLET_ADMIN_KEY to GitHub.
 
-### Wallet payment gateway
-The Wallet payment gateway is represented by payment URLs stored in WalletPaymentLinks. Admin manually adds the links through WalletAdminaddlink.html.
+The spreadsheet ID is also intentionally not hard-coded in Code.gs.
 
-Supported denominations: 500, 1000, 1500, 2000.
+## 3. Run the initial setup
 
-Link lifecycle:
-AVAILABLE -> RESERVED -> USED
-AVAILABLE -> RESERVED -> AVAILABLE (Not Received / reservation expiry)
-AVAILABLE -> REMOVED (admin removal)
+After the three properties are saved:
 
-Reservation time: 15 minutes.
+1. Open Apps Script editor.
+2. Select setupBackend.
+3. Click Run.
+4. Approve Google authorization when requested.
+5. Open the Wallet Google Sheet.
 
-### Admin page
-WalletAdminaddlink.html is the separate stock-management page. Before using it, replace:
-PASTE_WALLET_APPS_SCRIPT_EXEC_URL_HERE
-with the deployed Wallet Apps Script /exec URL.
+You should then see all eight Wallet tabs with their header rows.
 
-The page supports single-link and bulk-link entry and stock viewing.
+## 4. Wallet payment-link stock
 
-### Customer flow
-1. Customer logs into Wallet Services using Email + OTP.
-2. Selects Add Money amount.
-3. Wallet reserves a matching payment link from WalletPaymentLinks.
-4. Customer is redirected to that payment link.
-5. Admin receives Received / Not Received / Rejected.
-6. Received consumes the link and credits wallet.
-7. Not Received releases the link and enables retry.
-8. Rejected releases the link and requires a new payment.
+WalletPaymentLinks is the separate payment-link inventory.
 
-No Shopping code or Shopping payment stock is used by this Wallet backend.
+Supported denominations:
+
+- ₹500
+- ₹1,000
+- ₹1,500
+- ₹2,000
+
+Lifecycle:
+
+AVAILABLE → RESERVED → USED
+
+AVAILABLE → RESERVED → AVAILABLE when the payment is marked Not Received or the reservation expires.
+
+AVAILABLE → REMOVED when Wallet Admin removes unused stock.
+
+Reservations are held for 15 minutes.
+
+## 5. Current frontend foundation
+
+The Shopping home page now has a separate Wallet Services button beside Shop vouchers.
+
+It opens:
+
+#/wallet-services
+
+The new page has:
+
+1. Email login
+2. OTP verification
+3. Wallet Home shell after successful login
+
+Wallet login uses its own session key:
+
+tc_wallet_session
+
+It does not reuse the Shopping login session.
+
+## 6. Wallet Apps Script deployment
+
+After the backend is complete:
+
+- Deploy the Wallet Apps Script as a Web App.
+- Execute as the Wallet owner/admin account.
+- Give the web app the required access for the intended customer flow.
+- Copy the /exec URL.
+- Put it into the frontend environment variable:
+
+VITE_WALLET_APPS_SCRIPT_URL
+
+The current frontend intentionally contains a placeholder until the real /exec URL is available.
+
+## 7. Next Wallet modules
+
+The next implementation stage will connect the Wallet Home to:
+
+- real balance
+- Add Money
+- ₹500 / ₹1,000 / ₹1,500 / ₹2,000 payment-link reservation
+- independent Wallet payment gateway stock
+- payment waiting/checking
+- admin Received / Not Received / Rejected
+- retry payment
+- withdrawal with UPI ID
+- Wallet Orders
+- transaction timeline
+- downloadable transaction statement
+- WalletAdminaddlink.html stock management
