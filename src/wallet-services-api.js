@@ -33,8 +33,11 @@ async function walletRequest(action,payload={}){
         finish(new Error(msg.error||'Wallet Services request failed.'),true);
         return;
       }
-      const data=(msg.data&&typeof msg.data==='object')?msg.data:{};
-      if(msg.token) data.session={token:msg.token,expiresAt:msg.expiresAt||''};
+      // Wallet login responses use a flat v3 contract. Normalize it here,
+      // while retaining compatibility with older nested responses.
+      const data=(msg.data&&typeof msg.data==='object')?{...msg.data}:{};
+      if(msg.token) data.session={token:String(msg.token),expiresAt:msg.expiresAt||''};
+      else if(data.session&&data.session.token) data.session={token:String(data.session.token),expiresAt:data.session.expiresAt||''};
       if(msg.user) data.user=msg.user;
       finish(data);
     };
