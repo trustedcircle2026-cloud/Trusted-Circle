@@ -23,33 +23,9 @@ function readRoute(){const raw=window.location.hash.replace(/^#\/?/,'')||'home';
 const friendlyApiError=error=>{const message=String(error?.message||'Request failed.');if(/API request failed \(404\)/i.test(message))return'Authentication service is not on the latest backend deployment. Please redeploy the Trusted Circle Apps Script Web App and try again.';if(/unknown api action/i.test(message))return'The backend needs the latest deployment.';if(/6-digit OTP/i.test(message))return'Enter the complete 6-digit OTP from the latest email.';return message}
 export default function App(){
  const[route,setRoute]=useState(readRoute),[products,setProducts]=useState([]),[allProducts,setAllProducts]=useState([]),[brands,setBrands]=useState([]),[cart,setCart]=useState([]),[orders,setOrders]=useState([]),[user,setUser]=useState(null),[token,setToken]=useState(()=>localStorage.getItem('tc_session')||''),[query,setQuery]=useState(''),[brandFilter,setBrandFilter]=useState(''),[liked,setLiked]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_liked')||'[]')}catch{return[]}}),[authOpen,setAuthOpen]=useState(false),[authStep,setAuthStep]=useState('email'),[email,setEmail]=useState(''),[otp,setOtp]=useState(''),[authMessage,setAuthMessage]=useState(''),[authBusy,setAuthBusy]=useState(false),[profileOpen,setProfileOpen]=useState(false),[profileName,setProfileName]=useState(''),[paymentMethod,setPaymentMethod]=useState('upiapps'),[lastOrder,setLastOrder]=useState(null),[postLoginRoute,setPostLoginRoute]=useState('home'),[guestCart,setGuestCart]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_guest_cart')||'[]')}catch{return[]}}),[ordersLoading,setOrdersLoading]=useState(false),[sessionActive,setSessionActive]=useState(false)
- const navigate=useCallback((path,id='')=>{const target=id?`#/${path}/${id}`:`#/${path}`;if(window.location.hash!==target)window.location.hash=target;else setRoute({path,id});window.scrollTo({top:0,behavior:'smooth'})},[])
+ const navigate=useCallback((path,id='')=>{const target=id?`#/${path}/${id}`:`#/${path}`;if(window.location.hash!==target)window.location.hash=target;else setRoute({path,id});window.scrollTo({top:0,behavior:'auto'})},[])
  useEffect(()=>{const onHash=()=>setRoute(readRoute());window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
- useEffect(()=>{
-  const checkSession=async()=>{
-   const currentToken=localStorage.getItem('tc_session')
-   if(!currentToken){setSessionActive(false);return}
-   try{
-    const me=await api.me(currentToken)
-    setUser(me)
-    setSessionActive(true)
-    Promise.all([loadCart(currentToken),loadOrders(currentToken)]).catch(()=>{})
-    setProfileName(me.name||'')
-   }catch{
-    localStorage.removeItem('tc_session')
-    setToken('')
-    setSessionActive(false)
-    setUser(null)
-    setCart([])
-    setOrders([])
-   }
-  }
-  const onVisible=()=>{if(document.visibilityState==='visible')checkSession()}
-  const timer=setInterval(checkSession,5*60*1000)
-  document.addEventListener('visibilitychange',onVisible)
-  window.addEventListener('pageshow',checkSession)
-  return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('pageshow',checkSession)}
- },[])
+ useEffect(()=>{setSessionActive(!!localStorage.getItem('tc_session'))},[])
  const brandName=useCallback(id=>brands.find(b=>String(b.BrandID)===String(id))?.Name||'Gift Voucher',[brands])
  const loadCatalog=useCallback(async(q=query,brand=brandFilter)=>{const data=await api.products(q.trim(),brand);setProducts(data?.items||[])},[query,brandFilter])
  const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
