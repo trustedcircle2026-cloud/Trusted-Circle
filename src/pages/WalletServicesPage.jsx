@@ -52,39 +52,50 @@ function Login({onLogin}){
    const em=email.trim().toLowerCase();
    if(!em)return;
    setBusy(true);
-   setMessage('Sending verification number to '+em+'…');
+   setMessage('');
    try{
      const d=await walletApi.requestLoginChallenge(em);
      setEmail(em);
      setChallengeId(d.challengeId||'');
-     setOptions(Array.isArray(d.options)?d.options:[]);
+     setOptions(Array.isArray(d.options)?d.options.map(String):[]);
      setSelected('');
      setStep('challenge');
-     setMessage('We sent one number to '+em+'. Select the matching number below.');
    }catch(err){
      setMessage('Could not send verification: '+err.message);
    }finally{setBusy(false)}
  }
- const verify=async e=>{
-   e.preventDefault();
-   if(!challengeId||!selected)return;
+ const verify=async number=>{
+   if(!challengeId||!number||busy)return;
+   setSelected(number);
    setBusy(true);
-   setMessage('Verifying selection…');
+   setMessage('');
    try{
-     const d=await walletApi.verifyLoginChallenge(email,challengeId,selected);
+     const d=await walletApi.verifyLoginChallenge(email,challengeId,number);
      const token=d?.session?.token||d?.token||'';
      const verifiedUser=d?.user||null;
      if(!token)throw new Error('Login failed. Please request a new verification number.');
      localStorage.setItem(SESSION_KEY,token);
      onLogin(token,verifiedUser,null);
-   }catch(err){setMessage(err.message)}finally{setBusy(false)}
+   }catch(err){
+     setBusy(false);
+     setSelected('');
+     setMessage(err.message);
+   }
  }
- return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Wallet Services</h1><p>Manage your wallet balance and transactions.</p>
+ return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div>
  {step==='email'?<form onSubmit={request}><label>Email address</label><input className="wallet-field" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="wallet-submit" disabled={busy}>{busy?'Sending…':'Continue'} <ArrowRight size={17}/></button></form>:
- <form onSubmit={verify}><label>Verification number</label><p className="wallet-login-challenge-text">We sent one of these numbers to <b>{email}</b>. Select the matching number.</p><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,margin:'14px 0 18px'}}>{options.map(n=><button type="button" key={n} onClick={()=>setSelected(n)} disabled={busy} style={{height:70,border:selected===n?'1px solid #155f42':'1px solid #d5e1da',borderRadius:14,background:selected===n?'#155f42':'#f8fbf9',color:selected===n?'#fff':'#155f42',fontSize:25,fontWeight:900,cursor:busy?'not-allowed':'pointer',opacity:busy?.6:1}}>{n}</button>)}</div><button className="wallet-submit" disabled={busy||!selected}>{busy?'Verifying…':'Verify & Open Wallet'} <ArrowRight size={17}/></button><button className="wallet-change-email" type="button" onClick={()=>{setStep('email');setChallengeId('');setOptions([]);setSelected('');setMessage('')}}>Use another email</button></form>}
- {message&&<div className="wallet-login-message">{message}</div>}</section></main>
+ <div className="wallet-login-number-only">
+   <div className="wallet-services-eyebrow">VERIFY LOGIN</div>
+   <h1>Select your number</h1>
+   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginTop:24}}>
+     {options.map(n=><button key={n} type="button" onClick={()=>verify(n)} disabled={busy} aria-label={'Select verification number '+n} style={{height:92,border:selected===n?'2px solid #155f42':'1px solid #d5e1da',borderRadius:16,background:selected===n?'#155f42':'#f8fbf9',color:selected===n?'#fff':'#155f42',fontSize:30,fontWeight:900,cursor:busy?'not-allowed':'pointer',opacity:busy&&selected!==n?.55:1,boxShadow:selected===n?'0 8px 20px rgba(21,95,66,.18)':'none'}}>{n}</button>)}
+   </div>
+   {busy&&<div className="wallet-login-message">Verifying…</div>}
+   {message&&<div className="wallet-login-message">{message}</div>}
+ </div>}
+ {step==='email'&&message&&<div className="wallet-login-message">{message}</div>}
+ </section></main>
 }
-
 function ProfileMenu({user,onLogout,onClose}){
  return <div className="wallet-profile-menu"><div className="wallet-profile-head"><div className="wallet-profile-avatar"><UserRound size={20}/></div><div><b>{user.name}</b><small>{user.email}</small></div></div><button onClick={onClose}><WalletCards size={16}/> Wallet Home</button><button onClick={onLogout}><LogOut size={16}/> Logout</button></div>
 }
