@@ -13,15 +13,16 @@
 <div class="full"><label>Bulk Payment Gateway Links — one link per line</label><textarea id="links" placeholder="https://payment-link-1&#10;https://payment-link-2&#10;https://payment-link-3"></textarea></div>
 <div class="full"><button onclick="single()">Add Single Link</button><button onclick="bulk()">Add Bulk Links</button><button class="alt" onclick="stock()">Refresh Stock</button></div>
 </div><div id="msg"></div></div>
-<div class="card"><h2>Stock Summary</h2><div id="summary" class="muted">Enter the admin key and refresh.</div><div style="overflow:auto;margin-top:15px"><table><thead><tr><th>Denomination</th><th>Available</th><th>Reserved</th><th>Used</th><th>Status</th><th>Link</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<div class="card"><h2>Stock Summary</h2><div id="summary" class="muted">Enter the admin key and refresh.</div><div style="overflow:auto;margin-top:15px"><table><thead><tr><th>Denomination</th><th>Status</th><th>Transaction</th><th>Expires</th><th>Link</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div></div>
 </div>
 <script>
-const API='PASTE_WALLET_APPS_SCRIPT_EXEC_URL_HERE';
+const API='https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec';
 const $=x=>document.getElementById(x);
 function msg(t,b=false){$('msg').className='msg'+(b?' bad':'');$('msg').textContent=t}
-async function api(action,extra={}){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,adminKey:$('key').value,...extra})});const j=await r.json();if(!j.ok)throw Error(j.error||'Request failed');return j.data}
+async function api(action,extra={}){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,adminKey:$('key').value,...extra})});const j=await r.json();if(!j.ok)throw Error(j.error||'Request failed');return j.data}
 async function single(){try{let d=await api('adminAddPaymentLink',{denomination:+$('amount').value,link:$('link').value,label:$('label').value});msg('Added: '+d.paymentLinkStockId);$('link').value='';stock()}catch(e){msg(e.message,true)}}
 async function bulk(){try{let d=await api('adminAddPaymentLinkBulk',{denomination:+$('amount').value,links:$('links').value,label:$('label').value});msg(d.count+' links added successfully.');$('links').value='';stock()}catch(e){msg(e.message,true)}}
-async function stock(){try{let d=await api('adminPaymentStock');$('summary').innerHTML=d.summary.map(x=>'₹'+x.denomination+' — <b>'+x.available+'</b> available · '+x.reserved+' reserved · '+x.used+' used').join(' &nbsp; | &nbsp; ');$('rows').innerHTML=d.links.map(x=>'<tr><td>₹'+x.denomination+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td style="max-width:350px;word-break:break-all">'+esc(x.link)+'</td></tr>').join('')}catch(e){msg(e.message,true)}}
+async function stock(){try{let d=await api('adminPaymentStock');$('summary').innerHTML=d.summary.map(x=>'₹'+x.denomination+' — <b>'+x.available+'</b> available · '+x.reserved+' reserved · '+x.used+' used · '+x.removed+' removed').join(' &nbsp; | &nbsp; ');$('rows').innerHTML=d.links.map(x=>'<tr><td>₹'+x.denomination+'</td><td><b>'+esc(x.status)+'</b></td><td>'+esc(x.walletTransactionId||'—')+'</td><td>'+esc(x.expiresAt?new Date(x.expiresAt).toLocaleString('en-IN'):'—')+'</td><td style="max-width:300px;word-break:break-all">'+esc(x.link)+'</td><td>'+(x.status==='AVAILABLE'?'<button onclick="removeLink(\''+x.paymentLinkStockId+'\')">Remove</button>':'—')+'</td></tr>').join('')}catch(e){msg(e.message,true)}}
+async function removeLink(id){if(!confirm('Remove this available payment link from Wallet stock?'))return;try{await api('adminRemovePaymentLink',{paymentLinkStockId:id});msg('Payment link removed.');stock()}catch(e){msg(e.message,true)}}
 function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 </script></body></html>
