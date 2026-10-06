@@ -87,10 +87,10 @@ function ProfileMenu({user,onLogout,onClose}){
  return <div className="wallet-profile-menu"><div className="wallet-profile-head"><div className="wallet-profile-avatar"><UserRound size={20}/></div><div><b>{user.name}</b><small>{user.email}</small></div></div><button onClick={onClose}><WalletCards size={16}/> Wallet Home</button><button onClick={onLogout}><LogOut size={16}/> Logout</button></div>
 }
 
-function WalletHome({token,user,onLogout}){
- const[wallet,setWallet]=useState(null),[orders,setOrders]=useState([]),[busy,setBusy]=useState(true),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
+function WalletHome({token,user,onLogout,initialWallet=null}){
+ const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
  const load=async()=>{setBusy(true);try{const w=await walletApi.wallet(token);setWallet(w);setOrders(w.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
- useEffect(()=>{load()},[])
+ useEffect(()=>{if(!initialWallet)load()},[initialWallet])
  const openPaymentFlow=async(amount,retryTransaction=null)=>{
   setNotice('');
   const paymentWindow=window.open('about:blank','TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
@@ -162,11 +162,15 @@ function TransactionModal({tx,user,onClose,onRetry}){
 }
 
 export default function WalletServicesPage(){
- const[token,setToken]=useState(()=>localStorage.getItem(SESSION_KEY)||''),[user,setUser]=useState(null),[checking,setChecking]=useState(true)
+ const[token,setToken]=useState(()=>localStorage.getItem(SESSION_KEY)||''),[user,setUser]=useState(null),[initialWallet,setInitialWallet]=useState(null),[checking,setChecking]=useState(true)
  useEffect(()=>{document.body.classList.add('wallet-services-lock');return()=>document.body.classList.remove('wallet-services-lock')},[])
- useEffect(()=>{if(!token){setChecking(false);return}walletApi.me(token).then(d=>setUser(d.user)).catch(()=>{localStorage.removeItem(SESSION_KEY);setToken('')}).finally(()=>setChecking(false))},[token])
- const logout=()=>{walletApi.logout(token).catch(()=>{});localStorage.removeItem(SESSION_KEY);setToken('');setUser(null)}
+ useEffect(()=>{
+   if(!token){setChecking(false);return}
+   setChecking(true);
+   walletApi.wallet(token).then(d=>{setUser(d.user);setInitialWallet(d)}).catch(()=>{localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setInitialWallet(null)}).finally(()=>setChecking(false))
+ },[token])
+ const logout=()=>{walletApi.logout(token).catch(()=>{});localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setInitialWallet(null)}
  if(checking)return <main className="wallet-services-page wallet-login-page"><div className="wallet-loading">Loading Wallet Services…</div></main>
- if(!token||!user)return <Login onLogin={(t,u)=>{setToken(t);setUser(u)}}/>
- return <WalletHome token={token} user={user} onLogout={logout}/>
+ if(!token||!user)return <Login onLogin={(t,u)=>{setToken(t);setUser(u);setInitialWallet(null)}}/>
+ return <WalletHome token={token} user={user} onLogout={logout} initialWallet={initialWallet}/>
 }
