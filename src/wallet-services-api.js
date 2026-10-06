@@ -30,17 +30,18 @@ async function walletRequest(action,payload={}){
       if(event.source!==iframe.contentWindow)return;
       const msg=event.data;
       if(!msg||msg.source!=='trusted-circle-wallet'||msg.requestId!==requestId)return;
-      if(!msg.ok)finish(new Error(msg.error||'Wallet Services request failed.'),true);
-      else{
-        let data=msg.data;
-        for(let i=0;i<3&&data&&data.data&&typeof data.data==='object';i++)data=data.data;
-        if(data&&typeof data==='object'&&(msg.session||msg.user)){
-          data={...data};
-          if(msg.session&&!data.session)data.session=msg.session;
-          if(msg.user&&!data.user)data.user=msg.user;
-        }
-        finish(data);
+      if(!msg.ok){
+        finish(new Error(msg.error||'Wallet Services request failed.'),true);
+        return;
       }
+      let data=msg.data;
+      if(data===undefined||data===null)data={};
+      if(data&&data.data&&typeof data.data==='object')data=data.data;
+      if(msg.session&&!data.session)data.session=msg.session;
+      if(msg.user&&!data.user)data.user=msg.user;
+      if(!data.session&&msg.data&&msg.data.session)data.session=msg.data.session;
+      if(!data.user&&msg.data&&msg.data.user)data.user=msg.data.user;
+      finish(data);
     };
     window.addEventListener('message',onMessage);
 
