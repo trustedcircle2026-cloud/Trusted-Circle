@@ -108,7 +108,7 @@ function setupBackend(){
   const headers={
     WalletUsers:['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
     WalletOTP:['OTPId','Email','OTP','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
-    WalletLoginChallenges:['ChallengeID','Email','Options','AnswerHash','ExpiresAt','UsedAt','Attempts','CreatedAt','LastSentAt'],
+    WalletLoginChallenges:['ChallengeID','Email','Number1','Number2','Number3','AnswerHash','ExpiresAt','UsedAt','Attempts','CreatedAt','LastSentAt'],
     WalletSessions:['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'],
     Wallets:['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
     WalletTransactions:['TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter','UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt','ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'],
@@ -261,7 +261,9 @@ function requestLoginChallenge_(d){
   addRow_(W.S.C,{
     ChallengeID:challengeId,
     Email:em,
-    Options:options.join(','),
+    Number1:options[0],
+    Number2:options[1],
+    Number3:options[2],
     AnswerHash:hash_(answer),
     ExpiresAt:expiresAt,
     UsedAt:'',
@@ -273,7 +275,9 @@ function requestLoginChallenge_(d){
   cacheJson_(cacheKey_('WALLET_LOGIN_CHALLENGE_',challengeId),{
     ChallengeID:challengeId,
     Email:em,
-    Options:options,
+    Number1:options[0],
+    Number2:options[1],
+    Number3:options[2],
     AnswerHash:hash_(answer),
     ExpiresAt:expiresAt,
     UsedAt:'',
@@ -319,7 +323,7 @@ function verifyLoginChallenge_(d){
   req_(!x.UsedAt,'This login challenge has already been used. Please request a new one.');
   req_(new Date(x.ExpiresAt).getTime()>Date.now(),'Login challenge expired. Please request a new one.');
 
-  const options=Array.isArray(x.Options)?x.Options:String(x.Options||'').split(',').map(v=>v.trim()).filter(Boolean);
+  const options=[x.Number1,x.Number2,x.Number3].map(v=>String(v||'').trim()).filter(Boolean);
   req_(options.length===3&&options.indexOf(selected)>=0,'Select one of the three displayed numbers.');
 
   const attempts=Number(x.Attempts||0);
