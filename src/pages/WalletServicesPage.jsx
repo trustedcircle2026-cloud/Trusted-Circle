@@ -48,8 +48,35 @@ async function saveTransactionsPdf(transactions,user,from,to){
 function Login({onLogin}){
  const[name,setName]=useState(''),[isNewUser,setIsNewUser]=useState(false)
  const[email,setEmail]=useState(''),[otp,setOtp]=useState(''),[step,setStep]=useState('email'),[busy,setBusy]=useState(false),[message,setMessage]=useState('')
- const request=async e=>{e.preventDefault();setBusy(true);setMessage('');try{const d=await walletApi.requestOtp(email);setIsNewUser(!!d.isNewUser);setStep('otp');setMessage('OTP sent to '+email+'.')}catch(err){setMessage(err.message)}finally{setBusy(false)}}
- const verify=async e=>{e.preventDefault();if(otp.length!==6)return;setBusy(true);setMessage('');try{const d=await walletApi.verifyOtp(email,otp,isNewUser?name.trim():name.trim());localStorage.setItem(SESSION_KEY,d.session.token);onLogin(d.session.token,d.user)}catch(err){setMessage(err.message)}finally{setBusy(false)}}
+ const request=async e=>{
+   e.preventDefault();
+   const em=email.trim().toLowerCase();
+   if(!em)return;
+   setBusy(true);
+   setMessage('Sending OTP to '+em+'…');
+   setStep('otp');
+   try{
+     const d=await walletApi.requestOtp(em);
+     setIsNewUser(!!d.isNewUser);
+     setMessage('OTP sent to '+em+'. Enter the 6-digit OTP below.');
+   }catch(err){
+     setMessage('Could not send OTP: '+err.message);
+   }finally{setBusy(false)}
+ }
+ const verify=async e=>{
+   e.preventDefault();
+   if(otp.length!==6)return;
+   setBusy(true);
+   setMessage('Verifying OTP…');
+   try{
+     const d=await walletApi.verifyOtp(email,otp,isNewUser?name.trim():name.trim());
+     const session=d?.session||d?.data?.session;
+     const verifiedUser=d?.user||d?.data?.user;
+     if(!session?.token)throw new Error('Wallet login response was incomplete. Please request a new OTP and try again.');
+     localStorage.setItem(SESSION_KEY,session.token);
+     onLogin(session.token,verifiedUser);
+   }catch(err){setMessage(err.message)}finally{setBusy(false)}
+ }
  return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Wallet Services</h1><p>Manage your wallet balance and transactions.</p>
  {step==='email'?<form onSubmit={request}><label>Email address</label><input className="wallet-field" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="wallet-submit" disabled={busy}>{busy?'Sending OTP…':'Continue'} <ArrowRight size={17}/></button></form>:
  <form onSubmit={verify}>{isNewUser&&<><label>Full name</label><input className="wallet-field" value={name} onChange={e=>setName(e.target.value)} placeholder="Your full name" autoComplete="name" required/></>}<label>6-digit OTP</label><input className="wallet-field wallet-otp-input" inputMode="numeric" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" autoFocus required/><button className="wallet-submit" disabled={busy||otp.length!==6||(isNewUser&&name.trim().length<2)}>{busy?'Verifying…':'Verify & Open Wallet'} <ArrowRight size={17}/></button><button className="wallet-change-email" type="button" onClick={()=>{setStep('email');setOtp('');setName('');setIsNewUser(false);setMessage('')}}>Use another email</button></form>}
