@@ -24,7 +24,26 @@ function doGet(e){
   }catch(err){return json_({ok:false,error:err.message});}
 }
 function doPost(e){
-  try{return json_(route_(parse_(e)));}catch(err){return json_({ok:false,error:err.message});}
+  const d=parse_(e);
+  try{
+    const result=route_(d);
+    return String(d.transport)==='iframe' ? iframeResponse_(result,d.requestId) : json_(result);
+  }catch(err){
+    const result={ok:false,error:err.message};
+    return String(d.transport)==='iframe' ? iframeResponse_(result,d.requestId) : json_(result);
+  }
+}
+function iframeResponse_(result,requestId){
+  const safeId=clean_(requestId,120);
+  const payload=JSON.stringify({
+    source:'trusted-circle-wallet',
+    requestId:safeId,
+    ok:!!result.ok,
+    data:result.ok?(result.data===undefined?result:result.data):undefined,
+    error:result.ok?'':String(result.error||'Wallet Services request failed.')
+  }).replace(/<\\/script/gi,'<\\/script');
+  const html='<!doctype html><html><body><script>window.top.postMessage('+payload+', '+JSON.stringify('https://trustedcircle.shop')+');</script></body></html>';
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 function route_(d){
   const a=String(d.action||'health');
@@ -71,7 +90,17 @@ function setupBackend(){
 }
 
 /* HELPERS */
-function parse_(e){const body=e&&e.postData&&e.postData.contents;if(body){try{return JSON.parse(body);}catch(_){}}return e&&e.parameter||{};}
+function parse_(e){
+  const p=e&&e.parameter||{};
+  if(String(p.transport)==='iframe'){
+    let payload={};
+    try{payload=p.payload?JSON.parse(p.payload):{};}catch(_){throw new Error('Invalid Wallet request payload.');}
+    return Object.assign({},payload,{action:p.action||payload.action,transport:'iframe',requestId:p.requestId||''});
+  }
+  const body=e&&e.postData&&e.postData.contents;
+  if(body){try{return JSON.parse(body);}catch(_){}}
+  return p;
+}
 function json_(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);}
 function now_(){return new Date().toISOString();}
 function clean_(v,n){return String(v==null?'':v).trim().slice(0,n||500);}
