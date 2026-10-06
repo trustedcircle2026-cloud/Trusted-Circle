@@ -176,7 +176,7 @@ function addMoney_(d){
     const u=auth_(d.token),amount=Number(d.amount);req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
     const tid=id_('WTXN'),link=reservePaymentLink_(amount,tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
     const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
-    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));
+    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));transactionSummaryEmail_(t);
     return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
   }finally{lock.releaseLock();}
 }
@@ -187,7 +187,7 @@ function retryAddMoney_(d){
     const tid=id_('WTXN'),link=reservePaymentLink_(Number(old.Amount),tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
     updateRow_(W.S.T,'TransactionID',old.TransactionID,{Status:'RETRY_CREATED',UpdatedAt:ts,Notes:'Retry created'});
     const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:Number(old.Amount),Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:Number(old.Attempt||1)+1,ParentTransactionID:old.TransactionID,CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Retry payment',AdminNote:''};
-    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_RETRY','USER',old.TransactionID);
+    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_RETRY','USER',old.TransactionID);transactionSummaryEmail_(t);
     return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
   }finally{lock.releaseLock();}
 }
@@ -203,7 +203,7 @@ function withdrawMoney_(d){
     const ts=now_(),tid=id_('WTXN');
     updateRow_(W.S.W,'UserID',u.UserID,{ReservedBalance:reserved+amount,UpdatedAt:ts});
     const t={TransactionID:tid,UserID:u.UserID,Type:'WITHDRAW',Amount:amount,Status:'WITHDRAWAL_REQUESTED',BalanceBefore:bal,BalanceAfter:bal,UPIId:upi,PaymentLink:'',PaymentLinkLabel:'',PaymentReservationId:'',Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Withdrawal requested',AdminNote:''};
-    addRow_(W.S.T,t);createWithdrawalActions_(t);audit_(u.UserID,tid,'WITHDRAW_REQUESTED','USER',JSON.stringify({amount:amount,upiId:upi}));
+    addRow_(W.S.T,t);createWithdrawalActions_(t);audit_(u.UserID,tid,'WITHDRAW_REQUESTED','USER',JSON.stringify({amount:amount,upiId:upi}));transactionSummaryEmail_(t);
     return{ok:true,data:{transaction:pubTx_(t)}};
   }finally{lock.releaseLock();}
 }
@@ -232,6 +232,27 @@ function adminPaymentStock_(d){
 function adminRemovePaymentLink_(d){
   adminReq_(d);const id=clean_(d.paymentLinkStockId,100),x=find_(W.S.P,'PaymentLinkStockID',id);req_(x,'Payment link not found.');req_(x.Status==='AVAILABLE','Only an AVAILABLE payment link can be removed.');
   updateRow_(W.S.P,'PaymentLinkStockID',id,{Status:'REMOVED',UpdatedAt:now_(),Notes:'Removed by Wallet Admin'});audit_('SYSTEM','', 'ADMIN_PAYMENT_LINK_REMOVED','ADMIN',id);return{ok:true,data:{removed:true}};
+}
+
+function userEmail_(uid){const u=find_(W.S.U,'UserID',uid);return u&&u.Email?String(u.Email):'';}
+function transactionSummaryEmail_(t){
+  try{
+    const to=userEmail_(t.UserID);if(!to)return;
+    const title=t.Type==='ADD_MONEY'?'Add Money':'Wallet Withdrawal';
+    const status=String(t.Status||'').replace(/_/g,' ');
+    const statusColor=/COMPLETED/.test(t.Status)?'#0f7a4f':/REJECTED|NOT_RECEIVED/.test(t.Status)?'#b42318':'#a66a00';
+    const body='<p><b>Transaction ID:</b> '+esc_(t.TransactionID)+'</p>'+
+      '<p><b>Type:</b> '+esc_(title)+'</p>'+
+      '<p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p>'+
+      '<p><b>Status:</b> <span style="color:'+statusColor+'"><b>'+esc_(status)+'</b></span></p>'+
+      '<p><b>Date:</b> '+esc_(new Date(t.CreatedAt).toLocaleString('en-IN'))+'</p>'+
+      (t.UPIId?'<p><b>UPI ID:</b> '+esc_(t.UPIId)+'</p>':'')+
+      '<p><b>Balance Before:</b> ₹'+Number(t.BalanceBefore||0).toLocaleString('en-IN')+'</p>'+
+      '<p><b>Balance After:</b> ₹'+Number(t.BalanceAfter||0).toLocaleString('en-IN')+'</p>'+
+      '<p>'+esc_(t.Notes||'')+'</p>'+
+      '<p><a href="https://trustedcircle.shop/#/wallet-services" style="display:inline-block;padding:11px 17px;background:#0f5132;color:#fff;text-decoration:none;border-radius:8px">Open Wallet Services</a></p>';
+    MailApp.sendEmail({to:to,subject:'Trusted Circle Wallet — '+title+' ₹'+Number(t.Amount||0)+' — '+status,name:'Trusted Circle',replyTo:'info@trustedcircle.in',body:'Trusted Circle Wallet transaction '+t.TransactionID+' — '+status,htmlBody:shell_('Wallet Transaction Summary',body)});
+  }catch(_){/* Email must never block wallet transaction processing. */}
 }
 
 /* ADMIN ACTION EMAILS */
@@ -271,19 +292,19 @@ function received_(t){
   req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');const w=walletRow_(t.UserID),before=Number(w.Balance||0),after=before+Number(t.Amount);
   if(t.PaymentReservationId)consumePaymentLink_(t.PaymentReservationId,t.TransactionID);
   updateRow_(W.S.W,'UserID',t.UserID,{Balance:after,UpdatedAt:now_()});
-  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'COMPLETED',BalanceBefore:before,BalanceAfter:after,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Payment received'});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'COMPLETED',BalanceBefore:before,BalanceAfter:after,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Payment received'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
 }
-function notReceived_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'NOT_RECEIVED',UpdatedAt:now_(),Notes:'Admin marked payment not received'});}
-function rejected_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'REJECTED',UpdatedAt:now_(),Notes:'Payment rejected'});}
+function notReceived_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'NOT_RECEIVED',UpdatedAt:now_(),Notes:'Admin marked payment not received'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));}
+function rejected_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'REJECTED',UpdatedAt:now_(),Notes:'Payment rejected'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));}
 function withdrawApprove_(t){
   req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount),balance=Number(w.Balance||0);req_(reserved>=amount,'Reserved balance mismatch.');
   updateRow_(W.S.W,'UserID',t.UserID,{Balance:balance-amount,ReservedBalance:reserved-amount,UpdatedAt:now_()});
-  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:balance-amount,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal approved'});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:balance-amount,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal approved'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
 }
 function withdrawReject_(t){
   req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount);
   updateRow_(W.S.W,'UserID',t.UserID,{ReservedBalance:Math.max(0,reserved-amount),UpdatedAt:now_()});
-  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_REJECTED',UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal rejected; amount released'});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_REJECTED',UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal rejected; amount released'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
 }
 
 /* HTML */
