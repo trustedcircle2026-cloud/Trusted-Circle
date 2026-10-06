@@ -43,14 +43,28 @@ function iframeResponse_(result,requestId){
   const u=d&&d.user&&typeof d.user==='object'?d.user:null;
   // Keep the iframe contract deliberately flat. Login must never depend on
   // nested response parsing: token/user/expiresAt are always top-level.
+  // Expose login challenge fields at the top level as well as inside data.
+  // This avoids iframe/Apps Script response-normalization issues.
+  const challenge=d&&d.challengeId?{
+    challengeId:String(d.challengeId),
+    options:Array.isArray(d.options)?d.options.map(String):[],
+    email:d.email?String(d.email):'',
+    isNewUser:!!d.isNewUser,
+    expiresInSeconds:Number(d.expiresInSeconds||0)
+  }:null;
   const payload=JSON.stringify({
     source:'trusted-circle-wallet',
-    responseVersion:'3',
+    responseVersion:'4',
     requestId:safeId,
     ok:ok,
     token:s&&s.token?String(s.token):'',
     expiresAt:s&&s.expiresAt?String(s.expiresAt):'',
     user:u||null,
+    challengeId:challenge?challenge.challengeId:'',
+    options:challenge?challenge.options:[],
+    email:challenge?challenge.email:'',
+    isNewUser:challenge?challenge.isNewUser:false,
+    expiresInSeconds:challenge?challenge.expiresInSeconds:0,
     data:ok?d:{},
     error:ok?'':String(result&&result.error||'Wallet Services request failed.')
   }).split('<').join('\\u003c');
