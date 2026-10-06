@@ -30,8 +30,8 @@ export default function AgentPortalPage(){
   const cacheKey='tc_agent_bootstrap_cache'
   let hadCache=false
   try{
-   const cached=JSON.parse(sessionStorage.getItem(cacheKey)||'null')
-   if(cached?.time&&Date.now()-Number(cached.time)<30000&&cached.data?.agent){
+   const cached=JSON.parse(localStorage.getItem(cacheKey)||'null')
+   if(cached?.time&&Date.now()-Number(cached.time)<300000&&cached.data?.agent){
     applyBootstrap(cached.data);hadCache=true;setLoading(false)
    }
   }catch{}
@@ -41,14 +41,22 @@ export default function AgentPortalPage(){
     setLoading(true);let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
    }
    const data=await agentBusinessApi.agentBootstrap(token)
-   try{sessionStorage.setItem(cacheKey,JSON.stringify({time:Date.now(),data}))}catch{}
+   try{localStorage.setItem(cacheKey,JSON.stringify({time:Date.now(),data}))}catch{}
    applyBootstrap(data)
    if(!hadCache)setLoading(false)
-   // Secondary data never blocks the first usable screen.
-   agentBusinessApi.agentPremiumReceipts(token).then(receiptData=>setReceipts(receiptData.items||[])).catch(()=>setReceipts([]))
-   agentBusinessApi.agentInvoices(token).then(invoiceData=>{
-    setInvoices(invoiceData.items||[]);setPayableAmount(Number(invoiceData.outstandingAmount||0));setEarningsToDate(Number(invoiceData.earningsToDate||0))
-   }).catch(()=>{})
+   // Secondary data never blocks the first usable screen; fetch in parallel.
+   Promise.allSettled([
+    agentBusinessApi.agentPremiumReceipts(token),
+    agentBusinessApi.agentInvoices(token)
+   ]).then(([receiptResult,invoiceResult])=>{
+    if(receiptResult.status==='fulfilled')setReceipts(receiptResult.value.items||[])
+    if(invoiceResult.status==='fulfilled'){
+      const invoiceData=invoiceResult.value
+      setInvoices(invoiceData.items||[])
+      setPayableAmount(Number(invoiceData.outstandingAmount||0))
+      setEarningsToDate(Number(invoiceData.earningsToDate||0))
+    }
+   })
   }catch(e){
    if(!hadCache){localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)}
    else setError('Live sync failed. Showing your latest saved workspace data.')
@@ -58,18 +66,25 @@ export default function AgentPortalPage(){
   if(!session)return
   let inactivityTimer
   let lastActivity=Date.now()
+  let lastTimerRefresh=0
   const INACTIVITY_LIMIT=180000
   const resetInactivity=()=>{
-    lastActivity=Date.now()
+    const now=Date.now()
+    lastActivity=now
+    // High-frequency pointer/scroll events should not continuously clear/recreate timers.
+    if(now-lastTimerRefresh<10000)return
+    lastTimerRefresh=now
     clearTimeout(inactivityTimer)
     inactivityTimer=setTimeout(async()=>{
       if(Date.now()-lastActivity<INACTIVITY_LIMIT){resetInactivity();return}
       try{await agentBusinessApi.agentLogout(session)}catch{}
       localStorage.removeItem('tc_agent_session')
+      localStorage.removeItem('tc_agent_bootstrap_cache')
       setSession('')
       setAgent(null)
       setClients([])
       setRequests([])
+      setReceipts([])
       setInvoices([])
       setPayableAmount(0)
       setEarningsToDate(0)
