@@ -69,12 +69,11 @@ function Login({onLogin}){
    setBusy(true);
    setMessage('Verifying OTP…');
    try{
-     const d=await walletApi.verifyOtp(email,otp,isNewUser?name.trim():name.trim());
-     const session=d?.session||d?.data?.session||d?.data?.data?.session||((d?.token)?d:null);
-     const verifiedUser=d?.user||d?.data?.user||d?.data?.data?.user||null;
-     if(!session?.token)throw new Error('Login response did not contain a session token. Please try the OTP again.');
-     localStorage.setItem(SESSION_KEY,session.token);
-     onLogin(session.token,verifiedUser);
+     const d=await walletApi.verifyOtp(email,otp,name.trim());
+     const token=d?.session?.token||d?.token||'';
+     const verifiedUser=d?.user||null;
+     localStorage.setItem(SESSION_KEY,token);
+     onLogin(token,verifiedUser);
    }catch(err){setMessage(err.message)}finally{setBusy(false)}
  }
  return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Wallet Services</h1><p>Manage your wallet balance and transactions.</p>
