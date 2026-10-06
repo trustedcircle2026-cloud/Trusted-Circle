@@ -41,7 +41,7 @@ function iframeResponse_(result,requestId){
     ok:!!result.ok,
     data:result.ok?(result.data===undefined?result:result.data):undefined,
     error:result.ok?'':String(result.error||'Wallet Services request failed.')
-  }).replace(/<\/script/gi,'<\\/script');
+  }).split('<').join('\\u003c');
   const html='<!doctype html><html><body><script>window.top.postMessage('+payload+', '+JSON.stringify('https://trustedcircle.shop')+');</script></body></html>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
