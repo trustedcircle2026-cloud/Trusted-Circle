@@ -53,8 +53,10 @@ function Login({onLogin}){
    const em=email.trim().toLowerCase();
    if(!em)return;
    setBusy(true);
-   setMessage('Sending OTP to '+em+'…');
    setStep('otp');
+   setMessage('Sending OTP to '+em+'…');
+   // Let React paint the OTP screen before starting the network request.
+   await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
    try{
      const d=await walletApi.requestOtp(em);
      setIsNewUser(!!d.isNewUser);
