@@ -34,6 +34,11 @@ async function walletRequest(action,payload={}){
       else{
         let data=msg.data;
         for(let i=0;i<3&&data&&data.data&&typeof data.data==='object';i++)data=data.data;
+        if(data&&typeof data==='object'&&(msg.session||msg.user)){
+          data={...data};
+          if(msg.session&&!data.session)data.session=msg.session;
+          if(msg.user&&!data.user)data.user=msg.user;
+        }
         finish(data);
       }
     };
