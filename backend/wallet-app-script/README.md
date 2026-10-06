@@ -1,27 +1,50 @@
-# Wallet Services Apps Script
+# Wallet Services Backend
 
-Separate backend for Trusted Circle Wallet Services.
+This backend is now **100% independent from Shopping**.
 
-## Google Sheet
-ID: 1Q5-xDelfCBiYldQAnToDTuQRy4c_rZlHoDvtsaP1mNI
+### Separate systems
+- Shopping website: existing Shopping Apps Script + Shopping payment-link stock.
+- Wallet Services: this Apps Script + separate Wallet Google Sheet + WalletPaymentLinks stock.
+- Wallet never calls the Shopping backend for payment links.
 
-## Script Properties
-- SPREADSHEET_ID = 1Q5-xDelfCBiYldQAnToDTuQRy4c_rZlHoDvtsaP1mNI
+### Wallet sheet tabs created by setupBackend
+WalletUsers, WalletOTP, WalletSessions, Wallets, WalletTransactions, WalletPaymentLinks, WalletAdminActions, WalletAuditLogs.
+
+### Script Properties
+Set these in Apps Script:
+- SPREADSHEET_ID = your separate Wallet Google Sheet ID
 - ADMIN_EMAIL = trustedcircle2026@gmail.com
-- SHOPPING_PAYMENT_API_URL = https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec
-- SHOPPING_PAYMENT_BRIDGE_SECRET = same secret as WALLET_BRIDGE_SECRET in the existing Shopping Apps Script
+- WALLET_ADMIN_KEY = strong private admin key
 
-Do not commit the bridge secret to GitHub.
+Never commit WALLET_ADMIN_KEY to GitHub.
 
-## Setup
-1. Copy Code.gs into the Wallet Apps Script project.
-2. Add the Script Properties.
-3. Deploy as Web App.
-4. Call ?action=setupBackend once.
-5. The backend creates WalletUsers, WalletOTP, WalletSessions, Wallets, WalletTransactions, WalletAdminActions and WalletAuditLogs.
+### Wallet payment gateway
+The Wallet payment gateway is represented by payment URLs stored in WalletPaymentLinks. Admin manually adds the links through WalletAdminaddlink.html.
 
-## API
-requestOtp, verifyOtp, me, wallet, walletOrders, transactionStatus, addMoney, retryAddMoney, withdrawMoney, logout.
+Supported denominations: 500, 1000, 1500, 2000.
 
-## Payment architecture
-Wallet owns wallet users, balances and transactions. Existing Shopping owns payment-link stock. Wallet calls the existing Shopping bridge actions reserveWalletPaymentLink, releaseWalletPaymentLink and consumeWalletPaymentLink.
+Link lifecycle:
+AVAILABLE -> RESERVED -> USED
+AVAILABLE -> RESERVED -> AVAILABLE (Not Received / reservation expiry)
+AVAILABLE -> REMOVED (admin removal)
+
+Reservation time: 15 minutes.
+
+### Admin page
+WalletAdminaddlink.html is the separate stock-management page. Before using it, replace:
+PASTE_WALLET_APPS_SCRIPT_EXEC_URL_HERE
+with the deployed Wallet Apps Script /exec URL.
+
+The page supports single-link and bulk-link entry and stock viewing.
+
+### Customer flow
+1. Customer logs into Wallet Services using Email + OTP.
+2. Selects Add Money amount.
+3. Wallet reserves a matching payment link from WalletPaymentLinks.
+4. Customer is redirected to that payment link.
+5. Admin receives Received / Not Received / Rejected.
+6. Received consumes the link and credits wallet.
+7. Not Received releases the link and enables retry.
+8. Rejected releases the link and requires a new payment.
+
+No Shopping code or Shopping payment stock is used by this Wallet backend.
