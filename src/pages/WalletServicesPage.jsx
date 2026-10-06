@@ -21,10 +21,9 @@ async function addPdfHeader(doc,title,subtitle){
 }
 function drawTable(doc,headers,rows,startY,widths){
  let y=startY;const x0=14;const rowH=8;
- doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setFillColor(232,245,238);doc.rect(x0,y-6,182,rowH,'F');
- let x=x0;headers.forEach((h,i)=>{doc.text(h,x+2,y-1);x+=widths[i]});y+=rowH;
- doc.setFont(undefined,'normal');
- rows.forEach(row=>{if(y>270){doc.addPage();y=20}let x=x0;doc.setDrawColor(225,233,228);doc.rect(x0,y-6,182,rowH);row.forEach((v,i)=>{doc.text(doc.splitTextToSize(String(v??''),widths[i]-4),x+2,y-1);x+=widths[i]});y+=rowH});return y
+ const header=()=>{doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setFillColor(232,245,238);doc.rect(x0,y-6,182,rowH,'F');let x=x0;headers.forEach((h,i)=>{doc.text(h,x+2,y-1);x+=widths[i]});y+=rowH;doc.setFont(undefined,'normal')};
+ header();
+ rows.forEach(row=>{if(y>270){doc.addPage();y=20;header()}let x=x0;doc.setDrawColor(225,233,228);doc.rect(x0,y-6,182,rowH);row.forEach((v,i)=>{doc.text(doc.splitTextToSize(String(v??''),widths[i]-4),x+2,y-1);x+=widths[i]});y+=rowH});return y
 }
 async function saveTransactionPdf(tx,user,filename='trusted-circle-wallet-transaction.pdf'){
  const doc=new jsPDF();await addPdfHeader(doc,'Wallet Services — Transaction PDF','Detailed transaction statement');
@@ -66,7 +65,7 @@ function WalletHome({token,user,onLogout}){
  const load=async()=>{setBusy(true);try{const[w,o]=await Promise.all([walletApi.wallet(token),walletApi.orders(token)]);setWallet(w);setOrders(o.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
  useEffect(()=>{load()},[])
  const startAdd=amount=>{setNotice('');walletApi.addMoney(token,amount).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt,token})}).catch(e=>setNotice(e.message))}
- const retry=tx=>{setNotice('');walletApi.retryAddMoney(token,tx.transactionId).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt})}).catch(e=>setNotice(e.message))}
+ const retry=tx=>{setNotice('');walletApi.retryAddMoney(token,tx.transactionId).then(d=>{const p=window.open(d.paymentLink,'_blank','noopener,noreferrer');if(!p)window.location.assign(d.paymentLink);setModal({type:'payment',transaction:d.transaction,expiresAt:d.expiresAt,token})}).catch(e=>setNotice(e.message))}
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(token,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
  const openOrders=()=>{setModal({type:'orders'})}
  const downloadAll=()=>setStatementOpen(true)
