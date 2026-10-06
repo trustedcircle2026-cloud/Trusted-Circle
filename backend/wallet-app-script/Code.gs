@@ -241,25 +241,10 @@ function verifyOtp_(d){
   });
   const user=pubUser_(u);
 
-  // Prime authentication cache and return the wallet snapshot with the login response.
+  // Cache the session and return only the minimum login payload.
+  // The Wallet Home loads its balance/transactions after the page is already visible.
   cacheJson_(cacheKey_('WALLET_SESSION_',raw),u,Math.min(300,Math.ceil(W.SESSION_MS/1000)));
-  const w=walletRow_(u.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
-  return{
-    ok:true,
-    data:{
-      user,
-      session:{token:raw,expiresAt:exp},
-      wallet:{
-        user,
-        balance,
-        reservedBalance:reserved,
-        availableBalance:balance-reserved,
-        currency:'INR',
-        addAmounts:W.ADD,
-        transactions:txs_(u.UserID,50)
-      }
-    }
-  };
+  return{ok:true,data:{user,session:{token:raw,expiresAt:exp}}};
 }
 function auth_(raw){
   req_(raw,'Authentication required.');
