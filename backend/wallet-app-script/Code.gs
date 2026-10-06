@@ -112,7 +112,7 @@ function requestOtp_(d){
   const otp=String(Math.floor(100000+Math.random()*900000)),ts=now_();
   addRow_(W.S.O,{OTPId:id_('WOTP'),Email:em,OtpHash:hash_(otp),ExpiresAt:new Date(Date.now()+W.OTP_MS).toISOString(),UsedAt:'',CreatedAt:ts,LastSentAt:ts});
   MailApp.sendEmail({to:em,subject:'Trusted Circle Wallet Services — Login OTP',name:'Trusted Circle',replyTo:'info@trustedcircle.in',body:'Your Trusted Circle Wallet Services OTP is '+otp+'. It expires in 10 minutes. Do not share this code.',htmlBody:'<div style="font-family:Arial;padding:24px"><h2 style="color:#0f5132">Trusted Circle Wallet Services</h2><p>Your OTP is:</p><div style="font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f3f6f4;text-align:center">'+otp+'</div><p>Expires in 10 minutes. Do not share this OTP.</p></div>'});
-  return{ok:true,data:{sent:true,email:em,expiresInSeconds:600}};
+  return{ok:true,data:{sent:true,email:em,isNewUser:!find_(W.S.U,'Email',em),expiresInSeconds:600}};
 }
 function verifyOtp_(d){
   const em=email_(d.email),otp=clean_(d.otp,20);req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)&&/^\d{6}$/.test(otp),'Enter email and 6-digit OTP.');
