@@ -13,6 +13,7 @@ import OrdersPage from './pages/OrdersPage'
 import WalletPage from './pages/WalletPage'
 import InfoPage from './pages/InfoPage'
 import AdminLinkAddPage from './pages/AdminLinkAddPage'
+import WalletServicesPage from './pages/WalletServicesPage'
 import './app.css'
 import './mobile.css'
 import './site-overrides.css'
@@ -119,6 +120,7 @@ export default function App(){
  if(route.path==='Adminlinkadd')return <AdminLinkAddPage logoUrl={LOGO_URL}/>
  return <div className="app-root"><header className="new-header"><div className="header-brand-group"><button className="header-brand" onClick={()=>navigate('home')}><span className="header-logo-white"><img src={LOGO_URL} alt="Trusted Circle"/></span><span>Trusted<span>Circle</span></span></button>{user&&<WalletBadge token={token} onOpen={()=>navigate('wallet')}/>}</div><nav className="desktop-nav"><button onClick={()=>navigate('home')}>Home</button><button onClick={()=>navigate('vouchers')}>Gift Vouchers</button><button onClick={()=>navigate('brands')}>Brands</button><button onClick={()=>navigate('info','how-it-works')}>How It Works</button><button onClick={()=>navigate('info','help')}>Help</button></nav><div className="header-actions"><button className="header-tool" onClick={()=>navigate('vouchers')} aria-label="Search vouchers"><Search size={19}/></button>{user&&<button className={'header-tool orders-tool' + (orderBadgePulse?' header-count-bump':'')} onClick={()=>navigate('orders')} aria-label="My Orders" title="My Orders"><History size={19}/><b className={'header-count-badge ' + (orderBadgePulse?'header-badge-pulse':'') + (pendingOrdersCount===0?' header-count-empty':'')}>{pendingOrdersCount>99?'99+':pendingOrdersCount}</b></button>} {user&&<button className={'header-tool cart-tool' + (cartBadgePulse?' header-count-bump':'')} onClick={()=>navigate('cart')} aria-label="Cart"><ShoppingBag size={19}/><b className={'header-count-badge ' + (cartBadgePulse?'header-badge-pulse':'') + (cartCount===0?' header-count-empty':'')}>{cartCount}</b></button>} {user?<button className="account-tool" onClick={()=>navigate('profile')}><UserRound size={16}/><span>{user.name||'Profile'}</span></button>:<button className="login-tool" onClick={openAuth}>Login <ArrowRight size={15}/></button>}</div></header>
  {route.path==='home'&&<HomePage brands={brands} products={products} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id=>navigate('voucher',id)} onBrowse={(page='vouchers',filter='')=>{if(filter)setBrandFilter(filter);navigate(page)}}/>}
+ {route.path==='wallet-services'&&<WalletServicesPage/>}
  {route.path==='brands'&&<BrandsPage brands={brands} onBrowse={onBrandBrowse}/>}
  {route.path==='vouchers'&&<VouchersPage products={products} brands={brands} brandFilter={brandFilter} setBrandFilter={setBrandFilter} query={query} setQuery={setQuery} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id=>navigate('voucher',id)}/>}
  {route.path==='voucher'&&<VoucherPage product={currentProduct} brandName={currentProduct?brandName(currentProduct.BrandID):''} onBack={()=>navigate('vouchers')} onAdd={addToCart}/>}
