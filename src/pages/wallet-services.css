@@ -30,3 +30,5 @@
 .wallet-progress-indeterminate{display:block;height:100%;width:35%;background:#2f7f5b;border-radius:20px;animation:walletProgress 1.2s ease-in-out infinite}@keyframes walletProgress{0%{transform:translateX(-120%)}100%{transform:translateX(310%)}}
 .payment-waiting h2{margin-top:8px}.payment-waiting p{margin:8px auto 14px;max-width:390px}
 @media(max-width:560px){.payment-waiting{padding:22px 18px}.payment-waiting h2{font-size:24px}}
+
+.wallet-login-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}.wallet-login-brand .wallet-brand-logo{margin:0;width:66px;height:66px}.wallet-login-brand-name{font-size:25px;font-weight:800;letter-spacing:-.03em;color:#17271f}.wallet-login-brand-name span{color:#7a817d;font-weight:500}
