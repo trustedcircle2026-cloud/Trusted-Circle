@@ -37,12 +37,22 @@ export default function App() {
   }).length,[orders])
   useEffect(()=>{let active=true;(async()=>{try{await api.health();const [brandData,productData]=await Promise.all([api.brands(),api.products('','')]);if(!active)return;setBrands(brandData?.items||[]);setProducts(productData?.items||[]);setAllProducts(productData?.items||[]);if(token){try{const me=await api.me(token);if(!active)return;setUser(me);setProfileName(me.name||'');if(!me.name)setProfileOpen(true);await Promise.all([loadCart(token),loadOrders(token)])}catch{localStorage.removeItem('tc_session');setToken('');setUser(null);setCart([])}}}catch(error){console.warn('Trusted Circle startup:',error.message)}})();return()=>{active=false}},[])
   useEffect(()=>{if(!['vouchers','home'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},250);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
-  const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);const unitPrice=Math.round(denomination*(1-Number(product.DiscountPercent||0)/100)*100)/100;return {...item,product,denomination,unitPrice}}).filter(Boolean),[cart,allProducts])
+  const getCashbackRate=product=>{
+    if(!product)return 0
+    const candidates=[product.CashbackPercent,product.CashbackRate,product.Cashback,product.DiscountPercent,product.Discount]
+    for(const value of candidates){
+      if(value===undefined||value===null||value==='')continue
+      const match=String(value).replace(/,/g,'').match(/-?\\d+(?:\\.\\d+)?/)
+      if(match)return Number(match[0])
+    }
+    return 0
+  }
+  const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);return {...item,product,denomination}}).filter(Boolean),[cart,allProducts])
   const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])
   const subtotal=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+item.denomination*Number(item.Quantity||0),0),[cartDetailed])
   const cashback=useMemo(()=>cartDetailed.reduce((sum,item)=>{
     const quantity=Number(item.Quantity||0)
-    const rate=Number(item.product?.DiscountPercent||0)
+    const rate=getCashbackRate(item.product)
     return sum+(item.denomination*quantity*rate/100)
   },0),[cartDetailed])
   const total=subtotal
@@ -70,7 +80,7 @@ export default function App() {
     {route.path==='brands'&&<BrandsPage brands={brands} onBrowse={onBrandBrowse}/>}
     {route.path==='vouchers'&&<VouchersPage products={products} brands={brands} brandFilter={brandFilter} setBrandFilter={setBrandFilter} query={query} setQuery={setQuery} brandName={brandName} liked={liked} onLike={toggleLike} onAdd={addToCart} onOpen={id=>navigate('voucher',id)}/>}
     {route.path==='voucher'&&<VoucherPage product={currentProduct} brandName={currentProduct?brandName(currentProduct.BrandID):''} onBack={()=>navigate('vouchers')} onAdd={addToCart}/>}
-    {route.path==='cart'&&<CartPage items={cartDetailed} brandName={brandName} subtotal={subtotal} savings={savings} total={total} onQty={changeQty} onDenomination={changeDenomination} onRemove={removeItem} onContinue={()=>navigate('vouchers')} onCheckout={checkout}/>}
+    {route.path==='cart'&&<CartPage items={cartDetailed} brandName={brandName} subtotal={subtotal} cashback={cashback} total={total} onQty={changeQty} onDenomination={changeDenomination} onRemove={removeItem} onContinue={()=>navigate('vouchers')} onCheckout={checkout}/>}
     {route.path==='checkout'&&<CheckoutPage user={user} items={cartDetailed} total={total} savings={savings} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} qrUrl={QR_URL} logoUrl={LOGO_URL} onBack={()=>navigate('cart')} onCreateOrder={createPendingOrder}/>}
     {route.path==='profile'&&user&&<ProfilePage user={user} name={profileName} setName={setProfileName} onSave={saveProfile} onLogout={logout} onOrders={()=>navigate('orders')}/>}
     {route.path==='orders'&&<OrdersPage orders={orders} onBack={()=>navigate('vouchers')}/>}
