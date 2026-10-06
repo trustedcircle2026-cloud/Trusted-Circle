@@ -131,6 +131,32 @@ function setupBackend(){
           if(sh.getLastRow()>1)sh.getRange(2,oldHashCol+1,sh.getLastRow()-1,1).clearContent();
         }
       }
+      if(name===W.S.C){
+        const oldOptionsCol=existing.indexOf('Options');
+        const hasSeparateNumbers=existing.indexOf('Number1')>=0&&existing.indexOf('Number2')>=0&&existing.indexOf('Number3')>=0;
+        if(oldOptionsCol>=0&&!hasSeparateNumbers){
+          const values=sh.getDataRange().getValues();
+          const oldHeaders=values[0].map(String);
+          const migrated=[h];
+          for(let ri=1;ri<values.length;ri++){
+            const row=values[ri];
+            if(!row.some(x=>x!=='')){
+              migrated.push(h.map(()=>'')); continue;
+            }
+            const obj={};oldHeaders.forEach((k,ci)=>obj[k]=row[ci]);
+            const nums=String(obj.Options||'').split(',').map(v=>String(v).trim()).filter(Boolean);
+            migrated.push(h.map(k=>{
+              if(k==='Number1')return nums[0]||'';
+              if(k==='Number2')return nums[1]||'';
+              if(k==='Number3')return nums[2]||'';
+              if(k==='Options')return undefined;
+              return obj[k]===undefined?'':obj[k];
+            }));
+          }
+          sh.clearContents();
+          sh.getRange(1,1,migrated.length,h.length).setValues(migrated);
+        }
+      }
     }
     sh.setFrozenRows(1);sh.getRange(1,1,1,h.length).setFontWeight('bold');
   });
