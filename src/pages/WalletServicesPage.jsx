@@ -13,39 +13,37 @@ async function logoDataUrl(){
  try{const b=await fetch(LOGO_URL).then(r=>r.blob());return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(b)})}catch{return null}
 }
 function pdfText(doc,text,x,y,max=175){const lines=doc.splitTextToSize(String(text||''),max);doc.text(lines,x,y);return y+lines.length*6}
+async function addPdfHeader(doc,title,subtitle){
+ const logo=await logoDataUrl();if(logo)doc.addImage(logo,'JPEG',14,10,22,22);
+ doc.setFontSize(18);doc.setFont(undefined,'bold');doc.setTextColor(20,39,31);doc.text('Trusted Circle',42,20);
+ doc.setFontSize(10);doc.setFont(undefined,'normal');doc.setTextColor(90,105,98);doc.text(title,42,27);doc.text(subtitle,42,33);
+ doc.setDrawColor(205,218,211);doc.line(14,39,196,39);doc.setTextColor(20,39,31)
+}
+function drawTable(doc,headers,rows,startY,widths){
+ let y=startY;const x0=14;const rowH=8;
+ doc.setFontSize(8);doc.setFont(undefined,'bold');doc.setFillColor(232,245,238);doc.rect(x0,y-6,182,rowH,'F');
+ let x=x0;headers.forEach((h,i)=>{doc.text(h,x+2,y-1);x+=widths[i]});y+=rowH;
+ doc.setFont(undefined,'normal');
+ rows.forEach(row=>{if(y>270){doc.addPage();y=20}let x=x0;doc.setDrawColor(225,233,228);doc.rect(x0,y-6,182,rowH);row.forEach((v,i)=>{doc.text(doc.splitTextToSize(String(v??''),widths[i]-4),x+2,y-1);x+=widths[i]});y+=rowH});return y
+}
 async function saveTransactionPdf(tx,user,filename='trusted-circle-wallet-transaction.pdf'){
- const doc=new jsPDF(),logo=await logoDataUrl()
- if(logo)doc.addImage(logo,'JPEG',14,12,25,25)
- doc.setFontSize(19);doc.setFont(undefined,'bold');doc.text('Trusted Circle',45,24)
- doc.setFontSize(10);doc.setFont(undefined,'normal');doc.text('Wallet Services — Transaction Statement',45,31)
- let y=50;doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('Transaction Details',14,y);y+=9
- const rows=[['Transaction ID',tx.transactionId],['Date',new Date(tx.createdAt).toLocaleString('en-IN')],['Type',tx.type==='ADD_MONEY'?'Add Money':'Withdrawal'],['Amount','₹'+money(tx.amount)],['Status',String(tx.status).replace(/_/g,' ')],['Balance Before','₹'+money(tx.balanceBefore)],['Balance After','₹'+money(tx.balanceAfter)]]
- if(tx.upiId)rows.push(['UPI ID',tx.upiId]);if(tx.attempt>1)rows.push(['Attempt',String(tx.attempt)])
- rows.forEach(([k,v])=>{doc.setFont(undefined,'normal');doc.text(k,14,y);doc.setFont(undefined,'bold');y=pdfText(doc,v,62,y,130)+2})
- if(tx.completedAt){y+=4;doc.setFont(undefined,'bold');doc.text('Completed At',14,y);doc.setFont(undefined,'normal');doc.text(new Date(tx.completedAt).toLocaleString('en-IN'),62,y);y+=9}
- y+=4;doc.setFont(undefined,'bold');doc.text('Customer',14,y);y+=7;doc.setFont(undefined,'normal');doc.text(user?.name||'Trusted Circle User',14,y);y+=6;doc.text(user?.email||'',14,y);y+=12
- doc.setFont(undefined,'bold');doc.text('Transaction Notes',14,y);y+=7;doc.setFont(undefined,'normal');pdfText(doc,tx.notes||'No additional notes.',14,y,180)
- doc.setFontSize(8);doc.setTextColor(100);doc.text('Trusted Circle Wallet Services · This statement is system generated.',14,285)
- doc.save(filename)
+ const doc=new jsPDF();await addPdfHeader(doc,'Wallet Services — Transaction PDF','Detailed transaction statement');
+ doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('TRANSACTION DETAILS',14,51);
+ const rows=[['Transaction ID',tx.transactionId],['Customer Name',user?.name||'—'],['Customer Email',user?.email||'—'],['Transaction Date',new Date(tx.createdAt).toLocaleString('en-IN')],['Completed Date',tx.completedAt?new Date(tx.completedAt).toLocaleString('en-IN'):'—'],['Type',tx.type==='ADD_MONEY'?'Add Money':'Withdrawal'],['Amount','₹'+money(tx.amount)],['Status',String(tx.status).replace(/_/g,' ')],['Balance Before','₹'+money(tx.balanceBefore)],['Balance After','₹'+money(tx.balanceAfter)],['UPI ID',tx.upiId||'—'],['Attempt',tx.attempt||1],['Payment Label',tx.paymentLinkLabel||'—'],['Notes',tx.notes||'—']];
+ drawTable(doc,['Field','Details'],rows,59,[48,134]);
+ doc.setFontSize(8);doc.setTextColor(105);doc.text('Trusted Circle Wallet Services · System generated document',14,286);doc.setTextColor(20,39,31);doc.save(filename)
 }
 async function saveTransactionsPdf(transactions,user,from,to){
- const doc=new jsPDF(),logo=await logoDataUrl()
- if(logo)doc.addImage(logo,'JPEG',14,10,22,22)
- doc.setFontSize(18);doc.setFont(undefined,'bold');doc.text('Trusted Circle',42,21)
- doc.setFontSize(10);doc.setFont(undefined,'normal');doc.text('Wallet Services — Transaction Statement',42,28)
- doc.setFontSize(9);doc.text(user?.email||'',14,38)
- let y=50
- const filtered=transactions.filter(tx=>{const d=new Date(tx.createdAt);return (!from||d>=new Date(from+'T00:00:00'))&&(!to||d<=new Date(to+'T23:59:59'))});
- filtered.forEach((tx,i)=>{
-  if(y>260){doc.addPage();y=18}
-  doc.setDrawColor(220);doc.line(14,y-5,196,y-5)
-  doc.setFont(undefined,'bold');doc.setFontSize(10);doc.text((i+1)+'. '+(tx.type==='ADD_MONEY'?'Add Money':'Withdrawal'),14,y)
-  doc.setFont(undefined,'normal');doc.text('₹'+money(tx.amount),150,y)
-  y+=6;doc.text(new Date(tx.createdAt).toLocaleString('en-IN'),14,y);doc.text(String(tx.status).replace(/_/g,' '),150,y);y+=5
-  doc.setFontSize(8);doc.text('ID: '+tx.transactionId,14,y);y+=9
- })
- doc.setFontSize(8);doc.setTextColor(100);doc.text('Trusted Circle Wallet Services · System generated statement.',14,285)
- doc.save('trusted-circle-wallet-transactions.pdf')
+ const doc=new jsPDF();await addPdfHeader(doc,'Wallet Services — Account Statement','Period: '+from+' to '+to);
+ doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('CUSTOMER',14,50);doc.setFont(undefined,'normal');doc.text((user?.name||'Trusted Circle User')+'  ·  '+(user?.email||''),14,56);
+ const rows=transactions.map(t=>[new Date(t.createdAt).toLocaleDateString('en-IN'),t.transactionId,t.type==='ADD_MONEY'?'Add Money':'Withdrawal','₹'+money(t.amount),String(t.status).replace(/_/g,' '),'₹'+money(t.balanceAfter)]);
+ let y=68;y=drawTable(doc,['Date','Transaction ID','Type','Amount','Status','Balance After'],rows,y,[24,47,27,25,31,28]);
+ y+=10;doc.setFont(undefined,'bold');doc.text('STATEMENT SUMMARY',14,y);y+=8;doc.setFont(undefined,'normal');
+ const totalAdd=transactions.filter(t=>t.type==='ADD_MONEY'&&String(t.status).includes('COMPLETED')).reduce((s,t)=>s+Number(t.amount||0),0);
+ const totalWithdraw=transactions.filter(t=>t.type==='WITHDRAW'&&String(t.status).includes('COMPLETED')).reduce((s,t)=>s+Number(t.amount||0),0);
+ doc.text('Completed Add Money: ₹'+money(totalAdd),14,y);doc.text('Completed Withdrawals: ₹'+money(totalWithdraw),100,y);y+=7;doc.text('Transactions included: '+transactions.length,14,y);
+ doc.setFontSize(8);doc.setTextColor(105);doc.text('Trusted Circle Wallet Services · System generated completed/account statement',14,286);doc.setTextColor(20,39,31);
+ doc.save('trusted-circle-wallet-statement-'+from+'-to-'+to+'.pdf')
 }
 
 function Login({onLogin}){
