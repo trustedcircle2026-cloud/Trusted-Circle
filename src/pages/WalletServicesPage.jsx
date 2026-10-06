@@ -46,42 +46,42 @@ async function saveTransactionsPdf(transactions,user,from,to){
 }
 
 function Login({onLogin}){
- const[name,setName]=useState(''),[isNewUser,setIsNewUser]=useState(false)
- const[email,setEmail]=useState(''),[otp,setOtp]=useState(''),[step,setStep]=useState('email'),[busy,setBusy]=useState(false),[message,setMessage]=useState('')
+ const[email,setEmail]=useState(''),[challengeId,setChallengeId]=useState(''),[options,setOptions]=useState([]),[selected,setSelected]=useState(''),[step,setStep]=useState('email'),[busy,setBusy]=useState(false),[message,setMessage]=useState('')
  const request=async e=>{
    e.preventDefault();
    const em=email.trim().toLowerCase();
    if(!em)return;
    setBusy(true);
-   setStep('otp');
-   setMessage('Sending OTP to '+em+'…');
-   // Let React paint the OTP screen before starting the network request.
-   await new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+   setMessage('Sending verification number to '+em+'…');
    try{
-     const d=await walletApi.requestOtp(em);
-     setIsNewUser(!!d.isNewUser);
-     setMessage('OTP sent to '+em+'. Enter the 6-digit OTP below.');
+     const d=await walletApi.requestLoginChallenge(em);
+     setEmail(em);
+     setChallengeId(d.challengeId||'');
+     setOptions(Array.isArray(d.options)?d.options:[]);
+     setSelected('');
+     setStep('challenge');
+     setMessage('We sent one number to '+em+'. Select the matching number below.');
    }catch(err){
-     setMessage('Could not send OTP: '+err.message);
+     setMessage('Could not send verification: '+err.message);
    }finally{setBusy(false)}
  }
  const verify=async e=>{
    e.preventDefault();
-   if(otp.length!==6)return;
+   if(!challengeId||!selected)return;
    setBusy(true);
-   setMessage('Verifying OTP…');
+   setMessage('Verifying selection…');
    try{
-     const d=await walletApi.verifyOtp(email,otp,name.trim());
+     const d=await walletApi.verifyLoginChallenge(email,challengeId,selected);
      const token=d?.session?.token||d?.token||'';
      const verifiedUser=d?.user||null;
-     if(!token)throw new Error('Login failed. Please try the OTP again.');
+     if(!token)throw new Error('Login failed. Please request a new verification number.');
      localStorage.setItem(SESSION_KEY,token);
      onLogin(token,verifiedUser,null);
    }catch(err){setMessage(err.message)}finally{setBusy(false)}
  }
  return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Wallet Services</h1><p>Manage your wallet balance and transactions.</p>
- {step==='email'?<form onSubmit={request}><label>Email address</label><input className="wallet-field" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="wallet-submit" disabled={busy}>{busy?'Sending OTP…':'Continue'} <ArrowRight size={17}/></button></form>:
- <form onSubmit={verify}>{isNewUser&&<><label>Full name</label><input className="wallet-field" value={name} onChange={e=>setName(e.target.value)} placeholder="Your full name" autoComplete="name" required/></>}<label>6-digit OTP</label><input className="wallet-field wallet-otp-input" inputMode="numeric" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" autoFocus required/><button className="wallet-submit" disabled={busy||otp.length!==6||(isNewUser&&name.trim().length<2)}>{busy?'Verifying…':'Verify & Open Wallet'} <ArrowRight size={17}/></button><button className="wallet-change-email" type="button" onClick={()=>{setStep('email');setOtp('');setName('');setIsNewUser(false);setMessage('')}}>Use another email</button></form>}
+ {step==='email'?<form onSubmit={request}><label>Email address</label><input className="wallet-field" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="wallet-submit" disabled={busy}>{busy?'Sending…':'Continue'} <ArrowRight size={17}/></button></form>:
+ <form onSubmit={verify}><label>Verification number</label><p className="wallet-login-challenge-text">We sent one of these numbers to <b>{email}</b>. Select the matching number.</p><div className="wallet-login-options">{options.map(n=><button type="button" key={n} className={'wallet-login-option '+(selected===n?'selected':'')} onClick={()=>setSelected(n)} disabled={busy}>{n}</button>)}</div><button className="wallet-submit" disabled={busy||!selected}>{busy?'Verifying…':'Verify & Open Wallet'} <ArrowRight size={17}/></button><button className="wallet-change-email" type="button" onClick={()=>{setStep('email');setChallengeId('');setOptions([]);setSelected('');setMessage('')}}>Use another email</button></form>}
  {message&&<div className="wallet-login-message">{message}</div>}</section></main>
 }
 
