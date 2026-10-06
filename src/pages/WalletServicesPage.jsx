@@ -74,8 +74,11 @@ function Login({onLogin}){
      const d=await walletApi.verifyOtp(email,otp,name.trim());
      const token=d?.session?.token||d?.token||'';
      const verifiedUser=d?.user||null;
+     const verifiedWallet=d?.wallet||null;
+     if(!token)throw new Error('Login response did not contain a session token. Please try the OTP again.');
      localStorage.setItem(SESSION_KEY,token);
-     onLogin(token,verifiedUser);
+     setMessage('Wallet opened.');
+     onLogin(token,verifiedUser,verifiedWallet);
    }catch(err){setMessage(err.message)}finally{setBusy(false)}
  }
  return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Wallet Services</h1><p>Manage your wallet balance and transactions.</p>
@@ -172,6 +175,6 @@ export default function WalletServicesPage(){
  },[token])
  const logout=()=>{walletApi.logout(token).catch(()=>{});localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setInitialWallet(null)}
  if(checking)return <main className="wallet-services-page wallet-login-page"><div className="wallet-loading">Loading Wallet Services…</div></main>
- if(!token||!user)return <Login onLogin={(t,u)=>{setToken(t);setUser(u);setInitialWallet(null)}}/>
+ if(!token||!user)return <Login onLogin={(t,u,w)=>{setToken(t);setUser(u);setInitialWallet(w||null)}}/>
  return <WalletHome token={token} user={user} onLogout={logout} initialWallet={initialWallet}/>
 }
