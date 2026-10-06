@@ -11,10 +11,12 @@
 const W = {
   ADD:[500,1000,1500,2000],
   OTP_MS:10*60*1000,
+  LOGIN_CHALLENGE_MS:10*60*1000,
+  LOGIN_MAX_ATTEMPTS:5,
   SESSION_MS:24*60*60*1000,
   RESERVATION_MS:15*60*1000,
   ACTION_MS:24*60*60*1000,
-  S:{U:'WalletUsers',O:'WalletOTP',S:'WalletSessions',W:'Wallets',T:'WalletTransactions',P:'WalletPaymentLinks',A:'WalletAdminActions',L:'WalletAuditLogs'}
+  S:{U:'WalletUsers',O:'WalletOTP',C:'WalletLoginChallenges',S:'WalletSessions',W:'Wallets',T:'WalletTransactions',P:'WalletPaymentLinks',A:'WalletAdminActions',L:'WalletAuditLogs'}
 };
 
 function doGet(e){
@@ -60,6 +62,8 @@ function route_(d){
   if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.0.0',status:'ok'};
   if(a==='requestOtp')return requestOtp_(d);
   if(a==='verifyOtp')return verifyOtp_(d);
+  if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
+  if(a==='verifyLoginChallenge')return verifyLoginChallenge_(d);
   if(a==='me')return{ok:true,data:{user:pubUser_(auth_(d.token))}};
   if(a==='wallet')return wallet_(d);
   if(a==='walletOrders')return walletOrders_(d);
@@ -90,6 +94,7 @@ function setupBackend(){
   const headers={
     WalletUsers:['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
     WalletOTP:['OTPId','Email','OTP','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
+    WalletLoginChallenges:['ChallengeID','Email','Options','AnswerHash','ExpiresAt','UsedAt','Attempts','CreatedAt','LastSentAt'],
     WalletSessions:['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'],
     Wallets:['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
     WalletTransactions:['TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter','UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt','ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'],
@@ -200,6 +205,148 @@ function requestOtp_(d){
   });
   return{ok:true,data:{sent:true,email:em,isNewUser:!existingUser,expiresInSeconds:600}};
 }
+function randomLoginNumber_(){
+  return String(Math.floor(Math.random()*99)+1).padStart(2,'0');
+}
+
+function loginChallengeNumbers_(){
+  const set={};
+  while(Object.keys(set).length<3)set[randomLoginNumber_()]=true;
+  return Object.keys(set);
+}
+
+function createWalletSession_(u){
+  const ts=now_(),raw=token_(),exp=new Date(Date.now()+W.SESSION_MS).toISOString();
+  addRow_(W.S.S,{
+    SessionID:id_('WSES'),UserID:u.UserID,TokenHash:hash_(raw),
+    ExpiresAt:exp,CreatedAt:ts,RevokedAt:'',Status:'ACTIVE'
+  });
+  cacheJson_(cacheKey_('WALLET_SESSION_',raw),u,Math.min(300,Math.ceil(W.SESSION_MS/1000)));
+  return{token:raw,expiresAt:exp};
+}
+
+function requestLoginChallenge_(d){
+  const em=email_(d.email);
+  req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em),'Enter a valid email address.');
+
+  const cooldownKey=cacheKey_('WALLET_LOGIN_CHALLENGE_COOLDOWN_',em);
+  req_(!CacheService.getScriptCache().get(cooldownKey),'Please wait before requesting another login challenge.');
+
+  const users=rows_(W.S.U);
+  let existingUser=null;
+  for(let i=users.length-1;i>=0;i--){
+    if(email_(users[i].Email)===em){existingUser=users[i];break;}
+  }
+
+  const options=loginChallengeNumbers_();
+  const answer=options[Math.floor(Math.random()*options.length)];
+  const challengeId=id_('WCH');
+  const ts=now_();
+  const expiresAt=new Date(Date.now()+W.LOGIN_CHALLENGE_MS).toISOString();
+
+  addRow_(W.S.C,{
+    ChallengeID:challengeId,
+    Email:em,
+    Options:options.join(','),
+    AnswerHash:hash_(answer),
+    ExpiresAt:expiresAt,
+    UsedAt:'',
+    Attempts:0,
+    CreatedAt:ts,
+    LastSentAt:ts
+  });
+
+  cacheJson_(cacheKey_('WALLET_LOGIN_CHALLENGE_',challengeId),{
+    ChallengeID:challengeId,
+    Email:em,
+    Options:options,
+    AnswerHash:hash_(answer),
+    ExpiresAt:expiresAt,
+    UsedAt:'',
+    Attempts:0
+  },Math.ceil(W.LOGIN_CHALLENGE_MS/1000));
+
+  CacheService.getScriptCache().put(cooldownKey,'1',60);
+
+  MailApp.sendEmail({
+    to:em,
+    subject:'Trusted Circle Wallet Services — Login Verification',
+    name:'Trusted Circle',
+    replyTo:'info@trustedcircle.in',
+    body:'Your Trusted Circle Wallet Services login verification number is '+answer+'. Select the matching number from the three options shown on the Wallet Services page. This number expires in 10 minutes. Do not share it.',
+    htmlBody:'<div style="font-family:Arial;padding:24px"><h2 style="color:#0f5132">Trusted Circle Wallet Services</h2><p>Your login verification number is:</p><div style="font-size:36px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f3f6f4;text-align:center">'+answer+'</div><p>Return to Wallet Services and select this same number from the three options shown.</p><p>This verification expires in 10 minutes. Do not share this number.</p></div>'
+  });
+
+  return{ok:true,data:{
+    challengeId:challengeId,
+    email:em,
+    options:options,
+    isNewUser:!existingUser,
+    expiresInSeconds:Math.floor(W.LOGIN_CHALLENGE_MS/1000)
+  }};
+}
+
+function verifyLoginChallenge_(d){
+  const em=email_(d.email);
+  const challengeId=clean_(d.challengeId,100);
+  const selected=clean_(d.selectedNumber,2);
+
+  req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em),'Enter a valid email address.');
+  req_(/^WCH_[A-Za-z0-9]+$/.test(challengeId),'Invalid login challenge.');
+  req_(/^\d{2}$/.test(selected)&&Number(selected)>=1&&Number(selected)<=99,'Select one of the three numbers.');
+
+  const cacheKey=cacheKey_('WALLET_LOGIN_CHALLENGE_',challengeId);
+  let x=readCacheJson_(cacheKey);
+  if(!x){
+    x=find_(W.S.C,'ChallengeID',challengeId);
+  }
+
+  req_(x&&email_(x.Email)===em,'Login challenge not found. Please request a new one.');
+  req_(!x.UsedAt,'This login challenge has already been used. Please request a new one.');
+  req_(new Date(x.ExpiresAt).getTime()>Date.now(),'Login challenge expired. Please request a new one.');
+
+  const options=Array.isArray(x.Options)?x.Options:String(x.Options||'').split(',').map(v=>v.trim()).filter(Boolean);
+  req_(options.length===3&&options.indexOf(selected)>=0,'Select one of the three displayed numbers.');
+
+  const attempts=Number(x.Attempts||0);
+  req_(attempts<W.LOGIN_MAX_ATTEMPTS,'Too many incorrect attempts. Please request a new login challenge.');
+
+  const correct=same_(x.AnswerHash,hash_(selected));
+  if(!correct){
+    const nextAttempts=attempts+1;
+    updateRow_(W.S.C,'ChallengeID',challengeId,{Attempts:nextAttempts});
+    cacheJson_(cacheKey,{...x,Attempts:nextAttempts},Math.ceil(Math.max(1,new Date(x.ExpiresAt).getTime()-Date.now())/1000));
+    if(nextAttempts>=W.LOGIN_MAX_ATTEMPTS)throw new Error('Incorrect number. Too many attempts. Please request a new login challenge.');
+    throw new Error('Incorrect number. Please select the number sent to your email.');
+  }
+
+  updateRow_(W.S.C,'ChallengeID',challengeId,{UsedAt:now_()});
+  CacheService.getScriptCache().remove(cacheKey);
+
+  let u=find_(W.S.U,'Email',em);
+  const ts=now_();
+  if(!u){
+    u={
+      UserID:id_('WUSR'),
+      Email:em,
+      Name:clean_(d.name,100)||em.split('@')[0],
+      Status:'ACTIVE',
+      CreatedAt:ts,
+      UpdatedAt:ts,
+      LastLoginAt:ts
+    };
+    addRow_(W.S.U,u);
+    addRow_(W.S.W,{
+      WalletID:id_('WAL'),UserID:u.UserID,Balance:0,ReservedBalance:0,
+      Currency:'INR',Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts
+    });
+  }
+  req_(u.Status==='ACTIVE','Wallet account is inactive.');
+
+  const session=createWalletSession_(u);
+  return{ok:true,data:{user:pubUser_(u),session:session}};
+}
+
 function verifyOtp_(d){
   const em=email_(d.email),otp=clean_(d.otp,20);
   req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)&&/^\d{6}$/.test(otp),'Enter email and 6-digit OTP.');
@@ -238,17 +385,12 @@ function verifyOtp_(d){
   req_(u.Status==='ACTIVE','Wallet account is inactive.');
 
   // LastLoginAt is informational; don't perform an extra sheet read/write on every login.
-  const raw=token_(),exp=new Date(Date.now()+W.SESSION_MS).toISOString();
-  addRow_(W.S.S,{
-    SessionID:id_('WSES'),UserID:u.UserID,TokenHash:hash_(raw),
-    ExpiresAt:exp,CreatedAt:ts,RevokedAt:'',Status:'ACTIVE'
-  });
+  const session=createWalletSession_(u);
   const user=pubUser_(u);
 
   // Cache the session and return only the minimum login payload.
   // The Wallet Home loads its balance/transactions after the page is already visible.
-  cacheJson_(cacheKey_('WALLET_SESSION_',raw),u,Math.min(300,Math.ceil(W.SESSION_MS/1000)));
-  return{ok:true,data:{user,session:{token:raw,expiresAt:exp}}};
+  return{ok:true,data:{user,session:session}};
 }
 function auth_(raw){
   req_(raw,'Authentication required.');
