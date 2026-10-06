@@ -27,20 +27,15 @@ async function walletRequest(action,payload={}){
       isError?reject(value):resolve(value);
     };
     const onMessage=(event)=>{
-      if(event.source!==iframe.contentWindow)return;
       const msg=event.data;
       if(!msg||msg.source!=='trusted-circle-wallet'||msg.requestId!==requestId)return;
       if(!msg.ok){
         finish(new Error(msg.error||'Wallet Services request failed.'),true);
         return;
       }
-      let data=msg.data;
-      if(data===undefined||data===null)data={};
-      if(data&&data.data&&typeof data.data==='object')data=data.data;
-      if(msg.session&&!data.session)data.session=msg.session;
-      if(msg.user&&!data.user)data.user=msg.user;
-      if(!data.session&&msg.data&&msg.data.session)data.session=msg.data.session;
-      if(!data.user&&msg.data&&msg.data.user)data.user=msg.data.user;
+      const data=(msg.data&&typeof msg.data==='object')?msg.data:{};
+      if(msg.token) data.session={token:msg.token,expiresAt:msg.expiresAt||''};
+      if(msg.user) data.user=msg.user;
       finish(data);
     };
     window.addEventListener('message',onMessage);
