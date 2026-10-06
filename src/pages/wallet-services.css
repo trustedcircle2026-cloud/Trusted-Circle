@@ -1,0 +1,225 @@
+/* Trusted Circle Wallet Services — independent UI */
+.wallet-services-page {
+  min-height: calc(100vh - 130px);
+  padding: 64px 24px 90px;
+  background: #f6faf8;
+}
+
+.wallet-services-shell,
+.wallet-login-card {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+}
+
+.wallet-services-shell {
+  background: #fff;
+  border: 1px solid #e2ebe6;
+  border-radius: 28px;
+  padding: 34px;
+  box-shadow: 0 24px 70px rgba(20, 54, 40, .08);
+}
+
+.wallet-services-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.wallet-services-eyebrow {
+  display: inline-block;
+  color: #176b49;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.wallet-services-top h1,
+.wallet-login-card h1 {
+  margin: 8px 0;
+  color: #14221c;
+  font-size: clamp(32px, 5vw, 54px);
+  line-height: 1;
+}
+
+.wallet-services-top p,
+.wallet-login-card > p {
+  color: #69766f;
+  line-height: 1.65;
+}
+
+.wallet-services-mark,
+.wallet-login-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: #eaf5ef;
+  color: #126343;
+}
+
+.wallet-services-balance-card {
+  margin-top: 34px;
+  padding: 30px;
+  border-radius: 22px;
+  background: #14211c;
+  color: #fff;
+}
+
+.wallet-services-balance-card span,
+.wallet-services-balance-card small {
+  display: block;
+  color: #b9c9c1;
+}
+
+.wallet-services-balance-card strong {
+  display: block;
+  margin: 8px 0;
+  font-size: clamp(38px, 6vw, 58px);
+}
+
+.wallet-services-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.wallet-service-action,
+.wallet-submit {
+  border: 0;
+  border-radius: 14px;
+  min-height: 54px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  background: #eef3f0;
+  color: #15241d;
+  font-weight: 800;
+}
+
+.wallet-service-action.primary,
+.wallet-submit {
+  background: #155f42;
+  color: #fff;
+}
+
+.wallet-services-placeholder {
+  display: flex;
+  gap: 14px;
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid #e0ebe5;
+  border-radius: 18px;
+  color: #155f42;
+}
+
+.wallet-services-placeholder p {
+  margin: 5px 0 0;
+  color: #6c7872;
+  line-height: 1.5;
+}
+
+.wallet-login-page {
+  display: grid;
+  place-items: center;
+}
+
+.wallet-login-card {
+  max-width: 520px;
+  padding: 38px;
+  background: #fff;
+  border: 1px solid #e2ebe6;
+  border-radius: 28px;
+  box-shadow: 0 24px 70px rgba(20, 54, 40, .09);
+}
+
+.wallet-login-icon {
+  margin-bottom: 24px;
+}
+
+.wallet-login-card form {
+  margin-top: 26px;
+}
+
+.wallet-login-card label {
+  display: block;
+  margin: 0 0 8px;
+  color: #34423b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.wallet-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #d8e2dc;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #fff;
+}
+
+.wallet-input-wrap input,
+.wallet-otp-input {
+  width: 100%;
+  height: 54px;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  background: transparent;
+}
+
+.wallet-otp-input {
+  border: 1px solid #d8e2dc;
+  border-radius: 14px;
+  padding: 0 16px;
+  letter-spacing: .3em;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.wallet-submit {
+  width: 100%;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.wallet-submit:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.wallet-change-email {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #155f42;
+  margin-top: 12px;
+  padding: 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.wallet-login-message {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f0f6f3;
+  color: #155f42;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .wallet-services-page { padding: 32px 14px 60px; }
+  .wallet-services-shell,
+  .wallet-login-card { padding: 24px 18px; border-radius: 22px; }
+  .wallet-services-top { flex-direction: column; }
+  .wallet-services-actions { grid-template-columns: 1fr; }
+}
