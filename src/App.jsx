@@ -40,8 +40,11 @@ export default function App() {
   const cartDetailed=useMemo(()=>cart.map(item=>{const product=allProducts.find(p=>String(p.ProductID)===String(item.ProductID));if(!product)return null;const denomination=Number(item.Denomination||product.FaceValue||0);const unitPrice=Math.round(denomination*(1-Number(product.DiscountPercent||0)/100)*100)/100;return {...item,product,denomination,unitPrice}}).filter(Boolean),[cart,allProducts])
   const cartCount=useMemo(()=>cart.reduce((sum,item)=>sum+Number(item.Quantity||0),0),[cart])
   const subtotal=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+item.denomination*Number(item.Quantity||0),0),[cartDetailed])
-  const discountedTotal=useMemo(()=>cartDetailed.reduce((sum,item)=>sum+item.unitPrice*Number(item.Quantity||0),0),[cartDetailed])
-  const cashback=Math.max(0,Math.round((subtotal-discountedTotal)*100)/100)
+  const cashback=useMemo(()=>cartDetailed.reduce((sum,item)=>{
+    const quantity=Number(item.Quantity||0)
+    const rate=Number(item.product?.DiscountPercent||0)
+    return sum+(item.denomination*quantity*rate/100)
+  },0),[cartDetailed])
   const total=subtotal
   const savings=cashback
   const currentProduct=useMemo(()=>allProducts.find(p=>String(p.ProductID)===String(route.id)),[allProducts,route.id])
