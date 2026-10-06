@@ -100,7 +100,7 @@ function WalletHome({token,user,onLogout}){
    {busy?<div className="wallet-empty">Loading transactions…</div>:orders.length?<div className="wallet-transactions-scroll">{orders.map(t=><button className="wallet-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(t.type==='ADD_MONEY'?'add':'withdraw')}>{t.type==='ADD_MONEY'?'+':'−'}</span><span className="wallet-tx-main"><b>{t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')}</small></span><span className="wallet-tx-right"><b>{t.type==='ADD_MONEY'?'+':'−'}₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>)}</div>:<div className="wallet-empty">No wallet transactions yet.</div>}
    <div className="wallet-right-footer"><span>Click any transaction for full details & PDF</span><span>Trusted Circle Wallet Services</span></div>
   </section>
-  {modal&&<WalletModal modal={modal} onClose={()=>setModal(null)} onAdd={startAdd} onWithdraw={withdraw} onRetry={retry} orders={orders} setSelectedTx={setSelectedTx} onOpenOrders={openOrders}/>}
+  {modal&&<WalletModal modal={modal} onClose={()=>setModal(null)} onAdd={startAdd} onWithdraw={withdraw} onRetry={retry} orders={orders} setSelectedTx={setSelectedTx} onOpenOrders={openOrders} onViewBalance={()=>{setModal(null);load()}}/>}
   {statementOpen&&<StatementModal transactions={orders} user={user} onClose={()=>setStatementOpen(false)}/>}
   {selectedTx&&!modal&&<TransactionModal tx={selectedTx} user={user} onClose={()=>setSelectedTx(null)} onRetry={retry}/>}
  </section></main>
