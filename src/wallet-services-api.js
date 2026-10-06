@@ -31,7 +31,11 @@ async function walletRequest(action,payload={}){
       const msg=event.data;
       if(!msg||msg.source!=='trusted-circle-wallet'||msg.requestId!==requestId)return;
       if(!msg.ok)finish(new Error(msg.error||'Wallet Services request failed.'),true);
-      else finish(msg.data);
+      else{
+        let data=msg.data;
+        for(let i=0;i<3&&data&&data.data&&typeof data.data==='object';i++)data=data.data;
+        finish(data);
+      }
     };
     window.addEventListener('message',onMessage);
 
