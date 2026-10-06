@@ -35,20 +35,24 @@ function doPost(e){
 }
 function iframeResponse_(result,requestId){
   const safeId=clean_(requestId,120);
-  const d=result&&result.ok&&result.data?result.data:{};
-  const s=d&&d.session?d.session:null;
-  const u=d&&d.user?d.user:null;
+  const ok=!!(result&&result.ok);
+  const d=ok&&result.data&&typeof result.data==='object'?result.data:{};
+  const s=d&&d.session&&typeof d.session==='object'?d.session:null;
+  const u=d&&d.user&&typeof d.user==='object'?d.user:null;
+  // Keep the iframe contract deliberately flat. Login must never depend on
+  // nested response parsing: token/user/expiresAt are always top-level.
   const payload=JSON.stringify({
     source:'trusted-circle-wallet',
+    responseVersion:'3',
     requestId:safeId,
-    ok:!!(result&&result.ok),
-    token:s&&s.token?s.token:'',
-    expiresAt:s&&s.expiresAt?s.expiresAt:'',
+    ok:ok,
+    token:s&&s.token?String(s.token):'',
+    expiresAt:s&&s.expiresAt?String(s.expiresAt):'',
     user:u||null,
-    data:result&&result.ok?d:{},
-    error:result&&result.ok?'':String(result&&result.error||'Wallet Services request failed.')
+    data:ok?d:{},
+    error:ok?'':String(result&&result.error||'Wallet Services request failed.')
   }).split('<').join('\\u003c');
-  const html='<!doctype html><html><body><script>window.top.postMessage('+payload+', '+JSON.stringify('https://trustedcircle.shop')+');</script></body></html>';
+  const html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>(function(){var message='+payload+';try{window.top.postMessage(message, "https://trustedcircle.shop");}catch(e){window.parent.postMessage(message, "https://trustedcircle.shop");}})();</script></body></html>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 function route_(d){
