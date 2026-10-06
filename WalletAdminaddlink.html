@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wallet Admin Add Link</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#173b2a;font-family:Arial,sans-serif}.wrap{max-width:1000px;margin:35px auto;padding:18px}.card{background:#fff;border:1px solid #e2e9e4;border-radius:18px;padding:25px;margin-bottom:18px;box-shadow:0 10px 30px rgba(0,0,0,.06)}h1{margin:0 0 7px}.muted{color:#68766e}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}label{display:block;font-weight:700;margin-bottom:7px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd7d1;border-radius:10px;font-size:15px}textarea{min-height:160px}button{border:0;border-radius:10px;padding:12px 17px;background:#0f5132;color:white;font-weight:700;cursor:pointer;margin:4px}button.alt{background:#e8efeb;color:#173b2a}.full{grid-column:1/-1}.msg{margin-top:12px;padding:12px;border-radius:10px;background:#eef7f0}.bad{background:#fff0ee;color:#a52217}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e8ece9;text-align:left;font-size:13px}@media(max-width:700px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}</style>
+</head><body><div class="wrap">
+<div class="card"><h1>Wallet Payment Gateway</h1><div class="muted">Wallet Services only. This stock is completely separate from the Shopping website and its payment links.</div></div>
+<div class="card"><div class="grid">
+<div><label>Wallet Admin Key</label><input id="key" type="password" placeholder="Enter private admin key"></div>
+<div><label>Denomination</label><select id="amount"><option value="500">₹500</option><option value="1000">₹1,000</option><option value="1500">₹1,500</option><option value="2000">₹2,000</option></select></div>
+<div><label>Payment Link Label</label><input id="label" placeholder="Wallet Payment ₹500"></div>
+<div><label>Single Payment Gateway Link</label><input id="link" placeholder="https://..."></div>
+<div class="full"><label>Bulk Payment Gateway Links — one link per line</label><textarea id="links" placeholder="https://payment-link-1&#10;https://payment-link-2&#10;https://payment-link-3"></textarea></div>
+<div class="full"><button onclick="single()">Add Single Link</button><button onclick="bulk()">Add Bulk Links</button><button class="alt" onclick="stock()">Refresh Stock</button></div>
+</div><div id="msg"></div></div>
+<div class="card"><h2>Stock Summary</h2><div id="summary" class="muted">Enter the admin key and refresh.</div><div style="overflow:auto;margin-top:15px"><table><thead><tr><th>Denomination</th><th>Available</th><th>Reserved</th><th>Used</th><th>Status</th><th>Link</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+</div>
+<script>
+const API='PASTE_WALLET_APPS_SCRIPT_EXEC_URL_HERE';
+const $=x=>document.getElementById(x);
+function msg(t,b=false){$('msg').className='msg'+(b?' bad':'');$('msg').textContent=t}
+async function api(action,extra={}){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,adminKey:$('key').value,...extra})});const j=await r.json();if(!j.ok)throw Error(j.error||'Request failed');return j.data}
+async function single(){try{let d=await api('adminAddPaymentLink',{denomination:+$('amount').value,link:$('link').value,label:$('label').value});msg('Added: '+d.paymentLinkStockId);$('link').value='';stock()}catch(e){msg(e.message,true)}}
+async function bulk(){try{let d=await api('adminAddPaymentLinkBulk',{denomination:+$('amount').value,links:$('links').value,label:$('label').value});msg(d.count+' links added successfully.');$('links').value='';stock()}catch(e){msg(e.message,true)}}
+async function stock(){try{let d=await api('adminPaymentStock');$('summary').innerHTML=d.summary.map(x=>'₹'+x.denomination+' — <b>'+x.available+'</b> available · '+x.reserved+' reserved · '+x.used+' used').join(' &nbsp; | &nbsp; ');$('rows').innerHTML=d.links.map(x=>'<tr><td>₹'+x.denomination+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td>'+x.status+'</td><td style="max-width:350px;word-break:break-all">'+esc(x.link)+'</td></tr>').join('')}catch(e){msg(e.message,true)}}
+function esc(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+</script></body></html>
