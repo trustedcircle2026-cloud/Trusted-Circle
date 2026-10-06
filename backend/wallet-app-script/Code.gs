@@ -74,7 +74,7 @@ function spreadsheet_(){return SpreadsheetApp.openById(requiredProp_('SPREADSHEE
 function setupBackend(){
   const headers={
     WalletUsers:['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
-    WalletOTP:['OTPId','Email','OtpHash','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
+    WalletOTP:['OTPId','Email','OTP','ExpiresAt','UsedAt','CreatedAt','LastSentAt'],
     WalletSessions:['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'],
     Wallets:['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
     WalletTransactions:['TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter','UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt','ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'],
@@ -85,7 +85,19 @@ function setupBackend(){
   const ss=spreadsheet_();
   Object.keys(headers).forEach(name=>{
     const sh=ss.getSheetByName(name)||ss.insertSheet(name),h=headers[name];
-    if(sh.getLastRow()===0)sh.getRange(1,1,1,h.length).setValues([h]);
+    if(sh.getLastRow()===0){
+      sh.getRange(1,1,1,h.length).setValues([h]);
+    }else{
+      const existing=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String);
+      if(name===W.S.O){
+        const oldHashCol=existing.indexOf('OtpHash');
+        const otpCol=existing.indexOf('OTP');
+        if(oldHashCol>=0 && otpCol<0){
+          sh.getRange(1,oldHashCol+1).setValue('OTP');
+          if(sh.getLastRow()>1)sh.getRange(2,oldHashCol+1,sh.getLastRow()-1,1).clearContent();
+        }
+      }
+    }
     sh.setFrozenRows(1);sh.getRange(1,1,1,h.length).setFontWeight('bold');
   });
   return{ok:true,spreadsheetId:ss.getId(),sheets:Object.keys(headers)};
@@ -140,16 +152,19 @@ function requestOtp_(d){
   const em=email_(d.email);req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em),'Enter a valid email address.');
   const previous=rows_(W.S.O).filter(x=>email_(x.Email)===em).pop();
   if(previous&&previous.LastSentAt&&Date.now()-new Date(previous.LastSentAt).getTime()<60000)throw new Error('Please wait before requesting another OTP.');
+  const isNewUser=!rows_(W.S.U).some(x=>email_(x.Email)===em);
   const otp=String(Math.floor(100000+Math.random()*900000)),ts=now_();
-  addRow_(W.S.O,{OTPId:id_('WOTP'),Email:em,OtpHash:hash_(otp),ExpiresAt:new Date(Date.now()+W.OTP_MS).toISOString(),UsedAt:'',CreatedAt:ts,LastSentAt:ts});
+  addRow_(W.S.O,{OTPId:id_('WOTP'),Email:em,OTP:otp,ExpiresAt:new Date(Date.now()+W.OTP_MS).toISOString(),UsedAt:'',CreatedAt:ts,LastSentAt:ts});
   MailApp.sendEmail({to:em,subject:'Trusted Circle Wallet Services — Login OTP',name:'Trusted Circle',replyTo:'info@trustedcircle.in',body:'Your Trusted Circle Wallet Services OTP is '+otp+'. It expires in 10 minutes. Do not share this code.',htmlBody:'<div style="font-family:Arial;padding:24px"><h2 style="color:#0f5132">Trusted Circle Wallet Services</h2><p>Your OTP is:</p><div style="font-size:32px;font-weight:bold;letter-spacing:8px;padding:16px;background:#f3f6f4;text-align:center">'+otp+'</div><p>Expires in 10 minutes. Do not share this OTP.</p></div>'});
-  return{ok:true,data:{sent:true,email:em,isNewUser:!find_(W.S.U,'Email',em),expiresInSeconds:600}};
+  return{ok:true,data:{sent:true,email:em,isNewUser:isNewUser,expiresInSeconds:600}};
 }
 function verifyOtp_(d){
   const em=email_(d.email),otp=clean_(d.otp,20);req_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)&&/^\d{6}$/.test(otp),'Enter email and 6-digit OTP.');
   const a=rows_(W.S.O).filter(x=>email_(x.Email)===em&&!x.UsedAt);req_(a.length,'OTP not found. Request a new OTP.');
-  const x=a[a.length-1];req_(new Date(x.ExpiresAt).getTime()>Date.now(),'OTP expired. Request a new OTP.');req_(same_(x.OtpHash,hash_(otp)),'Invalid OTP.');updateRow_(W.S.O,'OTPId',x.OTPId,{UsedAt:now_()});
-  let u=find_(W.S.U,'Email',em),ts=now_();
+  const x=a[a.length-1];req_(new Date(x.ExpiresAt).getTime()>Date.now(),'OTP expired. Request a new OTP.');req_(String(x.OTP||'')===otp,'Invalid OTP.');updateRow_(W.S.O,'OTPId',x.OTPId,{UsedAt:now_()});
+  const users=rows_(W.S.U);let u=null;
+  for(let i=users.length-1;i>=0;i--)if(email_(users[i].Email)===em){u=users[i];break;}
+  const ts=now_();
   if(!u){u={UserID:id_('WUSR'),Email:em,Name:clean_(d.name,100)||em.split('@')[0],Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts,LastLoginAt:ts};addRow_(W.S.U,u);addRow_(W.S.W,{WalletID:id_('WAL'),UserID:u.UserID,Balance:0,ReservedBalance:0,Currency:'INR',Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts});}
   req_(u.Status==='ACTIVE','Wallet account is inactive.');updateRow_(W.S.U,'UserID',u.UserID,{LastLoginAt:ts,UpdatedAt:ts});
   const raw=token_(),exp=new Date(Date.now()+W.SESSION_MS).toISOString();addRow_(W.S.S,{SessionID:id_('WSES'),UserID:u.UserID,TokenHash:hash_(raw),ExpiresAt:exp,CreatedAt:ts,RevokedAt:'',Status:'ACTIVE'});
