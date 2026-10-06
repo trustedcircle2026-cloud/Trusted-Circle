@@ -2,8 +2,6 @@ const WALLET_API_URL =
   import.meta.env.VITE_WALLET_APPS_SCRIPT_URL ||
   'https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec'
 
-const PARENT_ORIGIN = window.location.origin;
-
 async function walletRequest(action,payload={}){
   const iframeId='wallet-api-frame-'+Date.now()+'-'+Math.random().toString(36).slice(2);
   const requestId=iframeId;
