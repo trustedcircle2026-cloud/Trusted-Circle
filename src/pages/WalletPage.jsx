@@ -26,7 +26,7 @@ export default function WalletPage({token,onBack}){
    const rawTx=Array.isArray(next?.transactions)?next.transactions:Array.isArray(next?.wallet?.transactions)?next.wallet.transactions:[]
    const cashback=Number(next?.cashbackBalance??next?.cashback??next?.availableCashback??next?.wallet?.cashbackBalance??next?.wallet?.cashback??0)
    const balance=Number(next?.balance??next?.walletBalance??next?.wallet?.balance??0)
-   setShopping({balance,cashback,total:balance+cashback,transactions:rawTx})
+   setShopping({balance:0,cashback:balance,total:balance,transactions:rawTx,totalEarned:Number(next?.wallet?.totalEarned||0),totalRedeemed:Number(next?.wallet?.totalRedeemed||0)})
   }catch(error){console.warn('Shopping wallet unavailable',error)}
  }
  const load=async()=>{await Promise.all([loadWallet(),loadShopping()])}
@@ -69,9 +69,9 @@ export default function WalletPage({token,onBack}){
    <div className="wallet-stats"><div><span>Wallet</span><strong>{money(data.wallet.balance)}</strong></div><div><span>Cashback</span><strong>{money(data.wallet.cashbackBalance)}</strong></div></div>
    <div className="wallet-action-stack"><button className="btn-primary" onClick={()=>{setSelectedAmount(500);setShowAdd(true)}}><Plus size={16}/> Add Money</button><button className="wallet-withdraw-btn" onClick={()=>{setAmount('');setUpiId('');setShowWithdraw(true)}} disabled={Number(data.wallet.balance)<=0}><Minus size={16}/> Withdraw Money</button></div>
   </section>:<section className="wallet-hero shopping-wallet-hero">
-   <div className="wallet-balance"><span><ShieldCheck size={20}/> Shopping total</span><strong>{money(shopping.total)}</strong><small>Shopping balance + cashback</small></div>
-   <div className="wallet-stats"><div><span>Shopping Wallet</span><strong>{money(shopping.balance)}</strong></div><div><span>Cashback</span><strong>{money(shopping.cashback)}</strong></div></div>
-   <div className="shopping-cashback-note"><CheckCircle2 size={17}/><span>Your Shopping cashback is shown here separately and is not mixed with Wallet Services funds.</span></div>
+   <div className="wallet-balance"><span><ShieldCheck size={20}/> Shopping cashback</span><strong>{money(shopping.cashback)}</strong><small>Earned from Shopping vouchers & orders</small></div>
+   <div className="wallet-stats"><div><span>Total earned</span><strong>{money(shopping.totalEarned)}</strong></div><div><span>Total redeemed</span><strong>{money(shopping.totalRedeemed)}</strong></div></div>
+   <div className="shopping-cashback-note"><CheckCircle2 size={17}/><span>Your Shopping cashback is shown here separately and is never mixed with Wallet Services funds.</span></div>
   </section>}
 
   <section className="wallet-history"><div className="section-title"><div><span className="eyebrow">{active?'WALLET SERVICES':'SHOPPING'}</span><h2>{txTitle}</h2></div><History size={20}/></div>
