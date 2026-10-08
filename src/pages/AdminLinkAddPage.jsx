@@ -6,7 +6,7 @@ import '../admin-link-add.css'
 const DENOMS=[500,1000,1500,2000]
 
 export default function AdminLinkAddPage({logoUrl}){
-  const[token,setToken]=useState(()=>localStorage.getItem('tc_erp_session')||'')
+  const[sessionToken,setSessionToken]=useState('')
   const[adminKey,setAdminKey]=useState('')
   const[denomination,setDenomination]=useState(500)
   const[label,setLabel]=useState('Shopping Payment ₹500')
@@ -17,19 +17,14 @@ export default function AdminLinkAddPage({logoUrl}){
   const[error,setError]=useState('')
   const[stockRows,setStockRows]=useState([])
 
-  useEffect(()=>{if(token){refresh()}},[])
-
   const parsedLinks=useMemo(()=>links.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),[links])
   const validLinks=parsedLinks.filter(v=>/^https:\/\//i.test(v))
   const invalidCount=parsedLinks.length-validLinks.length
 
   const authenticate=async()=>{
-    if(token)return token
     if(!adminKey.trim())throw new Error('Enter the Admin Key.')
     const r=await api.adminLogin('trustedcircle2026@gmail.com',adminKey.trim())
-    localStorage.setItem('tc_erp_session',r.session.token)
-    localStorage.setItem('tc_erp_admin_user',JSON.stringify(r.user||{}))
-    setToken(r.session.token)
+    setSessionToken(r.session.token)
     return r.session.token
   }
 
@@ -86,7 +81,7 @@ export default function AdminLinkAddPage({logoUrl}){
       <form className="admin-link-add-card" onSubmit={e=>e.preventDefault()}>
         <h2>Add Payment Link Stock</h2>
         <div className="admin-link-add-grid">
-          <label className="admin-link-add-field"><span>Shopping Admin Key</span><input type="password" value={adminKey} onChange={e=>setAdminKey(e.target.value)} placeholder="Private admin key" disabled={loading||!!token}/></label>
+          <label className="admin-link-add-field"><span>Shopping Admin Key</span><input type="password" value={adminKey} onChange={e=>setAdminKey(e.target.value)} placeholder="Private admin key" disabled={loading}/></label>
           <label className="admin-link-add-field"><span>Denomination</span><select value={denomination} onChange={e=>{const d=Number(e.target.value);setDenomination(d);if(!label||/^Shopping Payment ₹\d+$/.test(label))setLabel('Shopping Payment ₹'+d)}} disabled={loading}><option value="500">₹500</option><option value="1000">₹1,000</option><option value="1500">₹1,500</option><option value="2000">₹2,000</option></select></label>
           <label className="admin-link-add-field"><span>Payment Link Label</span><input value={label} onChange={e=>setLabel(e.target.value)} placeholder="Shopping Payment ₹500" disabled={loading}/></label>
           <label className="admin-link-add-field"><span>Single Payment Gateway Link</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://..." disabled={loading}/></label>
