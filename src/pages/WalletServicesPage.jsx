@@ -127,7 +127,7 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
     setNotice('Wallet data is still loading in the background. You can continue using the Wallet.');
   },10000);
   try{
-    const w=await walletApi.wallet(token);
+    const w=await walletApi.snapshot(token);
     setWallet(w);
     setOrders(w.transactions||[]);
     setNotice('');
