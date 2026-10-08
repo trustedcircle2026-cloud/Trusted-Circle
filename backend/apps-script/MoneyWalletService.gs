@@ -307,18 +307,18 @@ function testMoneyWalletAdminEmails(){
   var sampleWithdraw='TEST-WITHDRAW-'+newId_('TCMW');
   var addHtml=walletAdminEmailShell_('Money Wallet Add Money — TEST',
     '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
-    '<p><b>Transaction:</b> '+esc_(sampleAdd)+'</p>'+
+    '<p><b>Transaction:</b> '+escapeHtml_(sampleAdd)+'</p>'+
     '<p><b>Customer:</b> Test Customer</p>'+
     '<p><b>Amount:</b> ₹500</p>'+
-    '<p><b>Sent at:</b> '+esc_(now)+'</p>'+
+    '<p><b>Sent at:</b> '+escapeHtml_(now)+'</p>'+
     '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Add Money emails will contain the live Received / Not Received / Rejected actions.</div>');
   var withdrawHtml=walletAdminEmailShell_('Money Wallet Withdrawal — TEST',
     '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
-    '<p><b>Transaction:</b> '+esc_(sampleWithdraw)+'</p>'+
+    '<p><b>Transaction:</b> '+escapeHtml_(sampleWithdraw)+'</p>'+
     '<p><b>Customer:</b> Test Customer</p>'+
     '<p><b>Amount:</b> ₹500</p>'+
     '<p><b>UPI:</b> test@upi</p>'+
-    '<p><b>Sent at:</b> '+esc_(now)+'</p>'+
+    '<p><b>Sent at:</b> '+escapeHtml_(now)+'</p>'+
     '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Withdrawal emails will contain the live Approve / Reject actions.</div>');
   var addSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Money Wallet Add Money email\nTransaction: '+sampleAdd+'\nAmount: ₹500');
   var withdrawSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Money Wallet Withdrawal email\nTransaction: '+sampleWithdraw+'\nAmount: ₹500\nUPI: test@upi');
