@@ -46,7 +46,7 @@ export default function WalletPaymentPage({transactionId}){
 
   return <main className="wallet-payment-page">
     <div className="wallet-payment-shell">
-      <div className="wallet-payment-brand"><WalletCards size={18}/><strong>Trusted Circle</strong><span>Wallet</span></div>
+      <div className="wallet-payment-brand"><WalletCards size={18}/><div><strong>Trusted Circle Pay</strong><span>Secure Wallet Payment</span></div><b>🔒 SECURE</b></div>
 
       <section className={`wallet-payment-status ${isComplete?'success':isFailed?'failed':'pending'}`}>
         <div className="wallet-payment-status-icon">
@@ -73,7 +73,7 @@ export default function WalletPaymentPage({transactionId}){
           <div><strong>Make Payment</strong><span>Use the payment gateway assigned to this denomination. Do not close this window until you finish the payment.</span></div>
         </div>
         <button className="wallet-payment-pay-btn" onClick={openGateway} disabled={!tx?.paymentLink}>
-          Make Payment <ExternalLink size={16}/>
+          Proceed to Payment <ExternalLink size={16}/>
         </button>
       </section>}
 
@@ -86,7 +86,7 @@ export default function WalletPaymentPage({transactionId}){
         <div className={isComplete?'done':''}><span>3</span><label>Wallet verification</label></div>
       </div>
 
-      <div className="wallet-payment-wait">
+      <div className="wallet-payment-gateway-info"><div><small>PAYMENT AMOUNT</small><strong>{money(tx?.amount)}</strong></div><div><small>GATEWAY</small><strong>{tx?.paymentLinkLabel||'Secure Payment Gateway'}</strong></div><div><small>REFERENCE</small><strong>{tx?.transactionId||'—'}</strong></div></div>\n\n      <div className="wallet-payment-wait">
         <Clock3 size={15}/>
         <span>{isComplete?'Payment completed successfully. You may close this window.':'Payment is in progress. Please wait while Trusted Circle verifies your payment.'}</span>
       </div>
