@@ -42,7 +42,8 @@ async function walletRequest(action,payload={}){
       // Payment fields are promoted by the Wallet backend as a transport-safe
       // fallback. Keep them in data as well for all frontend callers.
       if(msg.paymentLink) data.paymentLink=String(msg.paymentLink);
-      if(msg.expiresAt) data.expiresAt=String(msg.expiresAt);
+      if(msg.paymentExpiresAt) data.expiresAt=String(msg.paymentExpiresAt);
+      else if(msg.expiresAt) data.expiresAt=String(msg.expiresAt);
       if(msg.transaction&&typeof msg.transaction==='object') data.transaction=msg.transaction;
       // Login challenge fields are exposed top-level by the Wallet backend.
       // Normalize them so the login UI never loses the three options.
