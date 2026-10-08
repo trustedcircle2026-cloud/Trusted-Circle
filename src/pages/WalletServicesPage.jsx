@@ -103,19 +103,50 @@ function ProfileMenu({user,onLogout,onClose}){
 
 function WalletHome({token,user,onLogout,initialWallet=null}){
  const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
- const load=async()=>{setBusy(true);try{const w=await walletApi.wallet(token);setWallet(w);setOrders(w.transactions||[])}catch(e){setNotice(e.message)}finally{setBusy(false)}}
+ const load=async()=>{
+  setBusy(true);
+  let timedOut=false;
+  const safetyTimer=setTimeout(()=>{
+    timedOut=true;
+    setBusy(false);
+    setNotice('Wallet data is taking longer than expected. The Wallet is ready; use Refresh when you want to retry.');
+  },10000);
+  try{
+    const w=await walletApi.wallet(token);
+    if(!timedOut){setWallet(w);setOrders(w.transactions||[]);}
+  }catch(e){
+    if(!timedOut)setNotice(e.message);
+  }finally{
+    clearTimeout(safetyTimer);
+    setBusy(false);
+  }
+ }
  useEffect(()=>{if(!initialWallet)load()},[initialWallet])
  const openPaymentFlow=async(amount,retryTransaction=null)=>{
   setNotice('');
   const paymentWindow=window.open('about:blank','TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
   setModal({type:'payment',phase:'opening',transaction:retryTransaction||null,expiresAt:null,token});
+  let timedOut=false;
+  const safetyTimer=setTimeout(()=>{
+    timedOut=true;
+    if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
+    setModal(null);
+    setNotice('Payment preparation took longer than 10 seconds. Your Wallet is ready. Please try again.');
+  },10000);
   try{
-   const d=retryTransaction?await walletApi.retryAddMoney(token,retryTransaction.transactionId):await walletApi.addMoney(token,amount);
-   if(paymentWindow) paymentWindow.location.href=d.paymentLink; else window.location.href=d.paymentLink;
-   setModal({type:'payment',phase:'verifying',transaction:d.transaction,expiresAt:d.expiresAt,token});
+    // Wallet backend allocates the next AVAILABLE link from WalletPaymentLinks,
+    // reserves it against this transaction, and returns the reserved checkout URL.
+    const d=retryTransaction?await walletApi.retryAddMoney(token,retryTransaction.transactionId):await walletApi.addMoney(token,amount);
+    if(timedOut)return;
+    clearTimeout(safetyTimer);
+    const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
+    if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
+    if(paymentWindow)paymentWindow.location.href=paymentLink; else window.location.href=paymentLink;
+    setModal({type:'payment',phase:'verifying',transaction:d.transaction||d.data?.transaction,expiresAt:d.expiresAt||d.data?.expiresAt,token});
   }catch(e){
-   if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
-   setModal(null);setNotice(e.message);
+    clearTimeout(safetyTimer);
+    if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
+    if(!timedOut){setModal(null);setNotice(e.message);}
   }
  }
  const startAdd=amount=>openPaymentFlow(amount);
