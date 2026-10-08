@@ -47,6 +47,9 @@ function iframeResponse_(result,requestId){
   // This avoids iframe/Apps Script response-normalization issues.
   const challenge=d&&d.challengeId?{
     challengeId:String(d.challengeId),
+    number1:d.Number1!==undefined?String(d.Number1):'',
+    number2:d.Number2!==undefined?String(d.Number2):'',
+    number3:d.Number3!==undefined?String(d.Number3):'',
     options:Array.isArray(d.options)?d.options.map(String):[],
     email:d.email?String(d.email):'',
     isNewUser:!!d.isNewUser,
@@ -62,6 +65,9 @@ function iframeResponse_(result,requestId){
     user:u||null,
     challengeId:challenge?challenge.challengeId:'',
     options:challenge?challenge.options:[],
+    number1:challenge?challenge.number1:'',
+    number2:challenge?challenge.number2:'',
+    number3:challenge?challenge.number3:'',
     email:challenge?challenge.email:'',
     isNewUser:challenge?challenge.isNewUser:false,
     expiresInSeconds:challenge?challenge.expiresInSeconds:0,
@@ -73,7 +79,7 @@ function iframeResponse_(result,requestId){
 }
 function route_(d){
   const a=String(d.action||'health');
-  if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.0.0',status:'ok'};
+  if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.1.0',status:'ok'};
   if(a==='requestOtp')return requestOtp_(d);
   if(a==='verifyOtp')return verifyOtp_(d);
   if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
@@ -324,6 +330,9 @@ function requestLoginChallenge_(d){
   return{ok:true,data:{
     challengeId:challengeId,
     email:em,
+    Number1:options[0],
+    Number2:options[1],
+    Number3:options[2],
     options:options,
     isNewUser:!existingUser,
     expiresInSeconds:Math.floor(W.LOGIN_CHALLENGE_MS/1000)
