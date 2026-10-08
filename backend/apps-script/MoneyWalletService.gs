@@ -1,3 +1,15 @@
+function walletUserFromIdentity_(data){
+  var email=normalizeEmail_(data&&data.email||'');
+  var userId=cleanText_(data&&data.userId||'',100);
+  require_(email||userId,'Trusted Circle account identity is required.');
+  var user=null;
+  if(userId)user=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',userId);
+  if(!user&&email)user=getUserByEmail_(email);
+  require_(user&&String(user.Status||'ACTIVE').toUpperCase()==='ACTIVE','Trusted Circle account not found or inactive.');
+  if(email)require_(normalizeEmail_(user.Email)===email,'Email and User ID do not match.');
+  if(userId)require_(String(user.UserID)===userId,'Invalid Trusted Circle User ID.');
+  return user;
+}
 /** Integrated money wallet for the main Trusted Circle account.
  * Uses the SAME Shopping GSheet, Shopping session, and PaymentLinkStock.
  * CashbackWallet remains the cashback ledger; MoneyWallet is the cash ledger.
@@ -32,7 +44,7 @@ function moneyTxPublic_(r){
   return{transactionId:String(r.TransactionID||''),type:String(r.Type||''),amount:Number(r.Amount||0),status:String(r.Status||''),balanceBefore:Number(r.BalanceBefore||0),balanceAfter:Number(r.BalanceAfter||0),reservedBalance:Number(r.ReservedAfter||0),upiId:String(r.UPIId||''),paymentLinkLabel:'Shopping Payment Link',paymentLink:String(r.PaymentLink||''),attempt:Number(r.Attempt||1),parentTransactionId:String(r.ParentTransactionID||''),createdAt:r.CreatedAt,updatedAt:r.UpdatedAt,completedAt:r.CompletedAt||'',notes:String(r.Notes||'')};
 }
 function walletServicesData_(data){
-  var user=authenticate_(data.token);
+  var user=walletUserFromIdentity_(data);
   ensureMoneyWalletSheets_();
   ensureWalletSheets_();
   var money=moneyWalletPublic_(user.UserID);
@@ -84,14 +96,14 @@ function walletServicesData_(data){
   };
 }
 function moneyWalletData_(data){
-  var user=authenticate_(data.token);ensureMoneyWalletSheets_();
+  var user=walletUserFromIdentity_(data);ensureMoneyWalletSheets_();
   var rows=getRows_(TC_MONEY_WALLET.TX).filter(function(r){return String(r.UserID)===String(user.UserID);});
   rows.sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();});
   return{wallet:moneyWalletPublic_(user.UserID),transactions:rows.slice(0,100).map(moneyTxPublic_)};
 }
 function moneyWalletOrders_(data){return moneyWalletData_(data);}
 function moneyWalletTransactionStatus_(data){
-  var user=authenticate_(data.token),id=cleanText_(data.transactionId,100),row=findOne_(TC_MONEY_WALLET.TX,'TransactionID',id);
+  var user=walletUserFromIdentity_(data),id=cleanText_(data.transactionId,100),row=findOne_(TC_MONEY_WALLET.TX,'TransactionID',id);
   require_(row&&String(row.UserID)===String(user.UserID),'Transaction not found.');
   return{transaction:moneyTxPublic_(row),wallet:moneyWalletPublic_(user.UserID)};
 }
