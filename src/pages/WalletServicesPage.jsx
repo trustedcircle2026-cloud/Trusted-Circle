@@ -211,6 +211,11 @@ export default function WalletServicesPage({shoppingToken='',shoppingUser=null,o
  useEffect(()=>{document.body.classList.add('wallet-services-lock');return()=>document.body.classList.remove('wallet-services-lock')},[])
  useEffect(()=>{
    let active=true;
+   const bootTimer=setTimeout(()=>{
+     if(!active)return;
+     // Never keep the loading screen visible beyond 10 seconds.
+     setChecking(false);
+   },10000);
    const boot=async()=>{
      setChecking(true);setError('');
      if(shoppingToken&&shoppingUser?.email){
@@ -242,7 +247,7 @@ export default function WalletServicesPage({shoppingToken='',shoppingUser=null,o
      setChecking(false);
    };
    boot();
-   return()=>{active=false};
+   return()=>{active=false;clearTimeout(bootTimer)};
  },[shoppingToken])
  const logout=()=>{if(token)walletApi.logout(token).catch(()=>{});localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setInitialWallet(null);if(onShoppingLogout)onShoppingLogout();else onRequireShoppingLogin?.()}
  if(checking)return <main className="wallet-services-page wallet-login-page"><div className="wallet-loading">Connecting to your Trusted Circle account…</div></main>
