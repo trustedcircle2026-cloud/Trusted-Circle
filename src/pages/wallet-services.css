@@ -37,3 +37,34 @@
 
 
 .wallet-payment-steps{display:grid;gap:8px;margin:18px 0;text-align:left}.wallet-payment-step{display:flex;align-items:center;gap:9px;padding:10px 11px;border:1px solid #e2ebe6;border-radius:11px;background:#f8fbf9;color:#66756d;font-size:12px;font-weight:800}.wallet-payment-step.done{background:#eef8f2;border-color:#cfe6d7;color:#176b49}.wallet-payment-step.failed{background:#fff0ee;border-color:#f0cfca;color:#b42318}.wallet-payment-step.pending{background:#fbfaf6;border-color:#e9e1cf;color:#8a6a28}.wallet-payment-step svg{flex:0 0 auto}
+
+/* Wallet Services payment UX improvements */
+.wallet-modal-layer{overflow-y:auto;overflow-x:hidden;align-items:center}
+.wallet-modal{width:min(760px,calc(100vw - 28px));max-width:760px;box-sizing:border-box;overflow-x:hidden;overflow-y:auto}
+.payment-waiting{width:min(760px,calc(100vw - 28px));padding:34px}
+.wallet-payment-hero{display:flex;align-items:center;justify-content:center;gap:18px;text-align:left;margin-bottom:22px}
+.wallet-payment-hero h2{margin:5px 0 4px;font-size:32px}
+.wallet-payment-hero p{margin:0;max-width:500px}
+.wallet-payment-hero .wallet-loading-ring{margin:0;flex:0 0 auto}
+.payment-waiting .wallet-payment-steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.payment-waiting .wallet-payment-step{min-height:74px;justify-content:center;text-align:center;flex-direction:column;padding:14px}
+.payment-waiting .wallet-payment-step span{line-height:1.35}
+.payment-result{width:min(620px,calc(100vw - 28px))}
+.payment-result h2{font-size:32px}
+.payment-result p{max-width:500px;margin-left:auto;margin-right:auto}
+@media(max-width:700px){
+ .payment-waiting{padding:24px 18px}
+ .wallet-payment-hero{align-items:flex-start}
+ .wallet-payment-hero h2{font-size:26px}
+ .payment-waiting .wallet-payment-steps{grid-template-columns:1fr}
+ .payment-waiting .wallet-payment-step{min-height:54px;flex-direction:row;justify-content:flex-start;text-align:left}
+}
+@media(max-width:560px){
+ .wallet-modal-layer{padding:10px}
+ .wallet-modal,.payment-waiting,.payment-result{width:calc(100vw - 20px);max-width:none}
+ .payment-waiting{padding:20px 15px}
+ .wallet-payment-hero{gap:12px}
+ .wallet-payment-hero h2{font-size:22px}
+ .wallet-payment-hero p{font-size:12px}
+ .wallet-payment-hero .wallet-loading-ring{width:52px;height:52px}
+}
