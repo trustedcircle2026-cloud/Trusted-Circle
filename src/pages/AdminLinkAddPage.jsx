@@ -1,4 +1,4 @@
-import {useMemo,useState} from 'react'
+import {useEffect,useMemo,useState} from 'react'
 import {AlertCircle,CheckCircle2,Link2,LogIn,PackagePlus,RefreshCw,ShieldCheck,Trash2,UploadCloud,X} from 'lucide-react'
 import {api} from '../api'
 import '../admin-link-add.css'
@@ -16,6 +16,8 @@ export default function AdminLinkAddPage({logoUrl}){
   const[result,setResult]=useState(null)
   const[error,setError]=useState('')
   const[stockRows,setStockRows]=useState([])
+
+  useEffect(()=>{if(token){refresh()}},[])
 
   const parsedLinks=useMemo(()=>links.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),[links])
   const validLinks=parsedLinks.filter(v=>/^https:\/\//i.test(v))
