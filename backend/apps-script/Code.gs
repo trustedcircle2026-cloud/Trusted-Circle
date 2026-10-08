@@ -26,7 +26,7 @@ function walletIdentity_(input){
   require_(isValidEmail_(email),'Trusted Circle account email is invalid.');
   const issuedAt=String(Date.now());
   const payload=email+'|'+name+'|'+issuedAt;
-  const secret=String(getScriptProperties_().getProperty('WALLET_HANDOFF_SECRET')||'TC_WALLET_HANDOFF_2026_10_08_7f9c2d4a6b1e8c3f');
+  const secret=String(getScriptProperties_().getProperty('WALLET_HANDOFF_SECRET')||'').trim(); require_(secret.length>=32,'WALLET_HANDOFF_SECRET is not configured.');
   const sig=Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload,secret,Utilities.Charset.UTF_8));
   return{email:email,name:name,issuedAt:issuedAt,signature:sig};
 }
