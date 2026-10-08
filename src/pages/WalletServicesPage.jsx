@@ -99,7 +99,7 @@ function WalletHome({user,onLogout,initialWallet=null}){
       phase:'verifying',
       transaction:d.transaction||d.data?.transaction,
       expiresAt:d.expiresAt||d.data?.expiresAt,
-      token,
+      user,
       adminEmailSent:d.adminEmailSent!==false&&d.data?.adminEmailSent!==false
     });
   }catch(e){
@@ -164,7 +164,7 @@ function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBa
      }catch{}
    },5000)
    return()=>clearInterval(timer)
- },[token,tx?.transactionId,expiresAt,phase])
+ },[user,tx?.transactionId,expiresAt,phase])
  if(phase==='opening')return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting">
    <div className="wallet-loading-ring"><Clock3 size={29}/></div>
    <span className="wallet-services-eyebrow">PAYMENT LINK</span>
