@@ -32,3 +32,5 @@
 @media(max-width:560px){.payment-waiting{padding:22px 18px}.payment-waiting h2{font-size:24px}}
 
 .wallet-login-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}.wallet-login-brand .wallet-brand-logo{margin:0;width:66px;height:66px}.wallet-login-brand-name{font-size:25px;font-weight:800;letter-spacing:-.03em;color:#17271f}.wallet-login-brand-name span{color:#7a817d;font-weight:500}
+
+.wallet-balance-breakup{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 18px}.wallet-balance-card{padding:13px 14px;border:1px solid #dce8e1;border-radius:14px;background:rgba(255,255,255,.65);display:grid;gap:4px}.wallet-balance-card span{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#708078}.wallet-balance-card b{font-size:20px;color:#123f2d}.wallet-balance-card small{font-size:10px;line-height:1.35;color:#7a8881}.wallet-balance-card.cashback{background:#f4fbf7;border-color:#cfe7d8}.wallet-balance-card.money{background:#fff}.wallet-balance-card.cashback b{color:#0c7046}@media(max-width:600px){.wallet-balance-breakup{grid-template-columns:1fr}}
