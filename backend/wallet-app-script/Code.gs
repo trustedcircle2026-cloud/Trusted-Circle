@@ -136,8 +136,7 @@ function setupPaymentGatewayBackend(){
   props_().setProperty('WALLET_WEB_APP_URL',WALLET_DEFAULT_WEB_APP_URL);
   const ss=SpreadsheetApp.openById(WALLET_DEFAULT_SPREADSHEET_ID);
   const schemas={
-    WalletPaymentLinks:['PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID','ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes'],
-    WalletGateways:['GatewayID','Denomination','PaymentLink','Label','Status','CreatedAt','UpdatedAt','Notes']
+    WalletPaymentLinks:['PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID','ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes']
   };
   Object.entries(schemas).forEach(([name,headers])=>{
     const sh=ss.getSheetByName(name)||ss.insertSheet(name);
