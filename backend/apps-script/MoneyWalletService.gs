@@ -172,7 +172,7 @@ function moneyWalletAdminActions_(t){
   var received=moneyWalletActionToken_(t.TransactionID,'RECEIVED');
   var notReceived=moneyWalletActionToken_(t.TransactionID,'NOT_RECEIVED');
   var rejected=moneyWalletActionToken_(t.TransactionID,'REJECTED');
-  var customer=userEmail_(t.UserID);
+  var customer='';var customerRow=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);if(customerRow&&customerRow.Email)customer=String(customerRow.Email);
   var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Customer:</b> '+esc_(customer)+'</p><p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p><p><b>Payment source:</b> Existing Shopping Payment Link Stock</p>'+
     walletAdminEmailButton_('✓ Received',moneyWalletActionUrl_(received,'RECEIVED'),'#0f5132')+
     walletAdminEmailButton_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
