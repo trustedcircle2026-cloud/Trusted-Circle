@@ -123,17 +123,18 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
  const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
  const load=async()=>{
   setBusy(true);
-  let timedOut=false;
   const safetyTimer=setTimeout(()=>{
-    timedOut=true;
+    // Hide only the blocking loading UI. The request continues in the background.
     setBusy(false);
-    setNotice('Wallet data is taking longer than expected. The Wallet is ready; use Refresh when you want to retry.');
+    setNotice('Wallet data is still loading in the background. You can continue using the Wallet.');
   },10000);
   try{
     const w=await walletApi.wallet(token);
-    if(!timedOut){setWallet(w);setOrders(w.transactions||[]);}
+    setWallet(w);
+    setOrders(w.transactions||[]);
+    setNotice('');
   }catch(e){
-    if(!timedOut)setNotice(e.message);
+    setNotice(e.message);
   }finally{
     clearTimeout(safetyTimer);
     setBusy(false);
@@ -155,7 +156,6 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
     // Wallet backend allocates the next AVAILABLE link from WalletPaymentLinks,
     // reserves it against this transaction, and returns the reserved checkout URL.
     const d=retryTransaction?await walletApi.retryAddMoney(token,retryTransaction.transactionId):await walletApi.addMoney(token,amount);
-    if(timedOut)return;
     clearTimeout(safetyTimer);
     const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
     if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
