@@ -1,4 +1,4 @@
-import {ArrowDownToLine,ArrowRight,CheckCircle2,Clock3,History,LogOut,RefreshCw,UserRound,WalletCards,X} from 'lucide-react'
+import {ArrowDownToLine,ArrowRight,CheckCircle2,Clock3,History,LogOut,RefreshCw,UserRound,WalletCards,X,Plus,ArrowDown,Percent} from 'lucide-react'
 import {jsPDF} from 'jspdf'
 import {useEffect,useState} from 'react'
 import {walletApi} from '../wallet-services-api'
@@ -150,20 +150,19 @@ function WalletHome({user,onLogout,initialWallet=null}){
  const balance=Number(wallet?.balance||0),available=Number(wallet?.availableBalance||0),cashbackBalance=Number(wallet?.cashbackBalance ?? (wallet?.cashbackWallet?.balance || 0)),combinedBalance=Number(wallet?.totalBalance ?? (balance+cashbackBalance))
  return <main className="wallet-services-page"><section className="wallet-services-shell">
   <aside className="wallet-left-panel">
-   <div className="wallet-brand-row"><img src={LOGO_URL} alt="Trusted Circle"/><div><b>Trusted Circle</b><span>Wallet Services</span></div></div>
    <div className="wallet-profile-wrap"><button className="wallet-profile-btn" onClick={()=>setProfileOpen(v=>!v)} title="Profile"><UserRound size={19}/></button>{profileOpen&&<ProfileMenu user={user} onLogout={onLogout} onClose={()=>setProfileOpen(false)}/>}</div>
-   <div className="wallet-left-content"><span className="wallet-services-eyebrow">WALLET OVERVIEW</span><strong className="wallet-main-balance">₹{money(combinedBalance)}</strong><div className="wallet-balance-meta">Combined Trusted Circle balance</div>
+   <div className="wallet-left-content"><span className="wallet-services-eyebrow">WALLET OVERVIEW</span><strong className="wallet-main-balance">₹{money(combinedBalance)}</strong><div className="wallet-balance-meta"><WalletCards size={13}/> Combined Balance</div>
     <div className="wallet-balance-breakup">
-      <div className="wallet-balance-card money"><span>Money Wallet</span><b>₹{money(balance)}</b><small>Available ₹{money(available)}{wallet?.reservedBalance?' · Reserved ₹'+money(wallet.reservedBalance):''}</small></div>
-      <div className="wallet-balance-card cashback"><span>Cashback Wallet</span><b>₹{money(cashbackBalance)}</b><small>Shopping cashback balance</small></div>
+      <div className="wallet-balance-card money"><span><WalletCards size={15}/> Money</span><b>₹{money(balance)}</b><small>Available ₹{money(available)}{wallet?.reservedBalance?' · Reserved ₹'+money(wallet.reservedBalance):''}</small></div>
+      <div className="wallet-balance-card cashback"><span><Percent size={15}/> Cashback</span><b>₹{money(cashbackBalance)}</b><small>Shopping cashback</small></div>
     </div>
-    <div className="wallet-primary-actions"><button onClick={()=>setModal({type:'add'})}><span>+</span><div><b>Add Money</b><small>₹500 · ₹1,000 · ₹1,500 · ₹2,000</small></div><ArrowRight size={17}/></button><button onClick={()=>setModal({type:'withdraw'})}><span>↓</span><div><b>Withdraw</b><small>Transfer available balance to UPI</small></div><ArrowRight size={17}/></button></div>
+    <div className="wallet-primary-actions"><button onClick={()=>setModal({type:'add'})} title="Add Money"><span><Plus size={18}/></span><div><b>Add</b><small>₹500 · ₹1,000 · ₹1,500 · ₹2,000</small></div></button><button onClick={()=>setModal({type:'withdraw'})} title="Withdraw"><span><ArrowDown size={18}/></span><div><b>Withdraw</b><small>To UPI</small></div></button></div>
     <div className="wallet-left-note"><CheckCircle2 size={16}/> Money Wallet + Cashback Wallet are linked to your Trusted Circle account.</div>
    </div>
    <div className="wallet-left-footer"><span>© Trusted Circle</span><span>{user.email}</span></div>
   </aside>
   <section className="wallet-right-panel">
-   <header className="wallet-transactions-header"><div><span className="wallet-services-eyebrow">WALLET SERVICES</span><h1>Transactions</h1><p>Complete wallet history</p></div><div className="wallet-section-tools"><button onClick={downloadAll}><ArrowDownToLine size={16}/> Download PDF</button><button onClick={openOrders}><History size={16}/> View All</button><button className="wallet-refresh-btn" onClick={load} title="Refresh"><RefreshCw size={17}/></button></div></header>
+   <header className="wallet-transactions-header"><div><span className="wallet-services-eyebrow">HISTORY</span><h1>Transactions</h1><p>Wallet activity</p></div><div className="wallet-section-tools"><button onClick={downloadAll} title="Download statement PDF" aria-label="Download statement PDF"><ArrowDownToLine size={17}/></button><button onClick={openOrders} title="View all transactions" aria-label="View all transactions"><History size={17}/></button><button className="wallet-refresh-btn" onClick={load} title="Refresh"><RefreshCw size={17}/></button></div></header>
    {notice&&<div className="wallet-notice">{notice}</div>}
    {busy?<div className="wallet-empty">Loading transactions…</div>:orders.length?<div className="wallet-transactions-scroll">{orders.map(t=>{const isCashback=t.type==='CASHBACK_EARNED';const isAdd=t.type==='ADD_MONEY'||isCashback;return <button className="wallet-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(isAdd?'add':'withdraw')}>{isAdd?'+':'−'}</span><span className="wallet-tx-main"><b>{isCashback?'Cashback Earned':t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')}</small></span><span className="wallet-tx-right"><b>{isAdd?'+':'−'}₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>})}</div>:<div className="wallet-empty">No wallet transactions yet.</div>}
    <div className="wallet-right-footer"><span>Click any transaction for full details & PDF</span><span>Trusted Circle Wallet Services</span></div>
