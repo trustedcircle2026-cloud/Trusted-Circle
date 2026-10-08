@@ -545,19 +545,33 @@ function wallet_(d){
   const cashbackBalance=Math.max(0,cashbackEarned-cashbackUsed);
   return{ok:true,data:{user:pubUser_(u),balance:balance,reservedBalance:reserved,availableBalance:balance-reserved,currency:'INR',addAmounts:W.ADD,cashbackBalance:cashbackBalance,cashbackEarned:cashbackEarned,cashbackUsed:cashbackUsed,totalBalance:(balance-reserved)+cashbackBalance,transactions:txs_(u.UserID,100)}};
 }
+function gatewayConfigRows_(){
+  const names=[W.S.G,'Wallet Business','WalletBusiness','PaymentGateways','WalletPaymentGateways'];
+  const ss=spreadsheet_();
+  for(const name of names){
+    const sh=ss.getSheetByName(name);
+    if(!sh||sh.getLastRow()<2||sh.getLastColumn()<2)continue;
+    const values=sh.getDataRange().getValues(),headers=values[0].map(x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''));
+    const di=headers.findIndex(x=>['denomination','amount','value'].includes(x));
+    const li=headers.findIndex(x=>['paymentlink','link','gatewaylink','upiurl','url'].includes(x));
+    if(di<0||li<0)continue;
+    const si=headers.findIndex(x=>['status','activestatus'].includes(x));
+    const labeli=headers.findIndex(x=>['label','gatewaylabel','name'].includes(x));
+    return values.slice(1).filter(r=>r.some(x=>x!=='')).map((r,i)=>({GatewayID:name+'-'+(i+2),Denomination:Number(r[di]),PaymentLink:String(r[li]||'').trim(),Label:labeli>=0?String(r[labeli]||'').trim():'',Status:si>=0?String(r[si]||'ACTIVE').trim():'ACTIVE'}));
+  }
+  return[];
+}
 function walletGateway_(d){
   const u=auth_(d.token),amount=Number(d.amount);
   req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
-  let rows=[];
-  try{rows=rows_(W.S.G)}catch(_){rows=[];}
-  const active=rows.filter(x=>Number(x.Denomination)===amount&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE');
-  let g=active[0];
+  let rows=gatewayConfigRows_();
+  let g=rows.find(x=>Number(x.Denomination)===amount&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE'&&/^https?:\/\//i.test(x.PaymentLink));
   if(!g){
-    const stock=rows_(W.S.P).filter(x=>Number(x.Denomination)===amount&&String(x.Status||'')==='AVAILABLE');
-    g=stock[0]?{PaymentLink:stock[0].Link,Label:stock[0].Label||('Trusted Circle ₹'+amount+' Gateway'),GatewayID:stock[0].PaymentLinkStockID}:null;
+    const stock=rows_(W.S.P).filter(x=>Number(x.Denomination)===amount&&x.Status==='AVAILABLE');
+    g=stock[0]?{PaymentLink:stock[0].Link,Label:stock[0].Label||('Trusted Circle ₹'+amount+' Gateway'),GatewayID:stock[0].PaymentLinkStockID,Status:'ACTIVE'}:null;
   }
-  req_(g&&/^https?:\\/\\//i.test(String(g.PaymentLink||'')),'No payment gateway is configured for ₹'+amount+'. Please ask Wallet Admin to add the gateway link.');
-  return{ok:true,data:{denomination:amount,paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),gatewayId:String(g.GatewayID||''),source:g.GatewayID&&String(g.GatewayID).indexOf('WPL')===0?'WalletPaymentLinks':'WalletGateways'}};
+  req_(g&&/^https?:\/\//i.test(String(g.PaymentLink||'')),'No payment gateway is configured for ₹'+amount+'. Please add the ₹'+amount+' gateway link in the Wallet Business sheet.');
+  return{ok:true,data:{denomination:amount,paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),gatewayId:String(g.GatewayID||''),source:String(g.GatewayID||'').indexOf('WPL')===0?'WalletPaymentLinks':'WalletBusiness'}};
 }
 function walletOrders_(d){const u=auth_(d.token);return{ok:true,data:{transactions:txs_(u.UserID,500)}};}
 function transactionStatus_(d){const u=auth_(d.token),t=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(t&&String(t.UserID)===String(u.UserID),'Transaction not found.');return{ok:true,data:{transaction:pubTx_(t)}};}
