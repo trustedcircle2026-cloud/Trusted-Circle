@@ -141,6 +141,7 @@ function moneyWalletAdminActions_(t){
     btn_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
     btn_('✕ Rejected',moneyWalletActionUrl_(rejected,'REJECTED'),'#b42318');
   MailApp.sendEmail({to:getAdminEmail_(),subject:'Trusted Circle — Money Wallet Add Money ₹'+t.Amount,body:'Money Wallet Add Money request '+t.TransactionID,htmlBody:shell_('Money Wallet Add Money',body)});
+  return true;
 }
 function moneyWalletWithdrawalActions_(t){
   var approve=moneyWalletActionToken_(t.TransactionId||t.TransactionID,'WITHDRAW_APPROVE');
@@ -159,8 +160,12 @@ function moneyWalletAdd_(data){
     var tid=newId_('TCMWTX'),stock=moneyWalletReserveStock_(amount,tid),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0),now=isoNow_();
     var tx={TransactionID:tid,UserID:user.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:stock.link,PaymentLinkStockID:stock.stockId,Attempt:1,ParentTransactionID:'',CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
     appendRowObject_(TC_MONEY_WALLET.TX,tx);
-    try{moneyWalletAdminActions_(tx);}catch(e){appendRowObject_(TC_MONEY_WALLET.TX,{TransactionID:newId_('TCMWLOG'),UserID:user.UserID,Type:'SYSTEM',Amount:0,Status:'ADMIN_EMAIL_FAILED',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:'',PaymentLinkStockID:'',Attempt:1,ParentTransactionID:tid,CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:String(e&&e.message||e),AdminNote:''});}
-    return{paymentLink:stock.link,expiresAt:stock.expiresAt,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:stock.link,expiresAt:stock.expiresAt,transaction:moneyTxPublic_(tx)}};
+    var adminEmailSent=true;
+    try{moneyWalletAdminActions_(tx);}catch(e){
+      adminEmailSent=false;
+      appendRowObject_(TC_MONEY_WALLET.TX,{TransactionID:newId_('TCMWLOG'),UserID:user.UserID,Type:'SYSTEM',Amount:0,Status:'ADMIN_EMAIL_FAILED',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:'',PaymentLinkStockID:'',Attempt:1,ParentTransactionID:tid,CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:String(e&&e.message||e),AdminNote:''});
+    }
+    return{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx)}};
   }finally{lock.releaseLock();}
 }
 function moneyWalletRetryAdd_(data){
@@ -172,8 +177,13 @@ function moneyWalletRetryAdd_(data){
     var tid=newId_('TCMWTX'),stock=moneyWalletReserveStock_(Number(old.Amount),tid),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0),now=isoNow_();
     updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',old.TransactionID,{Status:'RETRY_CREATED',UpdatedAt:now,Notes:'Retry created'});
     var tx={TransactionID:tid,UserID:user.UserID,Type:'ADD_MONEY',Amount:Number(old.Amount),Status:'PENDING_PAYMENT',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:stock.link,PaymentLinkStockID:stock.stockId,Attempt:Number(old.Attempt||1)+1,ParentTransactionID:old.TransactionID,CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:'Retry payment',AdminNote:''};
-    appendRowObject_(TC_MONEY_WALLET.TX,tx);moneyWalletAdminActions_(tx);
-    return{paymentLink:stock.link,expiresAt:stock.expiresAt,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:stock.link,expiresAt:stock.expiresAt,transaction:moneyTxPublic_(tx)}};
+    appendRowObject_(TC_MONEY_WALLET.TX,tx);
+    var adminEmailSent=true;
+    try{moneyWalletAdminActions_(tx);}catch(e){
+      adminEmailSent=false;
+      appendRowObject_(TC_MONEY_WALLET.TX,{TransactionID:newId_('TCMWLOG'),UserID:user.UserID,Type:'SYSTEM',Amount:0,Status:'ADMIN_EMAIL_FAILED',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:'',PaymentLinkStockID:'',Attempt:Number(tx.Attempt||1),ParentTransactionID:tid,CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:String(e&&e.message||e),AdminNote:''});
+    }
+    return{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx)}};
   }finally{lock.releaseLock();}
 }
 function moneyWalletWithdraw_(data){
