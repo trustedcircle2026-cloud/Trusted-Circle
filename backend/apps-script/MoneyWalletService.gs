@@ -162,15 +162,25 @@ function moneyWalletActionToken_(transactionId,action){
   return raw;
 }
 function moneyWalletActionUrl_(raw,action){return ScriptApp.getService().getUrl()+'?moneyWalletAction='+encodeURIComponent(action)+'&token='+encodeURIComponent(raw);}
+function walletAdminEmailButton_(label,url,bg){
+  return '<div style="margin:10px 0"><a href="'+escapeHtml_(url)+'" style="display:inline-block;padding:13px 20px;border-radius:10px;background:'+bg+';color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-weight:700">'+escapeHtml_(label)+'</a></div>';
+}
+function walletAdminEmailShell_(title,body){
+  return '<div style="font-family:Arial,sans-serif;background:#f4f7f5;padding:24px;color:#18241e"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dfe8e2;border-radius:18px;overflow:hidden"><div style="padding:24px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.85">Money Wallet Administration</div></div><div style="padding:24px"><h2 style="margin:0 0 18px;color:#173c2a">'+escapeHtml_(title)+'</h2>'+body+'</div><div style="padding:15px 24px;background:#f5f8f6;color:#68736d;font-size:12px">System generated notification · Trusted Circle</div></div></div>';
+}
 function moneyWalletAdminActions_(t){
   var received=moneyWalletActionToken_(t.TransactionID,'RECEIVED');
   var notReceived=moneyWalletActionToken_(t.TransactionID,'NOT_RECEIVED');
   var rejected=moneyWalletActionToken_(t.TransactionID,'REJECTED');
-  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Customer:</b> '+esc_(userEmail_(t.UserID))+'</p><p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p><p><b>Payment source:</b> Existing Shopping Payment Link Stock</p>'+
-    btn_('✓ Received',moneyWalletActionUrl_(received,'RECEIVED'),'#0f5132')+
-    btn_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
-    btn_('✕ Rejected',moneyWalletActionUrl_(rejected,'REJECTED'),'#b42318');
-  var sent=sendTransactionalEmail_(getAdminEmail_(),'Trusted Circle — Money Wallet Add Money ₹'+t.Amount,shell_('Money Wallet Add Money',body),'Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+userEmail_(t.UserID)+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID);
+  var customer=userEmail_(t.UserID);
+  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Customer:</b> '+esc_(customer)+'</p><p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p><p><b>Payment source:</b> Existing Shopping Payment Link Stock</p>'+
+    walletAdminEmailButton_('✓ Received',moneyWalletActionUrl_(received,'RECEIVED'),'#0f5132')+
+    walletAdminEmailButton_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
+    walletAdminEmailButton_('✕ Rejected',moneyWalletActionUrl_(rejected,'REJECTED'),'#b42318');
+  var subject='Trusted Circle — Money Wallet Add Money ₹'+t.Amount;
+  var html=walletAdminEmailShell_('Money Wallet Add Money',body);
+  var text='Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+customer+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID+'\n\nAdmin action links:\nReceived: '+moneyWalletActionUrl_(received,'RECEIVED')+'\nNot Received: '+moneyWalletActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+moneyWalletActionUrl_(rejected,'REJECTED');
+  var sent=sendTransactionalEmail_(getAdminEmail_(),subject,html,text);
   if(!sent)throw new Error('Admin email could not be sent. Please check Apps Script email authorization/quota.');
   return true;
 }
