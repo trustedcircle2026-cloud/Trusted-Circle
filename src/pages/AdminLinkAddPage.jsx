@@ -15,6 +15,7 @@ export default function AdminLinkAddPage({logoUrl}){
   const[result,setResult]=useState(null)
   const[error,setError]=useState('')
   const[stockRows,setStockRows]=useState([])
+  const[popup,setPopup]=useState(null)
 
   const parsedLinks=useMemo(()=>links.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),[links])
   const validLinks=parsedLinks.filter(v=>/^https:\/\//i.test(v))
@@ -26,6 +27,8 @@ export default function AdminLinkAddPage({logoUrl}){
     return r.session.token
   }
 
+  const showPopup=(type,title,message)=>{setPopup({type,title,message});window.setTimeout(()=>setPopup(null),3500)}
+
   const single=async()=>{
     setLoading(true);setError('');setResult(null)
     try{
@@ -33,9 +36,10 @@ export default function AdminLinkAddPage({logoUrl}){
       const session=await authenticate()
       const r=await api.adminAddPaymentLinkStock(session,denomination,link.trim(),label.trim()||'Pay securely')
       setResult({added:1,skipped:0,paymentLinkStockId:r?.paymentLinkStockId})
-      await refresh()
       setLink('')
-    }catch(e){setError(String(e?.message||'Could not add payment link.'))}
+      showPopup('success','Payment Link Added','The payment link was added to Shopping PaymentLinkStock successfully.')
+      await refresh(true)
+    }catch(e){const msg=String(e?.message||'Could not add payment link.');setError(msg);showPopup('error','Action Failed',msg)}
     finally{setLoading(false)}
   }
 
@@ -48,20 +52,22 @@ export default function AdminLinkAddPage({logoUrl}){
       const r=await api.adminAddPaymentLinkStockBulk(session,validLinks.map(x=>({denomination,link:x,label:label.trim()||'Pay securely'})))
       setResult(r)
       if(Number(r?.added||0)>0)setLinks('')
-      await refresh()
-    }catch(e){setError(String(e?.message||'Could not add payment links.'))}
+      showPopup('success','Bulk Links Added',`${Number(r?.added||0)} link(s) added and ${Number(r?.skipped||0)} duplicate(s) skipped.`)
+      await refresh(true)
+    }catch(e){const msg=String(e?.message||'Could not add payment links.');setError(msg);showPopup('error','Action Failed',msg)}
     finally{setLoading(false)}
   }
 
-  const refresh=async()=>{
-    setError('');setResult(null);setLoading(true)
+  const refresh=async(silent=false)=>{
+    setError('');if(!silent)setResult(null);setLoading(true)
     try{
       const session=await authenticate()
       const r=await api.adminTable(session,'PaymentLinkStock')
-      const rows=Array.isArray(r?.rows)?r.rows:Array.isArray(r)?r:[]
+      const rows=Array.isArray(r?.rows)?r.rows:Array.isArray(r?.table?.rows)?r.table.rows:Array.isArray(r)?r:[]
       setStockRows(rows)
       setResult({stock:r})
-    }catch(e){setError(String(e?.message||'Could not refresh stock.'))}
+      if(!silent)showPopup('success','Stock Refreshed',`${rows.length} payment-link stock record(s) loaded from Google Sheets.`)
+    }catch(e){const msg=String(e?.message||'Could not refresh stock.');setError(msg);showPopup('error','Refresh Failed',msg)}
     finally{setLoading(false)}
   }
 
@@ -76,6 +82,7 @@ export default function AdminLinkAddPage({logoUrl}){
     </header>
 
     <section className="admin-link-add-shell">
+      {popup&&<div className={'admin-link-add-popup '+popup.type} role="alert"><div className="admin-link-add-popup-icon">{popup.type==='success'?<CheckCircle2 size={22}/>:<AlertCircle size={22}/>}</div><div><b>{popup.title}</b><span>{popup.message}</span></div><button type="button" onClick={()=>setPopup(null)}><X size={16}/></button></div>}
       <form className="admin-link-add-card" onSubmit={e=>e.preventDefault()}>
         <h2>Add Payment Link Stock</h2>
         <div className="admin-link-add-grid">
