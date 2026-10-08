@@ -1,3 +1,20 @@
+function walletBalanceSnapshotForEmail_(userId){
+  ensureMoneyWalletSheets_();ensureWalletSheets_();
+  var mw=moneyWalletPublic_(userId),cw=walletPublic_(userId);
+  return {moneyBalance:Number(mw.balance||0),moneyAvailable:Number(mw.availableBalance||0),moneyReserved:Number(mw.reservedBalance||0),cashbackBalance:Number(cw.balance||0),combinedBalance:Number(mw.balance||0)+Number(cw.balance||0)};
+}
+function notifyWalletTransaction_(userId,ledger,type,amount,status,description,transactionId,reference){
+  try{
+    var user=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',userId);if(!user||!user.Email)return false;
+    var b=walletBalanceSnapshotForEmail_(userId),amt=Number(amount||0),kind=Number(amt)>=0?'CREDIT':'DEBIT',abs=Math.abs(amt);
+    var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.85">Wallet Transaction Notification</div></div><div style="padding:24px"><h2 style="margin:0 0 8px">'+emailEscape_(kind==='CREDIT'?'Money Credited':'Money Debited')+'</h2><p style="color:#5f6b64">A '+emailEscape_(ledger)+' wallet transaction has been completed.</p><table style="border-collapse:collapse;width:100%;font-size:14px"><tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+emailEscape_(transactionId)+'</b></td></tr><tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Type</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+emailEscape_(type)+'</td></tr><tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+emailMoney_(abs)+'</b></td></tr><tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Status</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+emailEscape_(status)+'</td></tr><tr><td style="padding:9px">Description</td><td style="padding:9px">'+emailEscape_(description||'')+'</td></tr></table><h3 style="margin:24px 0 10px">Current Account Balance</h3><table style="border-collapse:collapse;width:100%;font-size:14px"><tr><td style="padding:9px">Money Wallet</td><td style="padding:9px;text-align:right"><b>'+emailMoney_(b.moneyBalance)+'</b></td></tr><tr><td style="padding:9px">Cashback Wallet</td><td style="padding:9px;text-align:right"><b>'+emailMoney_(b.cashbackBalance)+'</b></td></tr><tr style="background:#eef8f1"><td style="padding:11px"><b>Combined Balance</b></td><td style="padding:11px;text-align:right"><b>'+emailMoney_(b.combinedBalance)+'</b></td></tr></table></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · System generated transaction notification</div></div>';
+    var text='Trusted Circle Wallet Transaction\nTransaction ID: '+transactionId+'\nLedger: '+ledger+'\nType: '+type+'\nAmount: '+emailMoney_(abs)+'\nStatus: '+status+'\nDescription: '+(description||'')+'\n\nCurrent Money Wallet: '+emailMoney_(b.moneyBalance)+'\nCurrent Cashback Wallet: '+emailMoney_(b.cashbackBalance)+'\nCombined Balance: '+emailMoney_(b.combinedBalance);
+    var subject='Trusted Circle — '+kind+' · '+ledger+' · '+emailMoney_(abs);
+    var userSent=sendTransactionalEmail_(user.Email,subject,html,text);
+    var adminSent=sendTransactionalEmail_(getAdminEmail_(),'[Admin] '+subject,html,text);
+    return userSent&&adminSent;
+  }catch(e){console.error('Wallet transaction notification failed: '+String(e&&e.message||e));return false;}
+}
 function walletUserFromIdentity_(data){
   var email=normalizeEmail_(data&&data.email||'');
   var userId=cleanText_(data&&data.userId||'',100);
@@ -76,6 +93,7 @@ function walletServicesData_(data){
     });
   });
   transactions.sort(function(a,b){return new Date(b.createdAt||0).getTime()-new Date(a.createdAt||0).getTime();});
+  var currentBalances=walletBalanceSnapshotForEmail_(user.UserID);transactions.forEach(function(t){t.moneyBalance=currentBalances.moneyBalance;t.cashbackBalance=currentBalances.cashbackBalance;t.combinedBalance=currentBalances.combinedBalance;});
   return {
     user:publicUser_(user),
     moneyWallet:money,
@@ -226,7 +244,7 @@ function moneyWalletAdminAction_(params){
       moneyWalletConsumeStock_(tx);
       var after=balance+Number(tx.Amount||0);
       updateRowById_(TC_MONEY_WALLET.WALLET,'UserID',tx.UserID,{Balance:after,TotalAdded:Number(w.TotalAdded||0)+Number(tx.Amount||0),UpdatedAt:now});
-      updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'COMPLETED',BalanceBefore:balance,BalanceAfter:after,UpdatedAt:now,CompletedAt:now,Notes:'Payment received'});
+      updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'COMPLETED',BalanceBefore:balance,BalanceAfter:after,UpdatedAt:now,CompletedAt:now,Notes:'Payment received'}); notifyWalletTransaction_(tx.UserID,'Money Wallet','Add Money',Number(tx.Amount||0),'COMPLETED','Payment received',tx.TransactionID,'');
     }else if(action==='NOT_RECEIVED'||action==='REJECTED'){
       require_(tx.Status==='PENDING_PAYMENT','Transaction is already '+tx.Status+'.');
       moneyWalletReleaseStock_(tx);
@@ -236,7 +254,7 @@ function moneyWalletAdminAction_(params){
       require_(reserved>=Number(tx.Amount||0),'Reserved balance mismatch.');
       var newBalance=balance-Number(tx.Amount||0);
       updateRowById_(TC_MONEY_WALLET.WALLET,'UserID',tx.UserID,{Balance:newBalance,ReservedBalance:Math.max(0,reserved-Number(tx.Amount||0)),TotalWithdrawn:Number(w.TotalWithdrawn||0)+Number(tx.Amount||0),UpdatedAt:now});
-      updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:newBalance,ReservedAfter:Math.max(0,reserved-Number(tx.Amount||0)),UpdatedAt:now,CompletedAt:now,Notes:'Withdrawal approved'});
+      updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:newBalance,ReservedAfter:Math.max(0,reserved-Number(tx.Amount||0)),UpdatedAt:now,CompletedAt:now,Notes:'Withdrawal approved'}); notifyWalletTransaction_(tx.UserID,'Money Wallet','Withdrawal',-Number(tx.Amount||0),'COMPLETED','Withdrawal approved',tx.TransactionID,tx.UPIId||'');
     }else if(action==='WITHDRAW_REJECT'){
       require_(tx.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+tx.Status+'.');
       var released=Math.max(0,reserved-Number(tx.Amount||0));
