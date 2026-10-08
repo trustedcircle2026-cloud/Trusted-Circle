@@ -84,6 +84,7 @@ function route_(d){
   if(a==='verifyOtp')return verifyOtp_(d);
   if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
   if(a==='verifyLoginChallenge')return verifyLoginChallenge_(d);
+  if(a==='bootstrapShoppingSession')return bootstrapShoppingSession_(d);
   if(a==='me')return{ok:true,data:{user:pubUser_(auth_(d.token))}};
   if(a==='wallet')return wallet_(d);
   if(a==='walletOrders')return walletOrders_(d);
@@ -337,6 +338,43 @@ function requestLoginChallenge_(d){
     isNewUser:!existingUser,
     expiresInSeconds:Math.floor(W.LOGIN_CHALLENGE_MS/1000)
   }};
+}
+
+function shoppingApiUrl_(){
+  return String(props_().getProperty('SHOPPING_APPS_SCRIPT_URL')||'https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec').trim();
+}
+function bootstrapShoppingSession_(d){
+  const shoppingToken=clean_(d.shoppingToken,500);
+  req_(shoppingToken,'Trusted Circle account login is required.');
+  let response;
+  try{
+    response=UrlFetchApp.fetch(shoppingApiUrl_()+'?action=me&token='+encodeURIComponent(shoppingToken),{
+      method:'get',muteHttpExceptions:true,followRedirects:true
+    });
+  }catch(err){throw new Error('Could not verify the Trusted Circle account. Please try again.');}
+  req_(response.getResponseCode()>=200&&response.getResponseCode()<300,'Could not verify the Trusted Circle account.');
+  let body;
+  try{body=JSON.parse(response.getContentText()||'{}');}catch(_){throw new Error('Invalid response from Trusted Circle account service.');}
+  req_(body.ok&&body.data,'Trusted Circle account verification failed. Please sign in again.');
+  const source=body.data;
+  const su=source.user||source;
+  const em=email_(su.email||su.Email);
+  req_(em&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(em),'Trusted Circle account email is invalid.');
+  const users=rows_(W.S.U);
+  let u=null;
+  for(let i=users.length-1;i>=0;i--)if(email_(users[i].Email)===em){u=users[i];break;}
+  const ts=now_();
+  if(!u){
+    u={UserID:id_('WUSR'),Email:em,Name:clean_(su.name||su.Name,100)||em.split('@')[0],Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts,LastLoginAt:ts};
+    addRow_(W.S.U,u);
+    addRow_(W.S.W,{WalletID:id_('WAL'),UserID:u.UserID,Balance:0,ReservedBalance:0,Currency:'INR',Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts});
+  }else{
+    updateRow_(W.S.U,'UserID',u.UserID,{Name:clean_(su.name||su.Name,100)||u.Name,UpdatedAt:ts,LastLoginAt:ts});
+    u=find_(W.S.U,'UserID',u.UserID);
+  }
+  req_(String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE','Wallet account is inactive.');
+  const session=createWalletSession_(u);
+  return{ok:true,data:{user:pubUser_(u),session:session,linkedToShopping:true}};
 }
 
 function verifyLoginChallenge_(d){
