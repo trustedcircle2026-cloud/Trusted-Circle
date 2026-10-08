@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, Clock3, ExternalLink, ShieldCheck, WalletCards
 import { walletApi } from '../wallet-services-api'
 import '../wallet.css'
 
-const money=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})`
+const money=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:2})}`
 const date=v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'
 
 export default function WalletPaymentPage({transactionId}){
