@@ -81,7 +81,7 @@ function WalletHome({user,onLogout,initialWallet=null}){
     // while the background request continues and can navigate this window later.
     setModal(null);
     setNotice('Payment preparation took longer than 10 seconds. Your Wallet is ready. Please try again.');
-  },10000);
+  },20000);
   try{
     // Wallet backend allocates the next AVAILABLE link from WalletPaymentLinks,
     // reserves it against this transaction, and returns the reserved checkout URL.
@@ -166,13 +166,14 @@ function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBa
    return()=>clearInterval(timer)
  },[user,tx?.transactionId,expiresAt,phase])
  if(phase==='opening')return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting">
-   <div className="wallet-loading-ring"><Clock3 size={29}/></div>
-   <span className="wallet-services-eyebrow">PAYMENT LINK</span>
-   <h2>Getting Secure Payment Link</h2>
-   <p>We are securely allocating your payment link. Please keep this popup open.</p>
+   <div className="wallet-payment-hero"><div className="wallet-loading-ring"><Clock3 size={31}/></div><div><span className="wallet-services-eyebrow">SECURE PAYMENT</span><h2>Preparing Your Payment</h2><p>We are getting your secure payment link from Trusted Circle.</p></div></div>
+   <div className="wallet-payment-steps">
+     <div className="wallet-payment-step done"><CheckCircle2 size={18}/><span>Wallet request received</span></div>
+     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>Getting payment link</span></div>
+     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>Opening secure Paytm page</span></div>
+   </div>
    <div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div>
-   <strong>Preparing payment…</strong>
-   <small>Once the link is received, the payment page will open automatically.</small>
+   <strong>Please wait — up to 20 seconds</strong><small>The payment page will open automatically as soon as the link is ready.</small>
  </div></div>
  if(result)return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
    <div className={'wallet-result-icon '+(result.status==='COMPLETED'?'success':'failed')}>{result.status==='COMPLETED'?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
@@ -198,7 +199,7 @@ function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBa
      <div className="wallet-payment-step pending"><Clock3 size={17}/><span>Waiting for Admin action</span></div>
    </div>
    <div className="wallet-progress"><span style={{width:Math.max(5,(left/900*100))+'%'}}/></div>
-   <strong>{left>0?Math.floor(left/60)+':'+String(left%60).padStart(2,'0'):'Waiting for Admin action'}</strong>
+   <strong>{left>0?('Admin response in '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')):'Waiting for Admin action'}</strong>
    <small>After Admin selects Received, Not Received, or Rejected, this popup will show the final result.</small>
    <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
  </div></div>
