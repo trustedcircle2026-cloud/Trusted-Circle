@@ -166,7 +166,7 @@ function moneyWalletWithdrawalActions_(t){
 function moneyWalletAdd_(data){
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
-    var user=authenticate_(data.token),amount=Number(data.amount);
+    var user=walletUserFromIdentity_(data),amount=Number(data.amount);
     require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
     ensureMoneyWalletSheets_();
     var tid=newId_('TCMWTX'),stock=moneyWalletReserveStock_(amount,tid),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0),now=isoNow_();
@@ -183,7 +183,7 @@ function moneyWalletAdd_(data){
 function moneyWalletRetryAdd_(data){
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
-    var user=authenticate_(data.token),old=findOne_(TC_MONEY_WALLET.TX,'TransactionID',cleanText_(data.transactionId,100));
+    var user=walletUserFromIdentity_(data),old=findOne_(TC_MONEY_WALLET.TX,'TransactionID',cleanText_(data.transactionId,100));
     require_(old&&String(old.UserID)===String(user.UserID),'Transaction not found.');
     require_(String(old.Status).toUpperCase()==='NOT_RECEIVED','Only a Not Received payment can be retried.');
     var tid=newId_('TCMWTX'),stock=moneyWalletReserveStock_(Number(old.Amount),tid),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0),now=isoNow_();
@@ -201,7 +201,7 @@ function moneyWalletRetryAdd_(data){
 function moneyWalletWithdraw_(data){
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
-    var user=authenticate_(data.token),amount=Math.round(Number(data.amount||0)*100)/100,upi=cleanText_(data.upiId,200),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
+    var user=walletUserFromIdentity_(data),amount=Math.round(Number(data.amount||0)*100)/100,upi=cleanText_(data.upiId,200),w=moneyWalletRow_(user.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
     require_(amount>0&&isFinite(amount),'Enter a valid withdrawal amount.');
     require_(/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upi),'Enter a valid UPI ID.');
     require_(amount<=balance-reserved,'Insufficient available wallet balance.');
