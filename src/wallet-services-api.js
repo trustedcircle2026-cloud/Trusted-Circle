@@ -1,105 +1,66 @@
-const WALLET_API_URL =
-  import.meta.env.VITE_WALLET_APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec'
+import {api} from './api'
 
-async function walletRequest(action,payload={}){
-  const iframeId='wallet-api-frame-'+Date.now()+'-'+Math.random().toString(36).slice(2);
-  const requestId=iframeId;
-  const iframe=document.createElement('iframe');
-  iframe.name=iframeId;
-  iframe.id=iframeId;
-  iframe.style.cssText='position:fixed;width:1px;height:1px;left:-10000px;top:-10000px;border:0;opacity:0;pointer-events:none';
-  document.body.appendChild(iframe);
-
-  return new Promise((resolve,reject)=>{
-    let settled=false;
-    const timer=setTimeout(()=>finish(new Error('Wallet Services is taking too long to respond. Please try again.')),20000);
-
-    const cleanup=()=>{
-      clearTimeout(timer);
-      window.removeEventListener('message',onMessage);
-      try{iframe.remove()}catch(_){}
-    };
-    const finish=(value,isError=false)=>{
-      if(settled)return;
-      settled=true;
-      cleanup();
-      isError?reject(value):resolve(value);
-    };
-    const onMessage=(event)=>{
-      const msg=event.data;
-      if(!msg||msg.source!=='trusted-circle-wallet'||msg.requestId!==requestId)return;
-      if(!msg.ok){
-        finish(new Error(msg.error||'Wallet Services request failed.'),true);
-        return;
-      }
-      // Wallet login responses use a flat v3 contract. Normalize it here,
-      // while retaining compatibility with older nested responses.
-      const data=(msg.data&&typeof msg.data==='object')?{...msg.data}:{};
-      if(msg.token) data.session={token:String(msg.token),expiresAt:msg.expiresAt||''};
-      else if(data.session&&data.session.token) data.session={token:String(data.session.token),expiresAt:data.session.expiresAt||''};
-      if(msg.user) data.user=msg.user;
-      // Payment fields are promoted by the Wallet backend as a transport-safe
-      // fallback. Keep them in data as well for all frontend callers.
-      if(msg.paymentLink) data.paymentLink=String(msg.paymentLink);
-      if(msg.paymentExpiresAt) data.expiresAt=String(msg.paymentExpiresAt);
-      else if(msg.expiresAt) data.expiresAt=String(msg.expiresAt);
-      if(msg.transaction&&typeof msg.transaction==='object') data.transaction=msg.transaction;
-      // Login challenge fields are exposed top-level by the Wallet backend.
-      // Normalize them so the login UI never loses the three options.
-      if(Array.isArray(msg.options)) data.options=msg.options.map(String).filter(Boolean);
-      const explicitNumbers=[msg.number1,msg.number2,msg.number3].map(v=>v===undefined||v===null?'':String(v)).filter(Boolean);
-      if(!data.options.length&&explicitNumbers.length===3) data.options=explicitNumbers;
-      if(msg.challengeId) data.challengeId=String(msg.challengeId);
-      if(msg.email) data.email=String(msg.email);
-      if(typeof msg.isNewUser==='boolean') data.isNewUser=msg.isNewUser;
-      if(msg.expiresInSeconds) data.expiresInSeconds=Number(msg.expiresInSeconds);
-      finish(data);
-    };
-    window.addEventListener('message',onMessage);
-
-    const form=document.createElement('form');
-    form.method='POST';
-    form.action=WALLET_API_URL;
-    form.target=iframe.name;
-    form.style.display='none';
-
-    const fields={
-      transport:'iframe',
-      requestId,
-      action,
-      payload:JSON.stringify(payload)
-    };
-    Object.entries(fields).forEach(([name,value])=>{
-      const input=document.createElement('input');
-      input.type='hidden';
-      input.name=name;
-      input.value=value;
-      form.appendChild(input);
-    });
-
-    document.body.appendChild(form);
-    try{form.submit()}catch(e){finish(e,true)}
-    setTimeout(()=>{try{form.remove()}catch(_){}},1000);
-  });
-}
-
+/**
+ * Integrated Wallet Services API.
+ * Uses the SAME Shopping Apps Script, Shopping session and Shopping GSheet.
+ * Cashback Wallet and Money Wallet are separate ledgers for the same user.
+ */
 export const walletApi={
-  requestLoginChallenge:email=>walletRequest('requestLoginChallenge',{email}),
-  bootstrapShoppingSession:shoppingToken=>walletRequest('bootstrapShoppingSession',{shoppingToken}),
-  bootstrapShoppingIdentity:handoff=>walletRequest('bootstrapShoppingIdentity',handoff),
-  verifyLoginChallenge:(email,challengeId,selectedNumber)=>walletRequest('verifyLoginChallenge',{email,challengeId,selectedNumber}),
-  me:token=>walletRequest('me',{token}),
-  wallet:token=>walletRequest('wallet',{token}),
-  orders:token=>walletRequest('walletOrders',{token}),
-  transactionStatus:(token,transactionId)=>walletRequest('transactionStatus',{token,transactionId}),
-  walletGateway:(token,amount)=>walletRequest('walletGateway',{token,amount}),
-  addMoney:(token,amount)=>walletRequest('addMoney',{token,amount}),
-  retryAddMoney:(token,transactionId)=>walletRequest('retryAddMoney',{token,transactionId}),
-  withdraw:(token,amount,upiId)=>walletRequest('withdrawMoney',{token,amount,upiId}),
-  logout:token=>walletRequest('logout',{token}),
-  adminAddPaymentLink:(adminKey,denomination,link,label)=>walletRequest('adminAddPaymentLink',{adminKey,denomination,link,label}),
-  adminAddPaymentLinkBulk:(adminKey,denomination,links,label)=>walletRequest('adminAddPaymentLinkBulk',{adminKey,denomination,links:links.join('\n'),label}),
-  adminPaymentStock:adminKey=>walletRequest('adminPaymentStock',{adminKey}),
-  adminRemovePaymentLink:(adminKey,paymentLinkStockId)=>walletRequest('adminRemovePaymentLink',{adminKey,paymentLinkStockId})
+  me:async token=>api.me(token),
+  wallet:async token=>{
+    const [money,cashback]=await Promise.all([
+      api.moneyWallet(token),
+      api.wallet(token)
+    ])
+    const moneyWallet=money?.wallet||{}
+    const cashbackWallet=cashback?.wallet||{}
+    const moneyTransactions=Array.isArray(money?.transactions)?money.transactions:[]
+    const cashbackTransactions=Array.isArray(cashback?.transactions)?cashback.transactions:[]
+    const transactions=[
+      ...moneyTransactions,
+      ...cashbackTransactions.map(t=>({
+        transactionId:t.orderId||('CASHBACK-'+t.createdAt),
+        type:'CASHBACK_EARNED',
+        amount:Number(t.amount||0),
+        status:String(t.status||''),
+        balanceBefore:0,
+        balanceAfter:Number(t.balanceAfter||0),
+        reservedBalance:0,
+        upiId:'',
+        paymentLinkLabel:'',
+        paymentLink:'',
+        attempt:1,
+        createdAt:t.createdAt,
+        updatedAt:t.createdAt,
+        completedAt:t.createdAt,
+        notes:t.description||'',
+        source:'CASHBACK'
+      }))
+    ].sort((a,b)=>new Date(b.createdAt||0).getTime()-new Date(a.createdAt||0).getTime())
+
+    return {
+      wallet:moneyWallet,
+      balance:Number(moneyWallet.balance||0),
+      availableBalance:Number(moneyWallet.availableBalance||0),
+      reservedBalance:Number(moneyWallet.reservedBalance||0),
+      transactions,
+      moneyTransactions,
+      cashbackWallet,
+      cashbackTransactions
+    }
+  },
+  orders:async token=>api.moneyWalletOrders(token),
+  transactionStatus:async(token,transactionId)=>api.moneyWalletTransactionStatus(token,transactionId),
+  walletGateway:async(token,amount)=>api.moneyAdd(token,amount),
+  addMoney:async(token,amount)=>api.moneyAdd(token,amount),
+  retryAddMoney:async(token,transactionId)=>api.moneyRetryAdd(token,transactionId),
+  withdraw:async(token,amount,upiId)=>api.moneyWithdraw(token,amount,upiId),
+  logout:async token=>api.logout(token),
+
+  // Kept only for old Wallet Admin pages. New Shopping Admin Add Link should
+  // use the Shopping API directly and the shared PaymentLinkStock sheet.
+  adminAddPaymentLink:async(token,denomination,link,label='Pay securely')=>api.adminAddPaymentLinkStock(token,denomination,link,label),
+  adminAddPaymentLinkBulk:async(token,denomination,links,label='Pay securely')=>api.adminAddPaymentLinkStockBulk(token,[...links.map(link=>({denomination,link,label}))]),
+  adminPaymentStock:async token=>api.adminTable(token,'PaymentLinkStock'),
+  adminRemovePaymentLink:async(token,paymentLinkStockId)=>api.adminUpdateRow(token,'PaymentLinkStock',paymentLinkStockId,{Status:'REMOVED'})
 }
