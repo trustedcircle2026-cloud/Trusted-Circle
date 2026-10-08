@@ -66,3 +66,20 @@
 .wallet-payment-gateway-info{margin-top:13px;display:grid;grid-template-columns:1fr 1fr 1.2fr;border:1px solid #e0e8e3;border-radius:15px;overflow:hidden;background:#fff}.wallet-payment-gateway-info div{padding:11px;border-right:1px solid #e8eeea}.wallet-payment-gateway-info div:last-child{border-right:0}.wallet-payment-gateway-info small{display:block;font-size:7px;color:#89938e;letter-spacing:.07em;margin-bottom:5px}.wallet-payment-gateway-info strong{font-size:10px;word-break:break-word;color:#20332a}
 .wallet-payment-pay-btn{min-height:49px;font-size:12px;letter-spacing:-.01em}.wallet-payment-action{box-shadow:0 8px 25px rgba(19,74,47,.06)}
 @media(max-width:480px){.wallet-payment-gateway-info{grid-template-columns:1fr}.wallet-payment-gateway-info div{border-right:0;border-bottom:1px solid #e8eeea}.wallet-payment-gateway-info div:last-child{border-bottom:0}}
+
+.wallet-payment-preparing{position:relative;width:min(540px,calc(100vw - 32px));background:#fff;border-radius:26px;padding:28px;box-shadow:0 30px 100px rgba(0,0,0,.25);animation:walletPop .22s ease}
+.wallet-payment-preparing-head{display:flex;align-items:center;gap:13px;padding-right:20px}
+.wallet-payment-preparing-head .wallet-modal-icon{margin:0}
+.wallet-payment-preparing h2{font-size:27px;letter-spacing:-.04em;margin:4px 0 0}
+.wallet-payment-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:22px}
+.wallet-payment-summary>div{padding:14px;border:1px solid #e1ebe5;background:#f8fbf9;border-radius:14px;display:grid;gap:5px;min-width:0}
+.wallet-payment-summary span{font-size:10px;color:#7a8580;text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.wallet-payment-summary strong{font-size:13px;color:#173c2a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wallet-payment-progress{margin-top:22px}
+.wallet-payment-progress-track{height:9px;background:#e7eee9;border-radius:999px;overflow:hidden}
+.wallet-payment-progress-track span{display:block;height:100%;background:linear-gradient(90deg,#16804d,#58b87d);border-radius:999px;transition:width .35s ease}
+.wallet-payment-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-top:9px;color:#66736c;font-size:11px}
+.wallet-payment-progress-meta b{color:#16804d}
+.wallet-payment-preparing .wallet-safe-note{margin-top:18px}
+.wallet-payment-preparing-foot{margin-top:15px;display:flex;align-items:center;gap:7px;color:#929a96;font-size:10px}
+@media(max-width:600px){.wallet-payment-summary{grid-template-columns:1fr}.wallet-payment-preparing{padding:22px}}
