@@ -15,6 +15,7 @@ export default function AdminLinkAddPage({logoUrl}){
   const[loading,setLoading]=useState(false)
   const[result,setResult]=useState(null)
   const[error,setError]=useState('')
+  const[stockRows,setStockRows]=useState([])
 
   const parsedLinks=useMemo(()=>links.split(/\r?\n/).map(v=>v.trim()).filter(Boolean),[links])
   const validLinks=parsedLinks.filter(v=>/^https:\/\//i.test(v))
@@ -37,6 +38,7 @@ export default function AdminLinkAddPage({logoUrl}){
       const session=await authenticate()
       const r=await api.adminAddPaymentLinkStock(session,denomination,link.trim(),label.trim()||'Pay securely')
       setResult({added:1,skipped:0,paymentLinkStockId:r?.paymentLinkStockId})
+      await refresh()
       setLink('')
     }catch(e){setError(String(e?.message||'Could not add payment link.'))}
     finally{setLoading(false)}
@@ -51,6 +53,7 @@ export default function AdminLinkAddPage({logoUrl}){
       const r=await api.adminAddPaymentLinkStockBulk(session,validLinks.map(x=>({denomination,link:x,label:label.trim()||'Pay securely'})))
       setResult(r)
       if(Number(r?.added||0)>0)setLinks('')
+      await refresh()
     }catch(e){setError(String(e?.message||'Could not add payment links.'))}
     finally{setLoading(false)}
   }
@@ -60,6 +63,8 @@ export default function AdminLinkAddPage({logoUrl}){
     try{
       const session=await authenticate()
       const r=await api.adminTable(session,'PaymentLinkStock')
+      const rows=Array.isArray(r?.rows)?r.rows:Array.isArray(r)?r:[]
+      setStockRows(rows)
       setResult({stock:r})
     }catch(e){setError(String(e?.message||'Could not refresh stock.'))}
     finally{setLoading(false)}
@@ -95,6 +100,30 @@ export default function AdminLinkAddPage({logoUrl}){
         {result&&result.stock&&<div className="admin-link-add-message success"><CheckCircle2 size={18}/><div><b>Stock refreshed</b><span>{result.stock.rows?.length||0} stock records loaded.</span></div></div>}
         {result&&!result.stock&&<div className="admin-link-add-message success"><CheckCircle2 size={18}/><div><b>{result.added||1} links added</b><span>{result.skipped||0} duplicate links skipped.</span></div></div>}
         <div className="admin-link-add-note"><ShieldCheck size={15}/> Shopping payment links are validated as HTTPS and duplicate links are skipped automatically.</div>
+      </form>
+
+      <section className="admin-link-add-stock-card">
+        <h2>Stock Summary</h2>
+        <div className="admin-link-add-summary">
+          {DENOMS.map(d=>{
+            const rows=stockRows.filter(x=>Number(x.Denomination??x.denomination)===d)
+            const available=rows.filter(x=>String(x.Status??x.status).toUpperCase()==='AVAILABLE').length
+            const reserved=rows.filter(x=>String(x.Status??x.status).toUpperCase()==='RESERVED').length
+            const used=rows.filter(x=>String(x.Status??x.status).toUpperCase()==='USED').length
+            return <div key={d}><b>{available}</b><span>₹{d.toLocaleString('en-IN')} available · {reserved} reserved · {used} used</span></div>
+          })}
+        </div>
+        <div className="admin-link-add-table-wrap">
+          <table className="admin-link-add-table"><thead><tr><th>Denomination</th><th>Status</th><th>Transaction</th><th>Expires</th><th>Payment Link</th><th>Action</th></tr></thead>
+          <tbody>
+            {stockRows.length===0?<tr><td colSpan="6" className="admin-link-add-empty">No stock records loaded. Click Refresh Stock.</td></tr>:
+            stockRows.slice().reverse().map((x,i)=>{
+              const status=String(x.Status??x.status??'').toUpperCase()
+              return <tr key={x.PaymentLinkStockID||x.paymentLinkStockId||i}><td>₹{Number(x.Denomination??x.denomination||0).toLocaleString('en-IN')}</td><td><span className={'admin-link-add-status '+status.toLowerCase()}>{status||'—'}</span></td><td>{x.OrderID||x.orderId||x.TransactionID||x.transactionId||'—'}</td><td>{x.ExpiresAt||x.expiresAt?' '+new Date(x.ExpiresAt||x.expiresAt).toLocaleString('en-IN'):'—'}</td><td className="admin-link-add-url">{x.PaymentLink||x.paymentLink||x.Link||x.link||'—'}</td><td>—</td></tr>
+            })}
+          </tbody></table>
+        </div>
+      </section>
       </form>
     </section>
   </main>
