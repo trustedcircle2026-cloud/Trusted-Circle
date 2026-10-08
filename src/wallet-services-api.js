@@ -2,7 +2,7 @@ import {api} from './api'
 
 /**
  * Integrated Wallet Services API.
- * Uses the SAME Shopping Apps Script and Shopping GSheet. Wallet lookup uses the existing Shopping authentication token.
+ * Uses the SAME Shopping Apps Script and Shopping GSheet. Wallet lookup uses the user's verified Email + UserID identity.
  * Cashback Wallet and Money Wallet are separate ledgers for the same user.
  */
 export const walletApi={
@@ -25,13 +25,13 @@ export const walletApi={
       breakdown:d?.breakdown||{}
     }
   },
-  wallet:async token=>walletApi.snapshot(token),
-  orders:async token=>{const d=await walletApi.snapshot(token);return{transactions:d.transactions||[]}},
-  transactionStatus:async(token,transactionId)=>api.moneyWalletTransactionStatus(token,transactionId),
-  walletGateway:async(token,amount)=>api.moneyAdd(token,amount),
-  addMoney:async(token,amount)=>api.moneyAdd(token,amount),
-  retryAddMoney:async(token,transactionId)=>api.moneyRetryAdd(token,transactionId),
-  withdraw:async(token,amount,upiId)=>api.moneyWithdraw(token,amount,upiId),
+  wallet:async identity=>walletApi.snapshot(identity),
+  orders:async identity=>{const d=await walletApi.snapshot(identity);return{transactions:d.transactions||[]}},
+  transactionStatus:async(identity,transactionId)=>api.moneyWalletTransactionStatus(identity,transactionId),
+  walletGateway:async(identity,amount)=>api.moneyAdd(identity,amount),
+  addMoney:async(identity,amount)=>api.moneyAdd(identity,amount),
+  retryAddMoney:async(identity,transactionId)=>api.moneyRetryAdd(identity,transactionId),
+  withdraw:async(identity,amount,upiId)=>api.moneyWithdraw(identity,amount,upiId),
   
   adminAddPaymentLink:async(token,denomination,link,label='Pay securely')=>api.adminAddPaymentLinkStock(token,denomination,link,label),
   adminAddPaymentLinkBulk:async(token,denomination,links,label='Pay securely')=>api.adminAddPaymentLinkStockBulk(token,[...links.map(link=>({denomination,link,label}))]),
