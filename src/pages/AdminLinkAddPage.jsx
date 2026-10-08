@@ -7,9 +7,11 @@ const DENOMS=[500,1000,1500,2000]
 
 export default function AdminLinkAddPage({logoUrl}){
   const[token,setToken]=useState(()=>localStorage.getItem('tc_erp_session')||'')
-  const[denomination,setDenomination]=useState(Number(new URLSearchParams(window.location.hash.split('?')[1]||'').get('denomination'))||500)
+  const[adminKey,setAdminKey]=useState('')
+  const[denomination,setDenomination]=useState(500)
+  const[label,setLabel]=useState('Shopping Payment ₹500')
+  const[link,setLink]=useState('')
   const[links,setLinks]=useState('')
-  const[label,setLabel]=useState('Pay securely')
   const[loading,setLoading]=useState(false)
   const[result,setResult]=useState(null)
   const[error,setError]=useState('')
@@ -18,30 +20,48 @@ export default function AdminLinkAddPage({logoUrl}){
   const validLinks=parsedLinks.filter(v=>/^https:\/\//i.test(v))
   const invalidCount=parsedLinks.length-validLinks.length
 
-  const login=async()=>{
-    setError('')
-    try{
-      const password=window.prompt('Enter Admin password to open the secure stock page.')
-      if(!password)return
-      const r=await api.adminLogin('trustedcircle2026@gmail.com',password)
-      localStorage.setItem('tc_erp_session',r.session.token)
-      localStorage.setItem('tc_erp_admin_user',JSON.stringify(r.user||{}))
-      setToken(r.session.token)
-    }catch(e){setError(String(e?.message||'Admin authentication failed.'))}
+  const authenticate=async()=>{
+    if(token)return token
+    if(!adminKey.trim())throw new Error('Enter the Admin Key.')
+    const r=await api.adminLogin('trustedcircle2026@gmail.com',adminKey.trim())
+    localStorage.setItem('tc_erp_session',r.session.token)
+    localStorage.setItem('tc_erp_admin_user',JSON.stringify(r.user||{}))
+    setToken(r.session.token)
+    return r.session.token
   }
 
-  const submit=async e=>{
-    e.preventDefault()
-    if(!token){setError('Admin authentication is required.');return}
-    if(!validLinks.length){setError('Paste at least one valid HTTPS payment link, one per line.');return}
-    if(validLinks.length>200){setError('Maximum 200 payment links can be added at once.');return}
+  const single=async()=>{
     setLoading(true);setError('');setResult(null)
     try{
-      const rows=validLinks.map(link=>({denomination,link,label}))
-      const r=await api.adminAddPaymentLinkStockBulk(token,rows)
+      if(!/^https:\/\//i.test(link.trim()))throw new Error('Enter a valid HTTPS payment gateway link.')
+      const session=await authenticate()
+      const r=await api.adminAddPaymentLinkStock(session,denomination,link.trim(),label.trim()||'Pay securely')
+      setResult({added:1,skipped:0,paymentLinkStockId:r?.paymentLinkStockId})
+      setLink('')
+    }catch(e){setError(String(e?.message||'Could not add payment link.'))}
+    finally{setLoading(false)}
+  }
+
+  const bulk=async()=>{
+    setLoading(true);setError('');setResult(null)
+    try{
+      if(!validLinks.length)throw new Error('Paste at least one valid HTTPS payment link, one per line.')
+      if(validLinks.length>200)throw new Error('Maximum 200 payment links can be added at once.')
+      const session=await authenticate()
+      const r=await api.adminAddPaymentLinkStockBulk(session,validLinks.map(x=>({denomination,link:x,label:label.trim()||'Pay securely'})))
       setResult(r)
       if(Number(r?.added||0)>0)setLinks('')
     }catch(e){setError(String(e?.message||'Could not add payment links.'))}
+    finally{setLoading(false)}
+  }
+
+  const refresh=async()=>{
+    setError('');setResult(null);setLoading(true)
+    try{
+      const session=await authenticate()
+      const r=await api.adminTable(session,'PaymentLinkStock')
+      setResult({stock:r})
+    }catch(e){setError(String(e?.message||'Could not refresh stock.'))}
     finally{setLoading(false)}
   }
 
@@ -50,49 +70,31 @@ export default function AdminLinkAddPage({logoUrl}){
     <header className="admin-link-add-header">
       <div className="admin-link-add-brand">
         <div className="admin-link-add-logo"><img src={logoUrl} alt="Trusted Circle"/></div>
-        <div><b>Trusted Circle</b><span>SECURE STOCK CONTROL</span></div>
+        <div><b>Trusted Circle</b><span>SHOPPING PAYMENT GATEWAY</span></div>
       </div>
       <div className="admin-link-add-security"><ShieldCheck size={16}/> ADMIN ONLY</div>
     </header>
 
     <section className="admin-link-add-shell">
-      <div className="admin-link-add-hero">
-        <div className="admin-link-add-hero-icon"><PackagePlus size={27}/></div>
-        <span className="eyebrow">PAYMENT LINK INVENTORY</span>
-        <h1>Add payment links.</h1>
-        <p>Select one denomination and paste multiple secure payment links — one link per line.</p>
-        <div className="admin-link-add-stepbar">
-          <span className="active"><b>1</b> Denomination</span><i/><span className={validLinks.length?'active':''}><b>2</b> Links</span><i/><span className={token?'active':''}><b>3</b> Add to stock</span>
-        </div>
-      </div>
-
-      <form className="admin-link-add-card" onSubmit={submit}>
-        {!token && <div className="admin-link-add-auth">
-          <div><ShieldCheck size={20}/><div><b>Admin authentication required</b><p>Sign in with the Trusted Circle admin account before adding stock.</p></div></div>
-          <button type="button" className="admin-link-add-primary" onClick={login}><LogIn size={17}/> Authenticate</button>
-        </div>}
-
+      <form className="admin-link-add-card" onSubmit={e=>e.preventDefault()}>
+        <h2>Add Payment Link Stock</h2>
         <div className="admin-link-add-grid">
-          <label className="admin-link-add-field"><span>Voucher denomination</span><select value={denomination} onChange={e=>setDenomination(Number(e.target.value))} disabled={!token||loading}>{DENOMS.map(d=><option key={d} value={d}>₹{d.toLocaleString('en-IN')}</option>)}</select></label>
-          <label className="admin-link-add-field"><span>Link label</span><input value={label} onChange={e=>setLabel(e.target.value)} disabled={!token||loading} placeholder="Pay securely"/></label>
+          <label className="admin-link-add-field"><span>Shopping Admin Key</span><input type="password" value={adminKey} onChange={e=>setAdminKey(e.target.value)} placeholder="Private admin key" disabled={loading||!!token}/></label>
+          <label className="admin-link-add-field"><span>Denomination</span><select value={denomination} onChange={e=>{const d=Number(e.target.value);setDenomination(d);if(!label||/^Shopping Payment ₹\d+$/.test(label))setLabel('Shopping Payment ₹'+d)}} disabled={loading}><option value="500">₹500</option><option value="1000">₹1,000</option><option value="1500">₹1,500</option><option value="2000">₹2,000</option></select></label>
+          <label className="admin-link-add-field"><span>Payment Link Label</span><input value={label} onChange={e=>setLabel(e.target.value)} placeholder="Shopping Payment ₹500" disabled={loading}/></label>
+          <label className="admin-link-add-field"><span>Single Payment Gateway Link</span><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://..." disabled={loading}/></label>
+          <label className="admin-link-add-field admin-link-add-full"><span>Bulk Payment Gateway Links — one link per line</span><textarea value={links} onChange={e=>setLinks(e.target.value)} placeholder={'https://payment-link-1\nhttps://payment-link-2'} disabled={loading} spellCheck="false"/></label>
         </div>
-
-        <label className="admin-link-add-field"><span>Payment links <small>one per line</small></span>
-          <textarea value={links} onChange={e=>setLinks(e.target.value)} disabled={!token||loading} placeholder={'https://paytm.me/...\nhttps://paytm.me/...\nhttps://paytm.me/...'} spellCheck="false"/>
-        </label>
-
-        <div className="admin-link-add-counter"><span><Link2 size={15}/> {parsedLinks.length} link{parsedLinks.length===1?'':'s'} detected</span><span>{invalidCount?invalidCount+' invalid':''}</span></div>
-
-        {error&&<div className="admin-link-add-message error"><AlertCircle size={17}/><span>{error}</span><button type="button" onClick={()=>setError('')}><X size={15}/></button></div>}
-        {result&&<div className="admin-link-add-message success"><CheckCircle2 size={18}/><div><b>{result.added||0} links added</b><span>{result.skipped||0} duplicate links skipped.</span></div></div>}
-
         <div className="admin-link-add-actions">
-          <button type="button" className="admin-link-add-secondary" onClick={()=>setLinks('')} disabled={!links||loading}><Trash2 size={16}/> Clear</button>
-          <button type="submit" className="admin-link-add-primary" disabled={!token||loading||!validLinks.length}>
-            {loading?<><RefreshCw size={17} className="admin-link-spin"/> Adding to stock…</>:<><UploadCloud size={17}/> Add {validLinks.length||''} link{validLinks.length===1?'':'s'} to stock</>}
-          </button>
+          <button type="button" className="admin-link-add-primary" onClick={single} disabled={loading}>{loading?<RefreshCw size={16} className="admin-link-spin"/>:<UploadCloud size={16}/>} Add Single Link</button>
+          <button type="button" className="admin-link-add-primary" onClick={bulk} disabled={loading}>{loading?<RefreshCw size={16} className="admin-link-spin"/>:<UploadCloud size={16}/>} Add Bulk Links</button>
+          <button type="button" className="admin-link-add-secondary" onClick={refresh} disabled={loading}><RefreshCw size={16}/> Refresh Stock</button>
         </div>
-        <div className="admin-link-add-note"><ShieldCheck size={15}/> Links are validated as HTTPS and duplicate links are skipped automatically.</div>
+        <div className="admin-link-add-counter"><span><Link2 size={15}/> {parsedLinks.length} bulk link{parsedLinks.length===1?'':'s'} detected</span><span>{invalidCount?invalidCount+' invalid':''}</span></div>
+        {error&&<div className="admin-link-add-message error"><AlertCircle size={17}/><span>{error}</span><button type="button" onClick={()=>setError('')}><X size={15}/></button></div>}
+        {result&&result.stock&&<div className="admin-link-add-message success"><CheckCircle2 size={18}/><div><b>Stock refreshed</b><span>{result.stock.rows?.length||0} stock records loaded.</span></div></div>}
+        {result&&!result.stock&&<div className="admin-link-add-message success"><CheckCircle2 size={18}/><div><b>{result.added||1} links added</b><span>{result.skipped||0} duplicate links skipped.</span></div></div>}
+        <div className="admin-link-add-note"><ShieldCheck size={15}/> Shopping payment links are validated as HTTPS and duplicate links are skipped automatically.</div>
       </form>
     </section>
   </main>
