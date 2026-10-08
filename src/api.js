@@ -1,10 +1,10 @@
 const API_BASE='https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec'
 const LOADING_MESSAGES={health:'Connecting…',catalog:'Loading catalog…',brands:'Loading…',products:'Loading…',product:'Loading…',cart:'Loading…',cartAdd:'Adding…',cartUpdate:'Updating…',cartDenomination:'Updating…',cartRemove:'Removing…',requestOtp:'Sending OTP…',verifyOtp:'Verifying…',profileUpdate:'Saving…',orders:'Loading orders…',orderDetails:'Loading order…',wallet:'Loading…',redeemWallet:'Processing…',placeOrder:'Preparing…',createInvoicePdf:'Preparing…',requestPaymentLink:'Preparing…',cancelOrder:'Cancelling…',logout:'Signing out…',adminLogin:'Authenticating…',adminDashboard:'Loading dashboard…',adminTable:'Loading page…',adminUpdateRow:'Saving…',adminEditAnyRow:'Updating record…',adminWorklist:'Loading work queue…',adminWorklistAction:'Applying action…',adminAddPaymentLinkStock:'Stocking link…',adminAddPaymentLinkStockBulk:'Adding stock…',adminCreatePaymentLink:'Creating…',adminPaymentLinkRequest:'Updating…',adminConfirmPayment:'Confirming…',adminVerifyPayment:'Verifying payment…',adminSendVoucher:'Sending voucher…',adminUpdateOrder:'Updating…',adminFindUserForRemoval:'Finding shopper…',adminRemoveUser:'Removing shopper…'}
-const GET_CACHE_TTL=5*60*1000
+const GET_CACHE_TTL=30*60*1000
 const CACHEABLE_GETS=new Set(['catalog','brands','products','product'])
 const SHOW_LOADING_ACTIONS=new Set(Object.keys(LOADING_MESSAGES))
 const IMMEDIATE_LOADING_ACTIONS=new Set(['adminLogin','placeOrder','requestPaymentLink'])
-const PERSISTENT_CACHE_TTL=2*60*1000
+const PERSISTENT_CACHE_TTL=24*60*60*1000
 const getCache=new Map(),pendingGets=new Map()
 const persistentCachePrefix='tc_catalog_cache:'
 function emitLoading(active,action){window.dispatchEvent(new CustomEvent('tc:loading',{detail:{active,action,message:LOADING_MESSAGES[action]||'Please wait…'}}))}
