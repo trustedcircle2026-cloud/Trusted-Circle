@@ -615,6 +615,24 @@ function wallet_(d){
   const cashbackBalance=Math.max(0,cashbackEarned-cashbackUsed);
   return{ok:true,data:{user:pubUser_(u),balance:balance,reservedBalance:reserved,availableBalance:balance-reserved,currency:'INR',addAmounts:W.ADD,cashbackBalance:cashbackBalance,cashbackEarned:cashbackEarned,cashbackUsed:cashbackUsed,totalBalance:(balance-reserved)+cashbackBalance,transactions:txs_(u.UserID,100)}};
 }
+function normalizedSheetName_(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function paymentLinkStockSheet_(){
+  const ss=spreadsheet_();
+  const exact=ss.getSheetByName(W.S.P);
+  if(exact)return exact;
+  const wanted=normalizedSheetName_(W.S.P);
+  return ss.getSheets().find(sh=>normalizedSheetName_(sh.getName())===wanted)||null;
+}
+function paymentLinkStockRows_(){
+  const sh=paymentLinkStockSheet_();
+  if(!sh||sh.getLastRow()<2||sh.getLastColumn()<2)return[];
+  const values=sh.getDataRange().getValues();
+  const headers=values[0].map(x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''));
+  const idx={id:headers.findIndex(x=>['paymentlinkstockid','stockid','id'].includes(x)),amount:headers.findIndex(x=>['denomination','amount','value'].includes(x)),link:headers.findIndex(x=>['link','paymentlink','gatewaylink','url','upiurl'].includes(x)),label:headers.findIndex(x=>['label','gatewaylabel','name'].includes(x)),status:headers.findIndex(x=>['status','activestatus'].includes(x)),tx:headers.findIndex(x=>['wallettransactionid','transactionid'].includes(x)),reserved:headers.findIndex(x=>x==='reservedat'),expires:headers.findIndex(x=>x==='expiresat'),used:headers.findIndex(x=>x==='usedat'),updated:headers.findIndex(x=>x==='updatedat'),notes:headers.findIndex(x=>x==='notes')};
+  if(idx.amount<0||idx.link<0)return[];
+  return values.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>({PaymentLinkStockID:idx.id>=0?String(r[idx.id]||'').trim():'',Denomination:Number(r[idx.amount]||0),Link:String(r[idx.link]||'').trim(),Label:idx.label>=0?String(r[idx.label]||'').trim():'',Status:idx.status>=0?String(r[idx.status]||'').trim().toUpperCase():'AVAILABLE',WalletTransactionID:idx.tx>=0?String(r[idx.tx]||'').trim():'',ReservedAt:idx.reserved>=0?r[idx.reserved]:'',ExpiresAt:idx.expires>=0?r[idx.expires]:'',UsedAt:idx.used>=0?r[idx.used]:'',UpdatedAt:idx.updated>=0?r[idx.updated]:'',Notes:idx.notes>=0?String(r[idx.notes]||''):''})).filter(x=>x.Link);
+}
+
 function availablePaymentLink_(amount){
   const sh=paymentLinkStockSheet_();
   if(!sh||sh.getLastRow()<2)return null;
