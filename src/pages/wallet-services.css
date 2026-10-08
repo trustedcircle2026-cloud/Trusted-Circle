@@ -453,3 +453,161 @@
  }
  .payment-live-card>strong{font-size:18px}
 }
+
+/* Compact Wallet Services mobile redesign */
+.wallet-balance-meta{
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+.wallet-balance-card span{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.wallet-balance-card span svg{flex:0 0 auto;color:#176b49}
+.wallet-primary-actions button{
+  position:relative;
+}
+.wallet-primary-actions button>div{min-width:0}
+.wallet-primary-actions button>svg{display:none}
+
+/* The global Shopping header already identifies Trusted Circle.
+   Keep Wallet Services itself focused on balances and activity. */
+.wallet-left-panel .wallet-brand-row{display:none}
+
+@media(max-width:900px){
+  .wallet-left-content{
+    padding-top:8px;
+    margin:0;
+  }
+  .wallet-primary-actions{
+    margin-top:14px;
+  }
+}
+@media(max-width:560px){
+  .wallet-services-shell{
+    grid-template-rows:245px minmax(0,1fr);
+  }
+  .wallet-left-panel{
+    height:245px;
+    min-height:245px;
+    padding:13px 16px 10px;
+  }
+  .wallet-profile-wrap{
+    top:13px;
+    right:14px;
+  }
+  .wallet-left-content{
+    margin-top:8px;
+    padding-top:0;
+    padding-right:48px;
+  }
+  .wallet-services-eyebrow{
+    font-size:9px;
+  }
+  .wallet-main-balance{
+    font-size:43px;
+    line-height:.98;
+    margin:5px 0 4px;
+  }
+  .wallet-balance-meta{
+    font-size:9px;
+  }
+  .wallet-balance-meta svg{width:12px;height:12px}
+  .wallet-balance-breakup{
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    margin:8px 0 9px;
+  }
+  .wallet-balance-card{
+    min-width:0;
+    padding:8px 10px;
+    border-radius:11px;
+    gap:2px;
+  }
+  .wallet-balance-card span{
+    font-size:9px;
+    gap:4px;
+  }
+  .wallet-balance-card span svg{
+    width:13px;
+    height:13px;
+  }
+  .wallet-balance-card b{
+    font-size:17px;
+    line-height:1.05;
+  }
+  .wallet-balance-card small{
+    font-size:7.5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .wallet-primary-actions{
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    margin-top:8px;
+  }
+  .wallet-primary-actions button{
+    min-height:47px;
+    padding:6px 8px;
+    border-radius:10px;
+    gap:6px;
+  }
+  .wallet-primary-actions button>span{
+    width:27px;
+    height:27px;
+    border-radius:8px;
+  }
+  .wallet-primary-actions button>span svg{
+    width:16px;
+    height:16px;
+  }
+  .wallet-primary-actions button>div b{
+    font-size:11px;
+    line-height:1.1;
+  }
+  .wallet-primary-actions button small{
+    font-size:7.5px;
+    margin-top:2px;
+    white-space:nowrap;
+  }
+  .wallet-right-panel{
+    padding:10px 10px 8px;
+  }
+  .wallet-transactions-header{
+    padding:0 1px 6px;
+    align-items:center;
+  }
+  .wallet-transactions-header h1{
+    font-size:22px;
+    margin:2px 0;
+  }
+  .wallet-transactions-header p{
+    font-size:8px;
+  }
+  .wallet-section-tools{
+    gap:5px;
+  }
+  .wallet-section-tools button{
+    width:34px;
+    height:34px;
+    padding:0!important;
+    border-radius:10px;
+    justify-content:center;
+  }
+  .wallet-section-tools button svg{
+    width:16px;
+    height:16px;
+    margin:0;
+  }
+  .wallet-refresh-btn{
+    width:34px!important;
+    height:34px;
+  }
+  .wallet-transactions-scroll{
+    margin-top:4px;
+    border-radius:11px;
+  }
+}
