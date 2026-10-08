@@ -63,7 +63,6 @@ function Login({onLogin}){
    try{
      const d=await walletApi.requestLoginChallenge(em);
      clearTimeout(uiTimer);
-     if(uiTimedOut)return;
      setEmail(em);
      setChallengeId(d.challengeId||'');
      setOptions(Array.isArray(d.options)?d.options.map(String):[]);
