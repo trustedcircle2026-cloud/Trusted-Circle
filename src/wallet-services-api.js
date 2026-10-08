@@ -7,8 +7,8 @@ import {api} from './api'
  */
 export const walletApi={
   me:async token=>api.me(token),
-  snapshot:async token=>{
-    const d=await api.walletServices(token);
+  snapshot:async identity=>{
+    const d=await api.walletServices(identity);
     const moneyWallet=d?.moneyWallet||{};
     const cashbackWallet=d?.cashbackWallet||{};
     return {
