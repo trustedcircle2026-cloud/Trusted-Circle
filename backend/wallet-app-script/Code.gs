@@ -638,7 +638,7 @@ function availablePaymentLink_(amount){
     const row=values[r];
     if(Number(row[idx.amount])!==Number(amount))continue;
     const link=String(row[idx.link]||'').trim();
-    if(!/^https?:\\/\\//i.test(link))continue;
+    if(!/^https?:\/\//i.test(link))continue;
     const status=String(row[idx.status]||'').trim().toUpperCase();
     if(status==='RESERVED'&&idx.expires>=0&&row[idx.expires]){
       const exp=new Date(row[idx.expires]).getTime();
@@ -665,7 +665,7 @@ function walletGateway_(d){
   const u=auth_(d.token),amount=Number(d.amount);
   req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
   const x=availablePaymentLink_(amount);
-  req_(x&&/^https?:\\/\\//i.test(x.paymentLink),'No payment gateway is available for ₹'+amount+'. Please add a payment link in WalletPaymentLinks.');
+  req_(x&&/^https?:\/\//i.test(x.paymentLink),'No payment gateway is available for ₹'+amount+'. Please add a payment link in WalletPaymentLinks.');
   const paymentLink=String(x.paymentLink),label=String(x.label||('Trusted Circle ₹'+amount+' Gateway')),gatewayId=String(x.stockId||'');
   return{ok:true,paymentLink:paymentLink,data:{denomination:amount,paymentLink:paymentLink,label:label,gatewayId:gatewayId,source:'WalletPaymentLinks'}};
 }
