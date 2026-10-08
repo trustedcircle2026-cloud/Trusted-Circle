@@ -83,3 +83,22 @@
 .wallet-payment-preparing .wallet-safe-note{margin-top:18px}
 .wallet-payment-preparing-foot{margin-top:15px;display:flex;align-items:center;gap:7px;color:#929a96;font-size:10px}
 @media(max-width:600px){.wallet-payment-summary{grid-template-columns:1fr}.wallet-payment-preparing{padding:22px}}
+
+.payment-preparing-layer{backdrop-filter:blur(14px);background:rgba(11,24,18,.46)}
+.wallet-payment-preparing{position:relative;width:min(460px,calc(100vw - 30px));background:#fff;border:1px solid rgba(218,230,222,.9);border-radius:24px;padding:24px;box-shadow:0 28px 90px rgba(0,0,0,.25);animation:walletPop .2s ease}
+.wallet-payment-preparing-head{display:flex;align-items:center;gap:12px}
+.wallet-payment-preparing-head .wallet-modal-icon{width:42px;height:42px;border-radius:13px;margin:0}
+.wallet-payment-preparing h2{font-size:25px;letter-spacing:-.04em;margin:2px 0 3px;color:#17251e}
+.wallet-payment-preparing-head p{margin:0;color:#87918b;font-size:11px}
+.wallet-payment-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:20px}
+.wallet-payment-summary>div{padding:12px 13px;border:1px solid #e3ebe6;background:#f8faf9;border-radius:13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wallet-payment-summary span{font-size:9px;color:#8a948f;text-transform:uppercase;letter-spacing:.09em;font-weight:800}
+.wallet-payment-summary strong{font-size:12px;color:#173c2a}
+.wallet-payment-progress{margin-top:20px}
+.wallet-payment-progress-track{height:7px;background:#e8eeea;border-radius:999px;overflow:hidden}
+.wallet-payment-progress-track span{display:block;height:100%;background:#16804d;border-radius:999px;transition:width .3s ease}
+.wallet-payment-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:#66736c;font-size:10px;min-height:28px;align-items:flex-start}
+.wallet-payment-progress-meta span{line-height:1.4}
+.wallet-payment-progress-meta b{color:#16804d;white-space:nowrap}
+.wallet-payment-preparing-foot{margin-top:10px;padding-top:12px;border-top:1px solid #edf1ee;display:flex;align-items:center;gap:7px;color:#9aa29e;font-size:9px}
+@media(max-width:600px){.wallet-payment-preparing{padding:20px}.wallet-payment-summary{grid-template-columns:1fr}}
