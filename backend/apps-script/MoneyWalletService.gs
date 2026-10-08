@@ -185,12 +185,26 @@ function moneyWalletAdminActions_(t){
   return true;
 }
 function moneyWalletWithdrawalActions_(t){
-  var approve=moneyWalletActionToken_(t.TransactionId||t.TransactionID,'WITHDRAW_APPROVE');
-  var reject=moneyWalletActionToken_(t.TransactionId||t.TransactionID,'WITHDRAW_REJECT');
-  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Customer:</b> '+esc_(userEmail_(t.UserID))+'</p><p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p><p><b>UPI:</b> '+esc_(t.UPIId||'')+'</p>'+
-    btn_('✓ Approve Withdrawal',moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE'),'#0f5132')+
-    btn_('✕ Reject Withdrawal',moneyWalletActionUrl_(reject,'WITHDRAW_REJECT'),'#b42318');
-  MailApp.sendEmail({to:getAdminEmail_(),subject:'Trusted Circle — Money Wallet Withdrawal ₹'+t.Amount,body:'Money Wallet Withdrawal request '+t.TransactionID,htmlBody:shell_('Money Wallet Withdrawal',body)});
+  var approve=moneyWalletActionToken_(t.TransactionID,'WITHDRAW_APPROVE');
+  var reject=moneyWalletActionToken_(t.TransactionID,'WITHDRAW_REJECT');
+  var customerRow=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
+  var customer=customerRow&&customerRow.Email?String(customerRow.Email):'';
+  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p>'+
+    '<p><b>Customer:</b> '+esc_(customer||'—')+'</p>'+
+    '<p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p>'+
+    '<p><b>UPI:</b> '+esc_(t.UPIId||'')+'</p>'+
+    walletAdminEmailButton_('✓ Approve Withdrawal',moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE'),'#0f5132')+
+    walletAdminEmailButton_('✕ Reject Withdrawal',moneyWalletActionUrl_(reject,'WITHDRAW_REJECT'),'#b42318');
+  var html=walletAdminEmailShell_('Money Wallet Withdrawal Request',body);
+  var text='Money Wallet Withdrawal request '+t.TransactionID+
+    '\nCustomer: '+(customer||'—')+
+    '\nAmount: ₹'+t.Amount+
+    '\nUPI: '+(t.UPIId||'')+
+    '\n\nAdmin action links:\nApprove: '+moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE')+
+    '\nReject: '+moneyWalletActionUrl_(reject,'WITHDRAW_REJECT');
+  var sent=sendTransactionalEmail_(getAdminEmail_(),'Trusted Circle — Money Wallet Withdrawal ₹'+t.Amount,html,text);
+  if(!sent)throw new Error('Admin withdrawal email could not be sent. Please check Apps Script email authorization/quota.');
+  return true;
 }
 function moneyWalletAdd_(data){
   var lock=LockService.getScriptLock();lock.waitLock(20000);
