@@ -36,9 +36,8 @@ export default function WalletPage({token,onBack}){
   setMessage('');setBusy(true);setShowPaymentPreparing(true);setPaymentProgress(12);setPaymentStep('Finding a secure payment link for '+money(selectedAmount)+'…');
   let popup=null;
   try{
-   // Open only a blank browser window from the user click. The actual payment
-   // webpage is NOT loaded until the backend returns a real payment link.
-   popup=window.open('about:blank','trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes');
+   // Do not open a blank popup. The payment window is created only after a real
+   // gateway URL has been returned by Wallet Services.
    setPaymentProgress(28);
    const gatewayCheck=await walletApi.walletGateway(token,selectedAmount);
    const gatewayData=gatewayCheck?.data&&typeof gatewayCheck.data==='object'?gatewayCheck.data:gatewayCheck;
@@ -59,8 +58,8 @@ export default function WalletPage({token,onBack}){
    setShowPaymentPreparing(false);setShowAdd(false);setShowGateway(false);
    // Open the actual payment-link URL only after the backend has returned it.
    // This keeps the small payment window blank until a real gateway URL exists.
-   if(popup&&!popup.closed){popup.location.href=link;popup.focus()}
-   else window.open(link,'trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes');
+   popup=window.open(link,'trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes');
+   if(!popup)window.location.href=link;
   }catch(error){
    if(popup&&!popup.closed)popup.close();
    setShowPaymentPreparing(false);
