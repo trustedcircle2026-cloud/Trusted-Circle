@@ -345,7 +345,7 @@ function requestLoginChallenge_(d){
 function shoppingApiUrl_(){
   return String(props_().getProperty('SHOPPING_APPS_SCRIPT_URL')||'https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec').trim();
 }
-function handoffSecret_(){return String(props_().getProperty('WALLET_HANDOFF_SECRET')||'TC_WALLET_HANDOFF_2026_10_08_7f9c2d4a6b1e8c3f');}
+function handoffSecret_(){return requiredProp_('WALLET_HANDOFF_SECRET');}
 function bootstrapShoppingIdentity_(d){
   const email=email_(d.email);
   const name=clean_(d.name,100);
