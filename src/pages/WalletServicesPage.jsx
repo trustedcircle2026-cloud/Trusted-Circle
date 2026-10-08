@@ -29,14 +29,14 @@ function drawTable(doc,headers,rows,startY,widths){
 async function saveTransactionPdf(tx,user,filename='trusted-circle-wallet-transaction.pdf'){
  const doc=new jsPDF();await addPdfHeader(doc,'Wallet Services — Transaction PDF','Detailed transaction statement');
  doc.setFontSize(11);doc.setFont(undefined,'bold');doc.text('TRANSACTION DETAILS',14,51);
- const rows=[['Transaction ID',tx.transactionId],['Customer Name',user?.name||'—'],['Customer Email',user?.email||'—'],['Transaction Date',new Date(tx.createdAt).toLocaleString('en-IN')],['Completed Date',tx.completedAt?new Date(tx.completedAt).toLocaleString('en-IN'):'—'],['Type',tx.type==='ADD_MONEY'?'Add Money':'Withdrawal'],['Amount','₹'+money(tx.amount)],['Status',String(tx.status).replace(/_/g,' ')],['Balance Before','₹'+money(tx.balanceBefore)],['Balance After','₹'+money(tx.balanceAfter)],['UPI ID',tx.upiId||'—'],['Attempt',tx.attempt||1],['Payment Label',tx.paymentLinkLabel||'—'],['Notes',tx.notes||'—']];
+ const rows=[['Transaction ID',tx.transactionId],['Customer Name',user?.name||'—'],['Customer Email',user?.email||'—'],['Transaction Date',new Date(tx.createdAt).toLocaleString('en-IN')],['Completed Date',tx.completedAt?new Date(tx.completedAt).toLocaleString('en-IN'):'—'],['Type',tx.type==='ADD_MONEY'?'Add Money':tx.type==='CASHBACK_EARNED'?'Cashback Earned':'Withdrawal'],['Amount','₹'+money(tx.amount)],['Status',String(tx.status).replace(/_/g,' ')],['Balance Before','₹'+money(tx.balanceBefore)],['Balance After','₹'+money(tx.balanceAfter)],['UPI ID',tx.upiId||'—'],['Attempt',tx.attempt||1],['Payment Label',tx.paymentLinkLabel||'—'],['Notes',tx.notes||'—']];
  drawTable(doc,['Field','Details'],rows,59,[48,134]);
  doc.setFontSize(8);doc.setTextColor(105);doc.text('Trusted Circle Wallet Services · System generated document',14,286);doc.setTextColor(20,39,31);doc.save(filename)
 }
 async function saveTransactionsPdf(transactions,user,from,to){
  const doc=new jsPDF();await addPdfHeader(doc,'Wallet Services — Account Statement','Period: '+from+' to '+to);
  doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text('CUSTOMER',14,50);doc.setFont(undefined,'normal');doc.text((user?.name||'Trusted Circle User')+'  ·  '+(user?.email||''),14,56);
- const rows=transactions.map(t=>[new Date(t.createdAt).toLocaleDateString('en-IN'),t.transactionId,t.type==='ADD_MONEY'?'Add Money':'Withdrawal','₹'+money(t.amount),String(t.status).replace(/_/g,' '),'₹'+money(t.balanceAfter)]);
+ const rows=transactions.map(t=>[new Date(t.createdAt).toLocaleDateString('en-IN'),t.transactionId,t.type==='ADD_MONEY'?'Add Money':t.type==='CASHBACK_EARNED'?'Cashback Earned':'Withdrawal','₹'+money(t.amount),String(t.status).replace(/_/g,' '),'₹'+money(t.balanceAfter)]);
  let y=68;y=drawTable(doc,['Date','Transaction ID','Type','Amount','Status','Balance After'],rows,y,[24,47,27,25,31,28]);
  y+=10;doc.setFont(undefined,'bold');doc.text('STATEMENT SUMMARY',14,y);y+=8;doc.setFont(undefined,'normal');
  const totalAdd=transactions.filter(t=>t.type==='ADD_MONEY'&&String(t.status).includes('COMPLETED')).reduce((s,t)=>s+Number(t.amount||0),0);
