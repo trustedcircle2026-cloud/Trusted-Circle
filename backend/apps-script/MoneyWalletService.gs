@@ -31,6 +31,58 @@ function moneyWalletPublic_(userId){
 function moneyTxPublic_(r){
   return{transactionId:String(r.TransactionID||''),type:String(r.Type||''),amount:Number(r.Amount||0),status:String(r.Status||''),balanceBefore:Number(r.BalanceBefore||0),balanceAfter:Number(r.BalanceAfter||0),reservedBalance:Number(r.ReservedAfter||0),upiId:String(r.UPIId||''),paymentLinkLabel:'Shopping Payment Link',paymentLink:String(r.PaymentLink||''),attempt:Number(r.Attempt||1),parentTransactionId:String(r.ParentTransactionID||''),createdAt:r.CreatedAt,updatedAt:r.UpdatedAt,completedAt:r.CompletedAt||'',notes:String(r.Notes||'')};
 }
+function walletServicesData_(data){
+  var user=authenticate_(data.token);
+  ensureMoneyWalletSheets_();
+  ensureWalletSheets_();
+  var money=moneyWalletPublic_(user.UserID);
+  var cashback=walletPublic_(user.UserID);
+  var moneyRows=getRows_(TC_MONEY_WALLET.TX).filter(function(r){return String(r.UserID)===String(user.UserID);});
+  var cashRows=getRows_(TC_WALLET.TX).filter(function(r){return String(r.UserID)===String(user.UserID);});
+  var transactions=[];
+  moneyRows.forEach(function(r){transactions.push(moneyTxPublic_(r));});
+  cashRows.forEach(function(r){
+    transactions.push({
+      transactionId:String(r.TransactionID||''),
+      type:String(r.Type||''),
+      amount:Number(r.Amount||0),
+      status:String(r.Status||''),
+      balanceBefore:'',
+      balanceAfter:Number(r.BalanceAfter||0),
+      reservedBalance:0,
+      upiId:'',
+      paymentLinkLabel:'',
+      paymentLink:'',
+      attempt:1,
+      parentTransactionId:'',
+      createdAt:r.CreatedAt,
+      updatedAt:r.CreatedAt,
+      completedAt:r.CreatedAt,
+      notes:String(r.Description||''),
+      source:'CASHBACK',
+      orderId:String(r.OrderID||'')
+    });
+  });
+  transactions.sort(function(a,b){return new Date(b.createdAt||0).getTime()-new Date(a.createdAt||0).getTime();});
+  return {
+    user:publicUser_(user),
+    moneyWallet:money,
+    cashbackWallet:cashback,
+    breakdown:{
+      moneyBalance:money.balance,
+      moneyAvailableBalance:money.availableBalance,
+      moneyReservedBalance:money.reservedBalance,
+      cashbackBalance:cashback.balance,
+      combinedBalance:Number(money.balance||0)+Number(cashback.balance||0)
+    },
+    transactions:transactions.slice(0,200),
+    moneyTransactions:moneyRows.slice().sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();}).slice(0,100).map(moneyTxPublic_),
+    cashbackTransactions:cashRows.slice().sort(function(a,b){return new Date(b.CreatedAt).getTime()-new Date(a.CreatedAt).getTime();}).slice(0,100).map(function(r){return {
+      transactionId:String(r.TransactionID||''),type:String(r.Type||''),orderId:String(r.OrderID||''),amount:Number(r.Amount||0),
+      balanceAfter:Number(r.BalanceAfter||0),status:String(r.Status||''),description:String(r.Description||''),createdAt:r.CreatedAt
+    };})
+  };
+}
 function moneyWalletData_(data){
   var user=authenticate_(data.token);ensureMoneyWalletSheets_();
   var rows=getRows_(TC_MONEY_WALLET.TX).filter(function(r){return String(r.UserID)===String(user.UserID);});
