@@ -7,9 +7,9 @@ const money=v=>`₹${Number(v||0).toLocaleString('en-IN',{maximumFractionDigits:
 const date=v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'
 export default function WalletPage({token,onBack}){
  const [data,setData]=useState({wallet:{balance:0,cashbackBalance:0,totalBalance:0,totalEarned:0,totalRedeemed:0},transactions:[]})
- const [shopping,setShopping]=useState({balance:0,cashback:0,total:0,transactions:[]})
+ const [shopping,setShopping]=useState({balance:0,cashback:0,total:0,totalEarned:0,totalRedeemed:0,transactions:[]})
  const [view,setView]=useState('wallet')
- const [addAmounts,setAddAmounts]=useState([500,1000,1500,2000]),[showAdd,setShowAdd]=useState(false),[showGateway,setShowGateway]=useState(false),[selectedAmount,setSelectedAmount]=useState(500),[gateway,setGateway]=useState(null),[amount,setAmount]=useState(''),[upiId,setUpiId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
+ const [addAmounts,setAddAmounts]=useState([500,1000,1500,2000]),[showAdd,setShowAdd]=useState(false),[showGateway,setShowGateway]=useState(false),[showWithdraw,setShowWithdraw]=useState(false),[selectedAmount,setSelectedAmount]=useState(500),[gateway,setGateway]=useState(null),[amount,setAmount]=useState(''),[upiId,setUpiId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
 
  const loadWallet=async()=>{
   try{
