@@ -124,6 +124,7 @@ function setupBackend(){
     WalletAuditLogs:['AuditID','UserID','TransactionID','Action','Actor','Metadata','CreatedAt']
   };
   const ss=spreadsheet_();
+  if(!props_().getProperty('SHOPPING_APPS_SCRIPT_URL')) props_().setProperty('SHOPPING_APPS_SCRIPT_URL','https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec');
   Object.keys(headers).forEach(name=>{
     const sh=ss.getSheetByName(name)||ss.insertSheet(name),h=headers[name];
     if(sh.getLastRow()===0){
