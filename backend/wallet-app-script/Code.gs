@@ -16,7 +16,7 @@ const W = {
   SESSION_MS:24*60*60*1000,
   RESERVATION_MS:15*60*1000,
   ACTION_MS:24*60*60*1000,
-  S:{U:'WalletUsers',O:'WalletOTP',C:'WalletLoginChallenges',S:'WalletSessions',W:'Wallets',T:'WalletTransactions',P:'WalletPaymentLinks',A:'WalletAdminActions',L:'WalletAuditLogs'}
+  S:{U:'WalletUsers',O:'WalletOTP',C:'WalletLoginChallenges',S:'WalletSessions',W:'Wallets',T:'WalletTransactions',P:'WalletPaymentLinks',G:'WalletGateways',A:'WalletAdminActions',L:'WalletAuditLogs'}
 };
 
 function doGet(e){
@@ -88,6 +88,7 @@ function route_(d){
   if(a==='bootstrapShoppingIdentity')return bootstrapShoppingIdentity_(d);
   if(a==='me')return{ok:true,data:{user:pubUser_(auth_(d.token))}};
   if(a==='wallet')return wallet_(d);
+  if(a==='walletGateway')return walletGateway_(d);
   if(a==='walletOrders')return walletOrders_(d);
   if(a==='transactionStatus')return transactionStatus_(d);
   if(a==='addMoney')return addMoney_(d);
@@ -121,6 +122,7 @@ function setupBackend(){
     Wallets:['WalletID','UserID','Balance','ReservedBalance','Currency','Status','CreatedAt','UpdatedAt'],
     WalletTransactions:['TransactionID','UserID','Type','Amount','Status','BalanceBefore','BalanceAfter','UPIId','PaymentLink','PaymentLinkLabel','PaymentReservationId','Attempt','ParentTransactionID','CreatedAt','UpdatedAt','CompletedAt','Notes','AdminNote'],
     WalletPaymentLinks:['PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID','ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes'],
+    WalletGateways:['GatewayID','Denomination','PaymentLink','Label','Status','CreatedAt','UpdatedAt','Notes'],
     WalletAdminActions:['ActionID','TransactionID','Action','TokenHash','ExpiresAt','UsedAt','CreatedAt'],
     WalletAuditLogs:['AuditID','UserID','TransactionID','Action','Actor','Metadata','CreatedAt']
   };
@@ -537,8 +539,25 @@ function txs_(uid,limit){
   const a=rows_(W.S.T).filter(x=>String(x.UserID)===String(uid));a.sort((x,y)=>new Date(y.CreatedAt)-new Date(x.CreatedAt));return a.slice(0,limit||250).map(pubTx_);
 }
 function wallet_(d){
-  const u=auth_(d.token),w=walletRow_(u.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
-  return{ok:true,data:{user:pubUser_(u),balance:balance,reservedBalance:reserved,availableBalance:balance-reserved,currency:'INR',addAmounts:W.ADD,transactions:txs_(u.UserID,50)}};
+  const u=auth_(d.token),w=walletRow_(u.UserID),balance=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0),tx=rows_(W.S.T).filter(x=>String(x.UserID)===String(u.UserID));
+  const cashbackEarned=tx.filter(x=>String(x.Type)==='CASHBACK_EARNED'&&String(x.Status||'')==='COMPLETED').reduce((s,x)=>s+Number(x.Amount||0),0);
+  const cashbackUsed=tx.filter(x=>String(x.Type)==='CASHBACK_REDEEMED'&&String(x.Status||'')==='COMPLETED').reduce((s,x)=>s+Number(x.Amount||0),0);
+  const cashbackBalance=Math.max(0,cashbackEarned-cashbackUsed);
+  return{ok:true,data:{user:pubUser_(u),balance:balance,reservedBalance:reserved,availableBalance:balance-reserved,currency:'INR',addAmounts:W.ADD,cashbackBalance:cashbackBalance,cashbackEarned:cashbackEarned,cashbackUsed:cashbackUsed,totalBalance:(balance-reserved)+cashbackBalance,transactions:txs_(u.UserID,100)}};
+}
+function walletGateway_(d){
+  const u=auth_(d.token),amount=Number(d.amount);
+  req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
+  let rows=[];
+  try{rows=rows_(W.S.G)}catch(_){rows=[];}
+  const active=rows.filter(x=>Number(x.Denomination)===amount&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE');
+  let g=active[0];
+  if(!g){
+    const stock=rows_(W.S.P).filter(x=>Number(x.Denomination)===amount&&String(x.Status||'')==='AVAILABLE');
+    g=stock[0]?{PaymentLink:stock[0].Link,Label:stock[0].Label||('Trusted Circle ₹'+amount+' Gateway'),GatewayID:stock[0].PaymentLinkStockID}:null;
+  }
+  req_(g&&/^https?:\\/\\//i.test(String(g.PaymentLink||'')),'No payment gateway is configured for ₹'+amount+'. Please ask Wallet Admin to add the gateway link.');
+  return{ok:true,data:{denomination:amount,paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),gatewayId:String(g.GatewayID||''),source:g.GatewayID&&String(g.GatewayID).indexOf('WPL')===0?'WalletPaymentLinks':'WalletGateways'}};
 }
 function walletOrders_(d){const u=auth_(d.token);return{ok:true,data:{transactions:txs_(u.UserID,500)}};}
 function transactionStatus_(d){const u=auth_(d.token),t=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(t&&String(t.UserID)===String(u.UserID),'Transaction not found.');return{ok:true,data:{transaction:pubTx_(t)}};}
@@ -574,7 +593,13 @@ function addMoney_(d){
   const lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
     const u=auth_(d.token),amount=Number(d.amount);req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
-    const tid=id_('WTXN'),link=reservePaymentLink_(amount,tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
+    let link=reservePaymentLink_(amount,'TEMP');
+    const tid=id_('WTXN');
+    if(link&&link.reservationId){
+      const x=find_(W.S.P,'PaymentLinkStockID',link.reservationId);
+      if(x)updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{WalletTransactionID:tid,UpdatedAt:now_()});
+    }
+    const w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
     const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
     addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));transactionSummaryEmail_(t);
     return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
