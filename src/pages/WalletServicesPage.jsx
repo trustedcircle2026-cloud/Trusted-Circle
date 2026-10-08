@@ -278,6 +278,7 @@ function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBa
    <div className="wallet-progress"><span style={{width:Math.max(3,Math.min(100,(left/900)*100))+'%'}}/></div>
    <strong>{left>0?'Waiting for Admin action · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0'):'Waiting for Admin action'}</strong>
    <small>When Admin selects <b>Received</b>, <b>Not Received</b>, or <b>Rejected</b>, this same popup will immediately show the final result.</small>
+   {!paymentOpened&&paymentLink&&<button className="wallet-submit" onClick={()=>window.open(paymentLink,'TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes')}>Open Payment Page <ArrowRight size={16}/></button>}
    <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
  </div></div>
 }
