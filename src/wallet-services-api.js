@@ -91,5 +91,9 @@ export const walletApi={
   addMoney:(token,amount)=>walletRequest('addMoney',{token,amount}),
   retryAddMoney:(token,transactionId)=>walletRequest('retryAddMoney',{token,transactionId}),
   withdraw:(token,amount,upiId)=>walletRequest('withdrawMoney',{token,amount,upiId}),
-  logout:token=>walletRequest('logout',{token})
+  logout:token=>walletRequest('logout',{token}),
+  adminAddPaymentLink:(adminKey,denomination,link,label)=>walletRequest('adminAddPaymentLink',{adminKey,denomination,link,label}),
+  adminAddPaymentLinkBulk:(adminKey,denomination,links,label)=>walletRequest('adminAddPaymentLinkBulk',{adminKey,denomination,links:links.join('\n'),label}),
+  adminPaymentStock:adminKey=>walletRequest('adminPaymentStock',{adminKey}),
+  adminRemovePaymentLink:(adminKey,paymentLinkStockId)=>walletRequest('adminRemovePaymentLink',{adminKey,paymentLinkStockId})
 }
