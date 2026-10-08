@@ -203,6 +203,7 @@ function WalletHome({user,onLogout,initialWallet=null}){
   {statementOpen&&<StatementModal transactions={orders} user={user} wallet={wallet} onClose={()=>setStatementOpen(false)}/>}
   {selectedTx&&!modal&&<TransactionModal tx={selectedTx} user={user} wallet={wallet} onClose={()=>setSelectedTx(null)} onRetry={retry}/>}
  </main>
+}
 
 function WalletModal({modal,onClose,onAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
  const[type]=useState(modal.type),[amount,setAmount]=useState('500'),[busy,setBusy]=useState(false)
