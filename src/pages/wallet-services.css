@@ -1134,3 +1134,18 @@
  .wallet-single-tx-arrow{width:12px;height:12px}
  .wallet-single-footer{display:none}
 }
+
+.wallet-single-shell{animation:walletPageIn .38s ease-out both}
+.wallet-single-overview{animation:walletOverviewIn .45s ease-out .04s both}
+.wallet-single-history{animation:walletHistoryIn .48s ease-out .10s both}
+.wallet-single-action{transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+.wallet-single-action:active{transform:scale(.985)}
+.wallet-single-transaction{transition:background .16s ease,transform .16s ease}
+.wallet-single-transaction:active{transform:scale(.998)}
+@keyframes walletPageIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+@keyframes walletOverviewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes walletHistoryIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+ .wallet-single-shell,.wallet-single-overview,.wallet-single-history{animation:none}
+ .wallet-single-action,.wallet-single-transaction{transition:none}
+}
