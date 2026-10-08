@@ -2,6 +2,7 @@ import {ArrowDownToLine,ArrowRight,CheckCircle2,Clock3,History,LogOut,RefreshCw,
 import {jsPDF} from 'jspdf'
 import {useEffect,useState} from 'react'
 import {walletApi} from '../wallet-services-api'
+import {api as shoppingApi} from '../api'
 import './wallet-services.css'
 
 const SESSION_KEY='tc_wallet_session'
@@ -181,13 +182,15 @@ export default function WalletServicesPage({shoppingToken='',shoppingUser=null,o
    let active=true;
    const boot=async()=>{
      setChecking(true);setError('');
-     if(shoppingToken){
+     if(shoppingToken&&shoppingUser?.email){
        try{
-         const d=await walletApi.bootstrapShoppingSession(shoppingToken);
+         const handoff=await shoppingApi.walletIdentity(shoppingToken);
+         if(!active)return;
+         const d=await walletApi.bootstrapShoppingIdentity(handoff);
          if(!active)return;
          const nextToken=d?.session?.token||'';
-         const nextUser=d?.user||shoppingUser||null;
-         if(!nextToken||!nextUser)throw new Error('Could not connect your Trusted Circle account to Wallet Services.');
+         const nextUser=d?.user||null;
+         if(!nextToken||!nextUser)throw new Error('Could not create your Wallet profile.');
          localStorage.setItem(SESSION_KEY,nextToken);
          setToken(nextToken);setUser(nextUser);setInitialWallet(null);
          setChecking(false);return;
