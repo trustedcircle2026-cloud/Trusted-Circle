@@ -572,11 +572,18 @@ function releaseExpiredReservations_(){
 function reservePaymentLink_(amount,tid){
   releaseExpiredReservations_();
   const a=rows_(W.S.P).filter(x=>Number(x.Denomination)===Number(amount)&&x.Status==='AVAILABLE');
-  req_(a.length,'No Wallet payment link is available for ₹'+amount+' right now.');
-  const x=a[0],ts=now_(),exp=new Date(Date.now()+W.RESERVATION_MS).toISOString();
-  updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
-  return{reservationId:x.PaymentLinkStockID,paymentLink:x.Link,label:x.Label||'',expiresAt:exp};
+  if(a.length){
+    const x=a[0],ts=now_(),exp=new Date(Date.now()+W.RESERVATION_MS).toISOString();
+    updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
+    return{reservationId:x.PaymentLinkStockID,paymentLink:x.Link,label:x.Label||'',expiresAt:exp,source:'WalletPaymentLinks'};
+  }
+  let gateways=[];
+  try{gateways=rows_(W.S.G)}catch(_){gateways=[];}
+  const g=gateways.find(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE'&&/^https?:\/\//i.test(String(x.PaymentLink||'')));
+  req_(g,'No payment gateway is configured for ₹'+amount+'. Please ask Wallet Admin to add the gateway link.');
+  return{reservationId:'',paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),expiresAt:'',source:'WalletGateways'};
 }
+
 function releasePaymentLink_(rid,tid){
   const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
   req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
