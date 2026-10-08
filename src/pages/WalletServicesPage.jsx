@@ -148,7 +148,8 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
   let timedOut=false;
   const safetyTimer=setTimeout(()=>{
     timedOut=true;
-    if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
+    // Keep the reserved browser window alive. The main-page loading UI is removed,
+    // while the background request continues and can navigate this window later.
     setModal(null);
     setNotice('Payment preparation took longer than 10 seconds. Your Wallet is ready. Please try again.');
   },10000);
@@ -159,8 +160,16 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
     clearTimeout(safetyTimer);
     const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
     if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
-    if(paymentWindow)paymentWindow.location.href=paymentLink; else window.location.href=paymentLink;
-    setModal({type:'payment',phase:'verifying',transaction:d.transaction||d.data?.transaction,expiresAt:d.expiresAt||d.data?.expiresAt,token});
+    if(paymentWindow&&!paymentWindow.closed){
+      paymentWindow.location.href=paymentLink;
+    }else if(!timedOut){
+      window.location.href=paymentLink;
+    }else{
+      setNotice('Payment link was prepared in the background. Please start the payment from the Wallet again if the payment window is no longer open.');
+    }
+    if(!timedOut){
+      setModal({type:'payment',phase:'verifying',transaction:d.transaction||d.data?.transaction,expiresAt:d.expiresAt||d.data?.expiresAt,token});
+    }
   }catch(e){
     clearTimeout(safetyTimer);
     if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
