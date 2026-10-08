@@ -41,7 +41,9 @@ async function walletRequest(action,payload={}){
       if(msg.user) data.user=msg.user;
       // Login challenge fields are exposed top-level by the Wallet backend.
       // Normalize them so the login UI never loses the three options.
-      if(Array.isArray(msg.options)) data.options=msg.options.map(String);
+      if(Array.isArray(msg.options)) data.options=msg.options.map(String).filter(Boolean);
+      const explicitNumbers=[msg.number1,msg.number2,msg.number3].map(v=>v===undefined||v===null?'':String(v)).filter(Boolean);
+      if(!data.options.length&&explicitNumbers.length===3) data.options=explicitNumbers;
       if(msg.challengeId) data.challengeId=String(msg.challengeId);
       if(msg.email) data.email=String(msg.email);
       if(typeof msg.isNewUser==='boolean') data.isNewUser=msg.isNewUser;
