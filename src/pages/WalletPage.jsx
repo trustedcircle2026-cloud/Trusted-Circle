@@ -37,15 +37,11 @@ export default function WalletPage({token,onBack}){
   setMessage('');setPaymentError('');setBusy(true);setShowPaymentPreparing(true);setPaymentProgress(12);setPaymentStep('Finding a secure payment link for '+money(selectedAmount)+'…')
   let popup=null
   try{
-   setPaymentProgress(28)
-   const gatewayCheck=await walletApi.walletGateway(token,selectedAmount)
-   const gatewayData=gatewayCheck?.data&&typeof gatewayCheck.data==='object'?gatewayCheck.data:gatewayCheck
-   const gatewayLink=gatewayData?.paymentLink||gatewayData?.PaymentLink||''
-   setPaymentProgress(48);setPaymentStep('Creating your Wallet transaction…')
+   setPaymentProgress(32);setPaymentStep('Creating your Wallet transaction…')
    const result=await walletApi.addMoney(token,selectedAmount)
    const resultData=result?.data&&typeof result.data==='object'?result.data:result
-   const tx=resultData?.transaction||resultData?.Transaction||null
-   const link=resultData?.paymentLink||resultData?.PaymentLink||tx?.PaymentLink||tx?.paymentLink||gatewayLink
+   const tx=resultData?.transaction||resultData?.Transaction||result?.transaction||null
+   const link=resultData?.paymentLink||resultData?.PaymentLink||result?.paymentLink||result?.PaymentLink||tx?.PaymentLink||tx?.paymentLink
    const expiresAt=resultData?.expiresAt||resultData?.ExpiresAt||tx?.ExpiresAt||''
    const transactionId=tx?.transactionId||tx?.TransactionID||resultData?.transactionId||resultData?.TransactionID
    if(!link)throw new Error('The Wallet backend did not return a payment link. Please redeploy the latest Wallet Apps Script and try again.')
