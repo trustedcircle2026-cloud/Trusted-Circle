@@ -577,18 +577,59 @@ function walletOrders_(d){const u=auth_(d.token);return{ok:true,data:{transactio
 function transactionStatus_(d){const u=auth_(d.token),t=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(t&&String(t.UserID)===String(u.UserID),'Transaction not found.');return{ok:true,data:{transaction:pubTx_(t)}};}
 
 /* PAYMENT LINK STOCK */
+function normalizedSheetName_(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+function paymentLinkStockSheet_(){
+  const ss=spreadsheet_();
+  const exact=ss.getSheetByName(W.S.P);
+  if(exact)return exact;
+  const wanted=normalizedSheetName_(W.S.P);
+  return ss.getSheets().find(sh=>normalizedSheetName_(sh.getName())===wanted)||null;
+}
+function paymentLinkStockRows_(){
+  const sh=paymentLinkStockSheet_();
+  if(!sh||sh.getLastRow()<2||sh.getLastColumn()<2)return[];
+  const values=sh.getDataRange().getValues(),headers=values[0].map(x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9]/g,''));
+  const idx={
+    id:headers.findIndex(x=>['paymentlinkstockid','stockid','id'].includes(x)),
+    amount:headers.findIndex(x=>['denomination','amount','value'].includes(x)),
+    link:headers.findIndex(x=>['link','paymentlink','gatewaylink','url','upiurl'].includes(x)),
+    label:headers.findIndex(x=>['label','gatewaylabel','name'].includes(x)),
+    status:headers.findIndex(x=>['status','activestatus'].includes(x)),
+    tx:headers.findIndex(x=>['wallettransactionid','transactionid'].includes(x)),
+    reserved:headers.findIndex(x=>x==='reservedat'),
+    expires:headers.findIndex(x=>x==='expiresat'),
+    used:headers.findIndex(x=>x==='usedat'),
+    updated:headers.findIndex(x=>x==='updatedat'),
+    notes:headers.findIndex(x=>x==='notes')
+  };
+  if(idx.amount<0||idx.link<0)return[];
+  return values.slice(1).filter(r=>r.some(x=>x!=='')).map((r,i)=>({
+    PaymentLinkStockID:idx.id>=0?String(r[idx.id]||'').trim():'',
+    Denomination:Number(r[idx.amount]||0),
+    Link:String(r[idx.link]||'').trim(),
+    Label:idx.label>=0?String(r[idx.label]||'').trim():'',
+    Status:idx.status>=0?String(r[idx.status]||'').trim().toUpperCase():'AVAILABLE',
+    WalletTransactionID:idx.tx>=0?String(r[idx.tx]||'').trim():'',
+    ReservedAt:idx.reserved>=0?r[idx.reserved]:'',
+    ExpiresAt:idx.expires>=0?r[idx.expires]:'',
+    UsedAt:idx.used>=0?r[idx.used]:'',
+    UpdatedAt:idx.updated>=0?r[idx.updated]:'',
+    Notes:idx.notes>=0?String(r[idx.notes]||''):''
+  })).filter(x=>x.Link);
+}
 function releaseExpiredReservations_(){
-  rows_(W.S.P).forEach(x=>{
-    if(x.Status==='RESERVED'&&x.ExpiresAt&&new Date(x.ExpiresAt).getTime()<=Date.now())
-      updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now_(),Notes:'Reservation expired'});
+  paymentLinkStockRows_().forEach(x=>{
+    if(x.Status==='RESERVED'&&x.ExpiresAt&&new Date(x.ExpiresAt).getTime()<=Date.now()&&x.PaymentLinkStockID)
+      updateRow_(paymentLinkStockSheet_().getName(),'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now_(),Notes:'Reservation expired'});
   });
 }
 function reservePaymentLink_(amount,tid){
   releaseExpiredReservations_();
-  const a=rows_(W.S.P).filter(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'').trim().toUpperCase()==='AVAILABLE'&&/^https?:\/\//i.test(String(x.Link||'').trim()));
+  const a=paymentLinkStockRows_().filter(x=>Number(x.Denomination)===Number(amount)&&x.Status==='AVAILABLE'&&/^https?:\/\//i.test(x.Link));
   if(a.length){
     const x=a[0],ts=now_(),exp=new Date(Date.now()+W.RESERVATION_MS).toISOString();
-    updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
+    req_(x.PaymentLinkStockID,'Payment link stock row is missing PaymentLinkStockID.');
+    updateRow_(paymentLinkStockSheet_().getName(),'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
     return{reservationId:x.PaymentLinkStockID,paymentLink:x.Link,label:x.Label||'',expiresAt:exp,source:'WalletPaymentLinks'};
   }
   const g=gatewayConfigRows_().find(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE'&&/^https?:\/\//i.test(x.PaymentLink));
