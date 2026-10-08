@@ -163,58 +163,86 @@ function moneyWalletActionToken_(transactionId,action){
   return raw;
 }
 function moneyWalletActionUrl_(raw,action){return ScriptApp.getService().getUrl()+'?moneyWalletAction='+encodeURIComponent(action)+'&token='+encodeURIComponent(raw);}
-function walletAdminEmailButton_(label,url,bg){
-  return '<div style="margin:10px 0"><a href="'+escapeHtml_(url)+'" style="display:inline-block;padding:13px 20px;border-radius:10px;background:'+bg+';color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-weight:700">'+escapeHtml_(label)+'</a></div>';
+function walletMailEscape_(v){
+  return String(v===undefined||v===null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-function walletAdminEmailShell_(title,body){
-  return '<div style="font-family:Arial,sans-serif;background:#f4f7f5;padding:24px;color:#18241e"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dfe8e2;border-radius:18px;overflow:hidden"><div style="padding:24px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.85">Money Wallet Administration</div></div><div style="padding:24px"><h2 style="margin:0 0 18px;color:#173c2a">'+escapeHtml_(title)+'</h2>'+body+'</div><div style="padding:15px 24px;background:#f5f8f6;color:#68736d;font-size:12px">System generated notification · Trusted Circle</div></div></div>';
+function walletMailMoney_(v){
+  var n=Number(v||0);if(!isFinite(n))n=0;
+  return '₹'+n.toLocaleString('en-IN',{maximumFractionDigits:2});
 }
-function moneyWalletAdminEmail_(){return 'trustedcircle2026@gmail.com';}
-function sendWalletAdminEmail_(subject,html,text){
-  var to=moneyWalletAdminEmail_(),last=false;
-  for(var attempt=1;attempt<=2;attempt++){
-    try{last=sendTransactionalEmail_(to,subject,html,text);}catch(e){last=false;console.error('Wallet admin email attempt '+attempt+' failed: '+String(e&&e.message||e));}
-    if(last)return true;
-    if(attempt<2)Utilities.sleep(700);
-  }
+function walletMailAdminEmail_(){return 'trustedcircle2026@gmail.com';}
+function walletMailBaseUrl_(){
+  var u='';try{u=String(ScriptApp.getService().getUrl()||'');}catch(e){}
+  return u||'https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec';
+}
+function walletMailActionUrl_(raw,action){
+  return walletMailBaseUrl_()+'?moneyWalletAction='+encodeURIComponent(action)+'&token='+encodeURIComponent(raw);
+}
+function walletMailButton_(label,url,bg){
+  return '<a href="'+walletMailEscape_(url)+'" style="display:inline-block;margin:6px 8px 6px 0;padding:13px 20px;border-radius:10px;background:'+bg+';color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-weight:700">'+walletMailEscape_(label)+'</a>';
+}
+function walletMailShell_(title,body){
+  return '<div style="margin:0;padding:24px;background:#f4f7f5;font-family:Arial,sans-serif;color:#18241e"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dfe8e2;border-radius:18px;overflow:hidden"><div style="padding:24px;background:#173c2a;color:#fff"><div style="font-size:23px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;color:#dcebe2">Money Wallet Administration</div></div><div style="padding:24px"><h2 style="margin:0 0 18px;color:#173c2a">'+walletMailEscape_(title)+'</h2>'+body+'</div><div style="padding:15px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · System generated notification</div></div></div>';
+}
+function walletMailSend_(subject,html,text){
+  var to=walletMailAdminEmail_();
+  try{
+    if(MailApp.getRemainingDailyQuota()<=0)throw new Error('MailApp daily quota exhausted.');
+  }catch(q){}
+  try{
+    MailApp.sendEmail({to:to,subject:String(subject),htmlBody:String(html),body:String(text),name:'Trusted Circle',replyTo:'info@trustedcircle.in'});
+    return true;
+  }catch(mailError){console.error('Wallet MailApp failed: '+String(mailError&&mailError.message||mailError));}
+  try{
+    GmailApp.sendEmail(to,String(subject),String(text),{htmlBody:String(html),name:'Trusted Circle',replyTo:'info@trustedcircle.in'});
+    return true;
+  }catch(gmailError){console.error('Wallet GmailApp failed: '+String(gmailError&&gmailError.message||gmailError));}
   return false;
 }
 function moneyWalletAdminActions_(t){
   var received=moneyWalletActionToken_(t.TransactionID,'RECEIVED');
   var notReceived=moneyWalletActionToken_(t.TransactionID,'NOT_RECEIVED');
   var rejected=moneyWalletActionToken_(t.TransactionID,'REJECTED');
-  var customer='';var customerRow=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);if(customerRow&&customerRow.Email)customer=String(customerRow.Email);
-  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Customer:</b> '+esc_(customer)+'</p><p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p><p><b>Payment source:</b> Existing Shopping Payment Link Stock</p>'+
-    walletAdminEmailButton_('✓ Received',moneyWalletActionUrl_(received,'RECEIVED'),'#0f5132')+
-    walletAdminEmailButton_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
-    walletAdminEmailButton_('✕ Rejected',moneyWalletActionUrl_(rejected,'REJECTED'),'#b42318');
-  var subject='Trusted Circle — Money Wallet Add Money ₹'+t.Amount;
-  var html=walletAdminEmailShell_('Money Wallet Add Money',body);
-  var text='Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+customer+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID+'\n\nAdmin action links:\nReceived: '+moneyWalletActionUrl_(received,'RECEIVED')+'\nNot Received: '+moneyWalletActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+moneyWalletActionUrl_(rejected,'REJECTED');
-  var sent=sendWalletAdminEmail_(subject,html,text);
-  if(!sent)throw new Error('Admin email could not be sent. Please check Apps Script email authorization/quota.');
+  var customer='';
+  var u=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
+  if(u&&u.Email)customer=String(u.Email);
+  var amount=Number(t.Amount||0);
+  var body='<p>A <b>Money Wallet Add Money</b> request requires your action.</p>'+
+    '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:18px 0">'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
+    '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">Shopping Payment Link Stock</td></tr></table>'+
+    '<div style="margin-top:22px">'+
+    walletMailButton_('✓ Received',walletMailActionUrl_(received,'RECEIVED'),'#0f5132')+
+    walletMailButton_('! Not Received',walletMailActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
+    walletMailButton_('✕ Rejected',walletMailActionUrl_(rejected,'REJECTED'),'#b42318')+
+    '</div><p style="font-size:12px;color:#68736d;margin-top:18px">Use one button to update this transaction.</p>';
+  var html=walletMailShell_('Money Wallet · Add Money',body);
+  var text='Trusted Circle Money Wallet Add Money\n\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\n\nReceived: '+walletMailActionUrl_(received,'RECEIVED')+'\nNot Received: '+walletMailActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+walletMailActionUrl_(rejected,'REJECTED');
+  if(!walletMailSend_('Trusted Circle — Action Required · Money Wallet Add Money '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Add Money email failed.');
   return true;
 }
 function moneyWalletWithdrawalActions_(t){
   var approve=moneyWalletActionToken_(t.TransactionID,'WITHDRAW_APPROVE');
   var reject=moneyWalletActionToken_(t.TransactionID,'WITHDRAW_REJECT');
-  var customerRow=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
-  var customer=customerRow&&customerRow.Email?String(customerRow.Email):'';
-  var body='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p>'+
-    '<p><b>Customer:</b> '+esc_(customer||'—')+'</p>'+
-    '<p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p>'+
-    '<p><b>UPI:</b> '+esc_(t.UPIId||'')+'</p>'+
-    walletAdminEmailButton_('✓ Approve Withdrawal',moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE'),'#0f5132')+
-    walletAdminEmailButton_('✕ Reject Withdrawal',moneyWalletActionUrl_(reject,'WITHDRAW_REJECT'),'#b42318');
-  var html=walletAdminEmailShell_('Money Wallet Withdrawal Request',body);
-  var text='Money Wallet Withdrawal request '+t.TransactionID+
-    '\nCustomer: '+(customer||'—')+
-    '\nAmount: ₹'+t.Amount+
-    '\nUPI: '+(t.UPIId||'')+
-    '\n\nAdmin action links:\nApprove: '+moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE')+
-    '\nReject: '+moneyWalletActionUrl_(reject,'WITHDRAW_REJECT');
-  var sent=sendWalletAdminEmail_('Trusted Circle — Money Wallet Withdrawal ₹'+t.Amount,html,text);
-  if(!sent)throw new Error('Admin withdrawal email could not be sent. Please check Apps Script email authorization/quota.');
+  var customer='';
+  var u=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
+  if(u&&u.Email)customer=String(u.Email);
+  var amount=Number(t.Amount||0),upi=String(t.UPIId||'');
+  var body='<p>A <b>Money Wallet Withdrawal</b> request requires your action.</p>'+
+    '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:18px 0">'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
+    '<tr><td style="padding:9px">UPI ID</td><td style="padding:9px"><b>'+walletMailEscape_(upi||'—')+'</b></td></tr></table>'+
+    '<div style="margin-top:22px">'+
+    walletMailButton_('✓ Approve Withdrawal',walletMailActionUrl_(approve,'WITHDRAW_APPROVE'),'#0f5132')+
+    walletMailButton_('✕ Reject Withdrawal',walletMailActionUrl_(reject,'WITHDRAW_REJECT'),'#b42318')+
+    '</div><p style="font-size:12px;color:#68736d;margin-top:18px">Use one button to update this withdrawal.</p>';
+  var html=walletMailShell_('Money Wallet · Withdrawal Request',body);
+  var text='Trusted Circle Money Wallet Withdrawal\n\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\nUPI: '+upi+'\n\nApprove: '+walletMailActionUrl_(approve,'WITHDRAW_APPROVE')+'\nReject: '+walletMailActionUrl_(reject,'WITHDRAW_REJECT');
+  if(!walletMailSend_('Trusted Circle — Action Required · Money Wallet Withdrawal '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Withdrawal email failed.');
   return true;
 }
 function moneyWalletAdd_(data){
@@ -343,27 +371,11 @@ function moneyWalletAdminAction_(params){
  * This test sends email only; it does not create wallet transactions or change Sheets.
  */
 function testMoneyWalletAdminEmails(){
-  var to=moneyWalletAdminEmail_();
-  var now=isoNow_();
-  var sampleAdd='TEST-ADD-'+newId_('TCMW');
-  var sampleWithdraw='TEST-WITHDRAW-'+newId_('TCMW');
-  var addHtml=walletAdminEmailShell_('Money Wallet Add Money — TEST',
-    '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
-    '<p><b>Transaction:</b> '+escapeHtml_(sampleAdd)+'</p>'+
-    '<p><b>Customer:</b> Test Customer</p>'+
-    '<p><b>Amount:</b> ₹500</p>'+
-    '<p><b>Sent at:</b> '+escapeHtml_(now)+'</p>'+
-    '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Add Money emails will contain the live Received / Not Received / Rejected actions.</div>');
-  var withdrawHtml=walletAdminEmailShell_('Money Wallet Withdrawal — TEST',
-    '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
-    '<p><b>Transaction:</b> '+escapeHtml_(sampleWithdraw)+'</p>'+
-    '<p><b>Customer:</b> Test Customer</p>'+
-    '<p><b>Amount:</b> ₹500</p>'+
-    '<p><b>UPI:</b> test@upi</p>'+
-    '<p><b>Sent at:</b> '+escapeHtml_(now)+'</p>'+
-    '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Withdrawal emails will contain the live Approve / Reject actions.</div>');
-  var addSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Money Wallet Add Money email\nTransaction: '+sampleAdd+'\nAmount: ₹500');
-  var withdrawSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Money Wallet Withdrawal email\nTransaction: '+sampleWithdraw+'\nAmount: ₹500\nUPI: test@upi');
-  if(!addSent||!withdrawSent)throw new Error('One or both Money Wallet test emails failed. Check Apps Script Executions, authorization and MailApp quota.');
-  return{ok:true,to:to,addMoneyEmail:true,withdrawalEmail:true,sentAt:now,remainingQuota:MailApp.getRemainingDailyQuota()};
+  var now=new Date(),addId='TEST-ADD-'+newId_('TCMW'),withdrawId='TEST-WITHDRAW-'+newId_('TCMW');
+  var addHtml=walletMailShell_('Money Wallet · Add Money — TEST','<p><b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p><p>Transaction: '+walletMailEscape_(addId)+'</p><p>Amount: '+walletMailMoney_(500)+'</p><p>Sent at: '+walletMailEscape_(now.toString())+'</p>');
+  var withdrawHtml=walletMailShell_('Money Wallet · Withdrawal — TEST','<p><b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p><p>Transaction: '+walletMailEscape_(withdrawId)+'</p><p>Amount: '+walletMailMoney_(500)+'</p><p>UPI: test@upi</p><p>Sent at: '+walletMailEscape_(now.toString())+'</p>');
+  var a=walletMailSend_('Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Add Money\nTransaction: '+addId+'\nAmount: ₹500');
+  var w=walletMailSend_('Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Withdrawal\nTransaction: '+withdrawId+'\nAmount: ₹500\nUPI: test@upi');
+  if(!a||!w)throw new Error('Standalone wallet mailing test failed.');
+  return{ok:true,to:walletMailAdminEmail_(),addMoneyEmail:a,withdrawalEmail:w,sentAt:now,remainingQuota:MailApp.getRemainingDailyQuota()};
 }
