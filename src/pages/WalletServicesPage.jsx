@@ -68,7 +68,7 @@ function ProfileMenu({user,onLogout,onClose}){
  return <div className="wallet-profile-menu"><div className="wallet-profile-head"><div className="wallet-profile-avatar"><UserRound size={20}/></div><div><b>{user.name}</b><small>{user.email}</small></div></div><button onClick={onClose}><WalletCards size={16}/> Wallet Home</button><button onClick={onLogout}><LogOut size={16}/> Logout</button></div>
 }
 
-function WalletHome({user,onLogout,initialWallet=null}){
+function WalletHome({user,token,onLogout,initialWallet=null}){
  const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false)
  const load=async()=>{
   setBusy(true);
@@ -78,7 +78,7 @@ function WalletHome({user,onLogout,initialWallet=null}){
     setNotice('Wallet data is still loading in the background. You can continue using the Wallet.');
   },10000);
   try{
-    const w=await walletApi.snapshot(user);
+    const w=await walletApi.snapshot(token);
     setWallet(w);
     setOrders(w.transactions||[]);
     setNotice('');
@@ -113,8 +113,8 @@ function WalletHome({user,onLogout,initialWallet=null}){
   },20000);
   try{
     const d=retryTransaction
-      ?await walletApi.retryAddMoney(user,retryTransaction.transactionId)
-      :await walletApi.addMoney(user,requestedAmount);
+      ?await walletApi.retryAddMoney(token,retryTransaction.transactionId)
+      :await walletApi.addMoney(token,requestedAmount);
     settled=true;
     clearTimeout(uiTimer);
     const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
@@ -150,8 +150,8 @@ function WalletHome({user,onLogout,initialWallet=null}){
  }; const startAdd=amount=>openPaymentFlow(amount);
  const retry=tx=>openPaymentFlow(null,tx);
 
- const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(user,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
- const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(user);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
+ const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(token,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
+ const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(token);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
  const balance=Number(wallet?.balance||0),available=Number(wallet?.availableBalance||0),cashbackBalance=Number(wallet?.cashbackBalance ?? (wallet?.cashbackWallet?.balance || 0)),combinedBalance=Number(wallet?.totalBalance ?? (balance+cashbackBalance))
  return <main className="wallet-services-page wallet-single-page">
@@ -199,23 +199,23 @@ function WalletHome({user,onLogout,initialWallet=null}){
    <footer className="wallet-single-footer"><span>© Trusted Circle</span><span>{user.email}</span><span>Money + Cashback Wallet</span></footer>
   </section>
 
-  {modal&&<WalletModal modal={modal} onClose={()=>setModal(null)} onAdd={startAdd} onWithdraw={withdraw} onRetry={retry} orders={orders} setSelectedTx={setSelectedTx} onOpenOrders={openOrders} onViewBalance={()=>{setModal(null);load()}}/>}
+  {modal&&<WalletModal token={token} modal={modal} onClose={()=>setModal(null)} onAdd={startAdd} onWithdraw={withdraw} onRetry={retry} orders={orders} setSelectedTx={setSelectedTx} onOpenOrders={openOrders} onViewBalance={()=>{setModal(null);load()}}/>}
   {statementOpen&&<StatementModal transactions={orders} user={user} wallet={wallet} onClose={()=>setStatementOpen(false)}/>}
   {selectedTx&&!modal&&<TransactionModal tx={selectedTx} user={user} wallet={wallet} onClose={()=>setSelectedTx(null)} onRetry={retry}/>}
  </main>
 }
 
-function WalletModal({modal,onClose,onAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
+function WalletModal({token,modal,onClose,onAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
  const[type]=useState(modal.type),[amount,setAmount]=useState('500'),[busy,setBusy]=useState(false)
  if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">ADD MONEY</span><h2>Select Amount</h2><div className="wallet-denoms">{[500,1000,1500,2000].map(a=><button className={amount==a?'selected':''} key={a} onClick={()=>setAmount(String(a))}>₹{money(a)}</button>)}</div><button className="wallet-submit" onClick={async()=>{setBusy(true);await onAdd(Number(amount));setBusy(false)}} disabled={busy}>{busy?'Preparing Payment…':'Continue to Payment'} <ArrowRight size={17}/></button></div></div>
  if(type==='withdraw')return <WithdrawModal onClose={onClose} onSubmit={onWithdraw}/>
  if(type==='orders')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-orders-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WALLET ORDERS</span><h2>All Transactions</h2><div className="wallet-order-list">{orders.map(t=><button key={t.transactionId} onClick={()=>{onClose();setSelectedTx(t)}} className="wallet-transaction"><span className="wallet-tx-main"><b>{t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{t.transactionId}</small></span><span className="wallet-tx-right"><b>₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>)}</div></div></div>
- return <PaymentWaiting user={modal.user} tx={modal.transaction} amount={modal.amount} error={modal.error} expiresAt={modal.expiresAt} phase={modal.phase} adminEmailSent={modal.adminEmailSent} paymentLink={modal.paymentLink} paymentOpened={modal.paymentOpened} onClose={onClose} onRetry={onRetry} onOpenOrders={onOpenOrders} onViewBalance={onViewBalance}/>
+ return <PaymentWaiting token={token} user={modal.user} tx={modal.transaction} amount={modal.amount} error={modal.error} expiresAt={modal.expiresAt} phase={modal.phase} adminEmailSent={modal.adminEmailSent} paymentLink={modal.paymentLink} paymentOpened={modal.paymentOpened} onClose={onClose} onRetry={onRetry} onOpenOrders={onOpenOrders} onViewBalance={onViewBalance}/>
 }
 
 function WithdrawModal({onClose,onSubmit}){const[amount,setAmount]=useState(''),[upi,setUpi]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');return <div className="wallet-modal-layer"><div className="wallet-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WITHDRAW</span><h2>Withdraw to UPI</h2><label>Amount</label><input className="wallet-field" type="number" min="1" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="₹ 0"/><label>UPI ID</label><input className="wallet-field" value={upi} onChange={e=>setUpi(e.target.value)} placeholder="name@upi"/>{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-submit" disabled={busy||!amount||!upi} onClick={async()=>{setBusy(true);setError('');try{await onSubmit(Number(amount),upi)}catch(e){setError(e.message)}finally{setBusy(false)}}}>{busy?'Submitting…':'Request Withdrawal'} <ArrowRight size={17}/></button></div></div>}
 
-function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBalance,phase,adminEmailSent,amount,error,paymentLink,paymentOpened}){
+function PaymentWaiting({token,user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBalance,phase,adminEmailSent,amount,error,paymentLink,paymentOpened}){
  const initialSeconds=expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900;
  const[left,setLeft]=useState(initialSeconds),[result,setResult]=useState(null),[liveTx,setLiveTx]=useState(tx);
  useEffect(()=>{
@@ -223,7 +223,7 @@ function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBa
    let active=true;
    const check=async()=>{
      try{
-       const d=await walletApi.transactionStatus(user,liveTx.transactionId);
+       const d=await walletApi.transactionStatus(token,liveTx.transactionId);
        const next=d?.transaction;
        if(!active||!next)return;
        setLiveTx(next);
@@ -318,8 +318,8 @@ function TransactionModal({tx,user,wallet,onClose,onRetry}){
  return <div className="wallet-modal-layer"><div className="wallet-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><img className="wallet-modal-logo" src={LOGO_URL} alt="Trusted Circle"/><span className="wallet-services-eyebrow">TRANSACTION DETAILS</span><h2>{tx.type==='ADD_MONEY'?'Add Money':tx.type==='CASHBACK_EARNED'?'Cashback Earned':'Withdrawal'}</h2><div className="wallet-detail-amount">₹{money(tx.amount)}</div><div className={'wallet-detail-status '+statusClass(tx.status)}>{tx.status.replace(/_/g,' ')}</div><div className="wallet-detail-grid"><span>Transaction ID</span><b>{tx.transactionId}</b><span>Date</span><b>{new Date(tx.createdAt).toLocaleString('en-IN')}</b><span>Balance Before</span><b>₹{money(tx.balanceBefore)}</b><span>Balance After</span><b>₹{money(tx.balanceAfter)}</b>{tx.upiId&&<><span>UPI ID</span><b>{tx.upiId}</b></>}</div><div className="wallet-detail-actions"><button className="wallet-submit" onClick={download}><ArrowDownToLine size={16}/> Download PDF</button>{tx.status==='NOT_RECEIVED'&&<button className="wallet-secondary-btn" onClick={()=>onRetry(tx)}>Retry Payment <RefreshCw size={16}/></button>}</div><button className="wallet-change-email" onClick={onClose}>Close</button></div></div>
 }
 
-export default function WalletServicesPage({shoppingUser=null,onShoppingLogout}){
+export default function WalletServicesPage({shoppingToken='',shoppingUser=null,onShoppingLogout}){
  useEffect(()=>{document.body.classList.add('wallet-services-lock');return()=>document.body.classList.remove('wallet-services-lock')},[])
  if(!shoppingUser)return <main className="wallet-services-page"><section className="wallet-empty" style={{maxWidth:640,margin:'60px auto'}}>Trusted Circle account details are required to open Wallet Services.</section></main>
- return <WalletHome user={shoppingUser} onLogout={()=>onShoppingLogout?.()} initialWallet={null}/>
+ return <WalletHome user={shoppingUser} token={shoppingToken} onLogout={()=>onShoppingLogout?.()} initialWallet={null}/>
 }
