@@ -234,52 +234,9 @@ function TransactionModal({tx,user,onClose,onRetry}){
 }
 
 export default function WalletServicesPage({shoppingToken='',shoppingUser=null,onRequireShoppingLogin,onShoppingLogout}){
- const[token,setToken]=useState(()=>localStorage.getItem(SESSION_KEY)||''),[user,setUser]=useState(null),[initialWallet,setInitialWallet]=useState(null),[checking,setChecking]=useState(true),[error,setError]=useState('')
  useEffect(()=>{document.body.classList.add('wallet-services-lock');return()=>document.body.classList.remove('wallet-services-lock')},[])
- useEffect(()=>{
-   let active=true;
-   const bootTimer=setTimeout(()=>{
-     if(!active)return;
-     // Never keep the loading screen visible beyond 10 seconds.
-     setChecking(false);
-   },10000);
-   const boot=async()=>{
-     setChecking(true);setError('');
-     if(shoppingToken&&shoppingUser?.email){
-       try{
-         const handoff=await shoppingApi.walletIdentity(shoppingToken);
-         if(!active)return;
-         const d=await walletApi.bootstrapShoppingIdentity(handoff);
-         if(!active)return;
-         const nextToken=d?.session?.token||'';
-         const nextUser=d?.user||null;
-         if(!nextToken||!nextUser)throw new Error('Could not create your Wallet profile.');
-         localStorage.setItem(SESSION_KEY,nextToken);
-         setToken(nextToken);setUser(nextUser);setInitialWallet(null);
-         setChecking(false);return;
-       }catch(e){
-         if(!active)return;
-         localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setError(e.message||'Could not open Wallet Services.');
-       }
-     }
-     const existing=localStorage.getItem(SESSION_KEY)||'';
-     if(existing&&!shoppingToken){
-       try{
-         const d=await walletApi.me(existing);
-         if(!active)return;
-         setToken(existing);setUser(d.user||d);setChecking(false);return;
-       }catch{localStorage.removeItem(SESSION_KEY)}
-     }
-     if(!active)return;
-     setChecking(false);
-   };
-   boot();
-   return()=>{active=false;clearTimeout(bootTimer)};
- },[shoppingToken])
- const logout=()=>{if(token)walletApi.logout(token).catch(()=>{});localStorage.removeItem(SESSION_KEY);setToken('');setUser(null);setInitialWallet(null);if(onShoppingLogout)onShoppingLogout();else onRequireShoppingLogin?.()}
- if(checking)return <main className="wallet-services-page wallet-login-page"><div className="wallet-loading">Connecting to your Trusted Circle account…</div></main>
- if(!shoppingToken&&!token&&!shoppingUser)return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><div className="wallet-services-eyebrow">TRUSTED CIRCLE ACCOUNT</div><h1>Sign in once. Use Wallet Services.</h1><p className="wallet-login-message">Wallet Services uses the same Trusted Circle account as Gift Vouchers. No separate Wallet login is required.</p><button className="wallet-submit" onClick={onRequireShoppingLogin}>Continue to Trusted Circle Login <ArrowRight size={17}/></button>{error&&<div className="wallet-login-message">{error}</div>}</section></main>
- if(error&&!token)return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><div className="wallet-services-eyebrow">ACCOUNT CONNECTION</div><h1>We couldn't connect your account</h1><p className="wallet-login-message">{error}</p><button className="wallet-submit" onClick={onRequireShoppingLogin}>Return to Trusted Circle Login <ArrowRight size={17}/></button></section></main>
- if(!token||!user)return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><div className="wallet-services-eyebrow">WALLET SERVICES</div><h1>Your Wallet is ready.</h1><p className="wallet-login-message">Account connection is still running in the background. You can stay on this page; it will open automatically when the connection completes.</p></section></main>
- return <WalletHome token={token} user={user} onLogout={logout} initialWallet={initialWallet}/>
+ if(!shoppingToken||!shoppingUser){
+   return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div><div className="wallet-services-eyebrow">TRUSTED CIRCLE ACCOUNT</div><h1>Sign in once. Use both wallets.</h1><p className="wallet-login-message">Wallet Services now uses the same Trusted Circle account, login session and backend as Gift Vouchers. Your Cashback Wallet and Money Wallet stay together under one account.</p><button className="wallet-submit" onClick={onRequireShoppingLogin}>Continue to Trusted Circle Login <ArrowRight size={17}/></button></section></main>
+ }
+ return <WalletHome token={shoppingToken} user={shoppingUser} onLogout={()=>onShoppingLogout?.()} initialWallet={null}/>
 }
