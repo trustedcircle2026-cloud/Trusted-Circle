@@ -611,3 +611,102 @@
     border-radius:11px;
   }
 }
+
+/* Mobile full-screen Wallet layout — keep Add / Withdraw visible */
+@media(max-width:560px){
+  .wallet-services-page{
+    height:calc(100dvh - 64px);
+    min-height:calc(100dvh - 64px);
+    padding:0;
+    overflow:hidden;
+  }
+  .wallet-services-shell{
+    height:100%;
+    min-height:0;
+    grid-template-rows:365px minmax(0,1fr);
+    overflow:hidden;
+  }
+  .wallet-left-panel{
+    height:365px;
+    min-height:365px;
+    box-sizing:border-box;
+    padding:13px 16px 12px;
+    overflow:hidden;
+  }
+  .wallet-left-content{
+    margin-top:8px;
+    padding-top:0;
+    padding-right:48px;
+  }
+  .wallet-main-balance{
+    font-size:42px;
+    line-height:.98;
+    margin:5px 0 3px;
+  }
+  .wallet-balance-meta{
+    font-size:9px;
+    margin-bottom:7px;
+  }
+  .wallet-balance-breakup{
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+    margin:7px 0 10px;
+  }
+  .wallet-balance-card{
+    min-height:88px;
+    padding:9px 10px;
+    border-radius:11px;
+    box-sizing:border-box;
+  }
+  .wallet-balance-card span{font-size:9px}
+  .wallet-balance-card b{font-size:17px;margin-top:8px}
+  .wallet-balance-card small{font-size:7.5px}
+  .wallet-primary-actions{
+    display:grid!important;
+    visibility:visible!important;
+    opacity:1!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px;
+    margin-top:9px;
+  }
+  .wallet-primary-actions button{
+    display:flex!important;
+    visibility:visible!important;
+    min-height:58px;
+    height:58px;
+    padding:7px 9px;
+    border-radius:11px;
+  }
+  .wallet-primary-actions button>span{
+    width:30px;
+    height:30px;
+    flex:0 0 30px;
+  }
+  .wallet-primary-actions button>div{
+    min-width:0;
+  }
+  .wallet-primary-actions button>div b{
+    font-size:12px;
+    line-height:1.1;
+  }
+  .wallet-primary-actions button small{
+    display:block;
+    font-size:8px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .wallet-right-panel{
+    height:100%;
+    min-height:0;
+    box-sizing:border-box;
+    padding:10px 10px 8px;
+    overflow:hidden;
+  }
+  .wallet-transactions-scroll{
+    height:auto;
+    min-height:0;
+    flex:1 1 auto;
+    overflow-y:auto;
+  }
+}
