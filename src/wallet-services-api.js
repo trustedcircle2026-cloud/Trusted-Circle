@@ -87,6 +87,7 @@ export const walletApi={
   wallet:token=>walletRequest('wallet',{token}),
   orders:token=>walletRequest('walletOrders',{token}),
   transactionStatus:(token,transactionId)=>walletRequest('transactionStatus',{token,transactionId}),
+  walletGateway:(token,amount)=>walletRequest('walletGateway',{token,amount}),
   addMoney:(token,amount)=>walletRequest('addMoney',{token,amount}),
   retryAddMoney:(token,transactionId)=>walletRequest('retryAddMoney',{token,transactionId}),
   withdraw:(token,amount,upiId)=>walletRequest('withdrawMoney',{token,amount,upiId}),
