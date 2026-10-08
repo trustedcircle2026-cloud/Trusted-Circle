@@ -2,10 +2,8 @@ import {ArrowDownToLine,ArrowRight,CheckCircle2,Clock3,History,LogOut,RefreshCw,
 import {jsPDF} from 'jspdf'
 import {useEffect,useState} from 'react'
 import {walletApi} from '../wallet-services-api'
-import {api as shoppingApi} from '../api'
 import './wallet-services.css'
 
-const SESSION_KEY='tc_wallet_session'
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
 const money=n=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})
 const statusClass=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')
