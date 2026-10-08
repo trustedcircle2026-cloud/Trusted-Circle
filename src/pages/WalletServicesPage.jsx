@@ -92,43 +92,55 @@ function WalletHome({user,onLogout,initialWallet=null}){
  useEffect(()=>{if(!initialWallet)load()},[initialWallet])
  const openPaymentFlow=async(amount,retryTransaction=null)=>{
   setNotice('');
+  const requestedAmount=Number(amount||retryTransaction?.amount||0);
   const paymentWindow=window.open('about:blank','TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
-  setModal({type:'payment',phase:'opening',transaction:retryTransaction||null,expiresAt:null,user});
-  let timedOut=false;
-  const safetyTimer=setTimeout(()=>{
-    timedOut=true;
-    // Keep the reserved browser window alive. The main-page loading UI is removed,
-    // while the background request continues and can navigate this window later.
-    setModal(null);
-    setNotice('Payment link is taking longer than expected. The request is still processing in the background.');
+  const draft={
+    transactionId:retryTransaction?.transactionId||'CREATING…',
+    amount:requestedAmount,
+    status:'CREATING_PAYMENT',
+    balanceBefore:Number(wallet?.balance||0),
+    balanceAfter:Number(wallet?.balance||0),
+    createdAt:new Date().toISOString(),
+    attempt:Number(retryTransaction?.attempt||1)
+  };
+  setModal({type:'payment',phase:'opening',transaction:draft,expiresAt:null,user,amount:requestedAmount,linkTimeout:false,adminEmailSent:null});
+  let settled=false;
+  const uiTimer=setTimeout(()=>{
+    if(!settled){
+      setModal(prev=>prev?.type==='payment'?{...prev,phase:'link-timeout',linkTimeout:true}:prev);
+    }
   },20000);
   try{
-    // Wallet backend allocates the next AVAILABLE link from WalletPaymentLinks,
-    // reserves it against this transaction, and returns the reserved checkout URL.
-    const d=retryTransaction?await walletApi.retryAddMoney(user,retryTransaction.transactionId):await walletApi.addMoney(user,amount);
-    clearTimeout(safetyTimer);
+    const d=retryTransaction
+      ?await walletApi.retryAddMoney(user,retryTransaction.transactionId)
+      :await walletApi.addMoney(user,requestedAmount);
+    settled=true;
+    clearTimeout(uiTimer);
     const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
     if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
-    if(paymentWindow&&!paymentWindow.closed){
-      paymentWindow.location.href=paymentLink;
-    }else{
-      window.location.href=paymentLink;
-    }
-    setModal({
+    if(paymentWindow&&!paymentWindow.closed)paymentWindow.location.href=paymentLink;
+    else window.open(paymentLink,'TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
+    const realTx=d.transaction||d.data?.transaction;
+    setModal(prev=>({
+      ...(prev||{}),
       type:'payment',
       phase:'verifying',
-      transaction:d.transaction||d.data?.transaction,
-      expiresAt:d.expiresAt||d.data?.expiresAt,
+      transaction:realTx||draft,
+      expiresAt:d.expiresAt||d.data?.expiresAt||new Date(Date.now()+15*60*1000).toISOString(),
       user,
+      amount:requestedAmount,
+      linkTimeout:false,
       adminEmailSent:d.adminEmailSent!==false&&d.data?.adminEmailSent!==false
-    });
+    }));
   }catch(e){
-    clearTimeout(safetyTimer);
+    settled=true;
+    clearTimeout(uiTimer);
     if(paymentWindow&&!paymentWindow.closed)paymentWindow.close();
-    if(!timedOut){setModal(null);setNotice(e.message);}
+    setModal(prev=>prev?.type==='payment'
+      ?{...prev,phase:'error',error:e.message,linkTimeout:false}
+      :null);
   }
- }
- const startAdd=amount=>openPaymentFlow(amount);
+ } const startAdd=amount=>openPaymentFlow(amount);
  const retry=tx=>openPaymentFlow(null,tx);
 
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(user,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
@@ -166,65 +178,103 @@ function WalletModal({modal,onClose,onAdd,onWithdraw,onRetry,orders,setSelectedT
  if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">ADD MONEY</span><h2>Select Amount</h2><div className="wallet-denoms">{[500,1000,1500,2000].map(a=><button className={amount==a?'selected':''} key={a} onClick={()=>setAmount(String(a))}>₹{money(a)}</button>)}</div><button className="wallet-submit" onClick={async()=>{setBusy(true);await onAdd(Number(amount));setBusy(false)}} disabled={busy}>{busy?'Preparing Payment…':'Continue to Payment'} <ArrowRight size={17}/></button></div></div>
  if(type==='withdraw')return <WithdrawModal onClose={onClose} onSubmit={onWithdraw}/>
  if(type==='orders')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-orders-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WALLET ORDERS</span><h2>All Transactions</h2><div className="wallet-order-list">{orders.map(t=><button key={t.transactionId} onClick={()=>{onClose();setSelectedTx(t)}} className="wallet-transaction"><span className="wallet-tx-main"><b>{t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{t.transactionId}</small></span><span className="wallet-tx-right"><b>₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>)}</div></div></div>
- return <PaymentWaiting user={modal.user} tx={modal.transaction} expiresAt={modal.expiresAt} phase={modal.phase} adminEmailSent={modal.adminEmailSent} onClose={onClose} onRetry={onRetry} onOpenOrders={onOpenOrders} onViewBalance={onViewBalance}/>
+ return <PaymentWaiting user={modal.user} tx={modal.transaction} amount={modal.amount} error={modal.error} expiresAt={modal.expiresAt} phase={modal.phase} adminEmailSent={modal.adminEmailSent} onClose={onClose} onRetry={onRetry} onOpenOrders={onOpenOrders} onViewBalance={onViewBalance}/>
 }
 
 function WithdrawModal({onClose,onSubmit}){const[amount,setAmount]=useState(''),[upi,setUpi]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');return <div className="wallet-modal-layer"><div className="wallet-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WITHDRAW</span><h2>Withdraw to UPI</h2><label>Amount</label><input className="wallet-field" type="number" min="1" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="₹ 0"/><label>UPI ID</label><input className="wallet-field" value={upi} onChange={e=>setUpi(e.target.value)} placeholder="name@upi"/>{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-submit" disabled={busy||!amount||!upi} onClick={async()=>{setBusy(true);setError('');try{await onSubmit(Number(amount),upi)}catch(e){setError(e.message)}finally{setBusy(false)}}}>{busy?'Submitting…':'Request Withdrawal'} <ArrowRight size={17}/></button></div></div>}
 
-function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBalance,phase,adminEmailSent}){
- const[left,setLeft]=useState(expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900),[result,setResult]=useState(null)
+function PaymentWaiting({user,tx,expiresAt,onClose,onRetry,onOpenOrders,onViewBalance,phase,adminEmailSent,amount,error}){
+ const initialSeconds=expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900;
+ const[left,setLeft]=useState(initialSeconds),[result,setResult]=useState(null),[liveTx,setLiveTx]=useState(tx);
  useEffect(()=>{
-   if(phase!=='verifying'||!expiresAt||!tx?.transactionId)return
-   const timer=setInterval(async()=>{
-     setLeft(Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)))
+   if(phase!=='verifying'||!liveTx?.transactionId||liveTx.transactionId==='CREATING…')return;
+   let active=true;
+   const check=async()=>{
      try{
-       const d=await walletApi.transactionStatus(user,tx.transactionId)
-       const next=d.transaction
-       if(['COMPLETED','NOT_RECEIVED','REJECTED'].includes(next.status)){setResult(next);clearInterval(timer)}
+       const d=await walletApi.transactionStatus(user,liveTx.transactionId);
+       const next=d?.transaction;
+       if(!active||!next)return;
+       setLiveTx(next);
+       setLeft(expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900);
+       if(['COMPLETED','NOT_RECEIVED','REJECTED'].includes(String(next.status||'').toUpperCase()))setResult(next);
      }catch{}
-   },5000)
-   return()=>clearInterval(timer)
- },[user,tx?.transactionId,expiresAt,phase])
- if(phase==='opening')return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting">
-   <div className="wallet-payment-hero"><div className="wallet-loading-ring"><Clock3 size={31}/></div><div><span className="wallet-services-eyebrow">SECURE PAYMENT</span><h2>Preparing Your Payment</h2><p>We are getting your secure payment link from Trusted Circle.</p></div></div>
+   };
+   check();
+   const timer=setInterval(check,4000);
+   return()=>{active=false;clearInterval(timer)};
+ },[user,liveTx?.transactionId,expiresAt,phase]);
+ if(phase==='error')return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
+   <div className="wallet-result-icon failed"><X size={42}/></div>
+   <span className="wallet-services-eyebrow">PAYMENT SETUP FAILED</span>
+   <h2>Could Not Prepare Payment</h2>
+   <p>{error||'We could not prepare the payment link.'}</p>
+   <div className="wallet-result-actions"><button className="wallet-submit" onClick={onClose}>Close</button></div>
+ </div></div>;
+ if(phase==='opening'||phase==='link-timeout')return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting payment-live-card">
+   <button className="wallet-modal-x" onClick={onClose}><X size={18}/></button>
+   <div className="wallet-payment-live-head">
+     <div className="wallet-loading-ring"><Clock3 size={31}/></div>
+     <div><span className="wallet-services-eyebrow">ADD MONEY · LIVE STATUS</span><h2>{phase==='opening'?'Getting Secure Payment Link':'Still Getting Payment Link'}</h2><p>Your payment request is active. This screen will remain open while Trusted Circle prepares the secure payment page.</p></div>
+   </div>
+   <div className="wallet-live-summary">
+     <div><span>Transaction No.</span><b>{tx?.transactionId||'CREATING…'}</b></div>
+     <div><span>Amount</span><b>₹{money(amount||tx?.amount)}</b></div>
+     <div><span>Current Status</span><b className="live-status pending">PREPARING PAYMENT</b></div>
+   </div>
    <div className="wallet-payment-steps">
-     <div className="wallet-payment-step done"><CheckCircle2 size={18}/><span>Wallet request received</span></div>
-     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>Getting payment link</span></div>
-     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>Opening secure Paytm page</span></div>
+     <div className="wallet-payment-step done"><CheckCircle2 size={18}/><span>Request created</span></div>
+     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>{phase==='opening'?'Getting payment link':'Link taking longer than expected'}</span></div>
+     <div className="wallet-payment-step pending"><Clock3 size={18}/><span>Open secure Paytm page</span></div>
    </div>
    <div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div>
-   <strong>Please wait — up to 20 seconds</strong><small>The payment page will open automatically as soon as the link is ready.</small>
- </div></div>
- if(result)return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
-   <div className={'wallet-result-icon '+(result.status==='COMPLETED'?'success':'failed')}>{result.status==='COMPLETED'?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
-   <span className="wallet-services-eyebrow">ADMIN ACTION RESULT</span>
-   <h2>{result.status==='COMPLETED'?'Money Added Successfully':result.status==='NOT_RECEIVED'?'Payment Not Received':'Payment Rejected'}</h2>
-   <p>{result.status==='COMPLETED'?'Admin confirmed your payment. The amount has been credited to your Money Wallet.':result.status==='NOT_RECEIVED'?'Admin could not confirm the payment. You can retry with a fresh payment link.':'Admin rejected this payment request. You can create a new payment.'}</p>
-   <div className="wallet-result-actions">
-     {result.status==='NOT_RECEIVED'&&<button className="wallet-submit" onClick={()=>{onClose();onRetry(result)}}>Retry Payment <RefreshCw size={16}/></button>}
-     {result.status==='REJECTED'&&<button className="wallet-submit" onClick={onClose}>Create New Payment</button>}
-     <button className="wallet-secondary-btn" onClick={onViewBalance}>View Balance</button>
-     <button className="wallet-secondary-btn" onClick={onClose}>Close</button>
+   <strong>{phase==='opening'?'Preparing your payment…':'Still processing — you can wait here'}</strong>
+   <small>{phase==='opening'?'The loading indicator is limited to 20 seconds. The request continues safely in the background.':'The 20-second UI limit has passed, but the backend request is still running. We will open the payment page automatically if the link arrives.'}</small>
+   <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
+ </div></div>;
+ if(result){
+   const success=String(result.status||'').toUpperCase()==='COMPLETED';
+   const notReceived=String(result.status||'').toUpperCase()==='NOT_RECEIVED';
+   return <div className="wallet-modal-layer"><div className="wallet-modal payment-result payment-live-card">
+     <div className={'wallet-result-icon '+(success?'success':'failed')}>{success?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
+     <span className="wallet-services-eyebrow">ADMIN ACTION COMPLETED</span>
+     <h2>{success?'Payment Successful':notReceived?'Payment Not Received':'Payment Failed / Rejected'}</h2>
+     <div className="wallet-live-summary result-summary">
+       <div><span>Transaction No.</span><b>{result.transactionId}</b></div>
+       <div><span>Amount</span><b>₹{money(result.amount)}</b></div>
+       <div><span>Final Status</span><b className={'live-status '+(success?'success':'failed')}>{String(result.status).replace(/_/g,' ')}</b></div>
+     </div>
+     <p>{success?'Admin confirmed the payment and the amount has been credited to your Money Wallet.':notReceived?'Admin could not confirm the payment. You can retry using a fresh payment link.':'Admin rejected the payment request. No amount was added to your Money Wallet.'}</p>
+     <div className="wallet-result-actions">
+       {notReceived&&<button className="wallet-submit" onClick={()=>{onClose();onRetry(result)}}>Retry Payment <RefreshCw size={16}/></button>}
+       <button className="wallet-secondary-btn" onClick={onViewBalance}>Refresh Wallet Balance</button>
+       <button className="wallet-secondary-btn" onClick={onClose}>Close</button>
+     </div>
+   </div></div>
+ }
+ const currentStatus=String(liveTx?.status||'PENDING_PAYMENT').replace(/_/g,' ');
+ return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting payment-live-card">
+   <button className="wallet-modal-x" onClick={onClose}><X size={18}/></button>
+   <div className="wallet-payment-live-head">
+     <div className="wallet-loading-ring"><Clock3 size={31}/></div>
+     <div><span className="wallet-services-eyebrow">PAYMENT VERIFICATION · LIVE</span><h2>Payment Page Opened</h2><p>Keep this status window open. It checks the Admin action automatically.</p></div>
    </div>
- </div></div>
- return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting">
-   <div className="wallet-loading-ring"><Clock3 size={29}/></div>
-   <span className="wallet-services-eyebrow">PAYMENT VERIFICATION</span>
-   <h2>Payment Page Opened</h2>
-   <p>Transaction <b>{tx?.transactionId||'—'}</b></p>
+   <div className="wallet-live-summary">
+     <div><span>Transaction No.</span><b>{liveTx?.transactionId||'—'}</b></div>
+     <div><span>Amount</span><b>₹{money(liveTx?.amount||amount)}</b></div>
+     <div><span>Active Status</span><b className="live-status pending">{currentStatus}</b></div>
+   </div>
    <div className="wallet-payment-steps">
-     <div className="wallet-payment-step done"><CheckCircle2 size={17}/><span>Secure payment link received</span></div>
+     <div className="wallet-payment-step done"><CheckCircle2 size={17}/><span>Secure link received</span></div>
      <div className="wallet-payment-step done"><CheckCircle2 size={17}/><span>Payment page opened</span></div>
-     <div className={'wallet-payment-step '+(adminEmailSent===false?'failed':'done')}>{adminEmailSent===false?<X size={17}/>:<CheckCircle2 size={17}/>}<span>{adminEmailSent===false?'Admin email could not be sent':'Admin notified by email'}</span></div>
+     <div className={'wallet-payment-step '+(adminEmailSent===false?'failed':'done')}>{adminEmailSent===false?<X size={17}/>:<CheckCircle2 size={17}/>}<span>{adminEmailSent===false?'Admin email failed':'Admin notified'}</span></div>
      <div className="wallet-payment-step pending"><Clock3 size={17}/><span>Waiting for Admin action</span></div>
    </div>
-   <div className="wallet-progress"><span style={{width:Math.max(5,(left/900*100))+'%'}}/></div>
-   <strong>{left>0?('Admin response in '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0')):'Waiting for Admin action'}</strong>
-   <small>After Admin selects Received, Not Received, or Rejected, this popup will show the final result.</small>
+   <div className="wallet-progress"><span style={{width:Math.max(3,Math.min(100,(left/900)*100))+'%'}}/></div>
+   <strong>{left>0?'Waiting for Admin action · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0'):'Waiting for Admin action'}</strong>
+   <small>When Admin selects <b>Received</b>, <b>Not Received</b>, or <b>Rejected</b>, this same popup will immediately show the final result.</small>
    <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
  </div></div>
 }
-
 function StatementModal({transactions,user,wallet,onClose}){
  const[from,setFrom]=useState(''),[to,setTo]=useState(''),[kind,setKind]=useState('completed'),[error,setError]=useState('')
  const download=async()=>{setError('');if(!from||!to){setError('Select both From Date and To Date.');return}if(new Date(from)>new Date(to)){setError('From Date cannot be after To Date.');return}let data=transactions.filter(t=>{const d=new Date(t.createdAt);return d>=new Date(from+'T00:00:00')&&d<=new Date(to+'T23:59:59')});if(kind==='completed')data=data.filter(t=>String(t.status).includes('COMPLETED'));if(!data.length){setError('No transactions found for the selected timeline.');return}await saveTransactionsPdf(data,user,wallet,from,to);onClose()}
