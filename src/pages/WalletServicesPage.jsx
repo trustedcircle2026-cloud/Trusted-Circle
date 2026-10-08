@@ -88,7 +88,6 @@ function Login({onLogin}){
      const token=d?.session?.token||d?.token||'';
      const verifiedUser=d?.user||null;
      if(!token)throw new Error('Login failed. Please request a new verification number.');
-     localStorage.setItem(SESSION_KEY,token);
      onLogin(token,verifiedUser,null);
    }catch(err){
      clearTimeout(uiTimer);
