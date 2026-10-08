@@ -85,6 +85,7 @@ function route_(d){
   if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
   if(a==='verifyLoginChallenge')return verifyLoginChallenge_(d);
   if(a==='bootstrapShoppingSession')return bootstrapShoppingSession_(d);
+  if(a==='bootstrapShoppingIdentity')return bootstrapShoppingIdentity_(d);
   if(a==='me')return{ok:true,data:{user:pubUser_(auth_(d.token))}};
   if(a==='wallet')return wallet_(d);
   if(a==='walletOrders')return walletOrders_(d);
@@ -343,6 +344,33 @@ function requestLoginChallenge_(d){
 
 function shoppingApiUrl_(){
   return String(props_().getProperty('SHOPPING_APPS_SCRIPT_URL')||'https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec').trim();
+}
+function handoffSecret_(){return String(props_().getProperty('WALLET_HANDOFF_SECRET')||'TC_WALLET_HANDOFF_2026_10_08_7f9c2d4a6b1e8c3f');}
+function bootstrapShoppingIdentity_(d){
+  const email=email_(d.email);
+  const name=clean_(d.name,100);
+  const issuedAt=clean_(d.issuedAt,30);
+  const signature=clean_(d.signature,500);
+  req_(email&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),'Trusted Circle account email is invalid.');
+  const age=Date.now()-Number(issuedAt);
+  req_(isFinite(age)&&age>=-30000&&age<=120000,'Trusted Circle account handoff expired. Please refresh the page.');
+  const payload=email+'|'+name+'|'+issuedAt;
+  const expected=Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload,handoffSecret_(),Utilities.Charset.UTF_8));
+  req_(same_(signature,expected),'Invalid Trusted Circle account handoff.');
+  let u=find_(W.S.U,'Email',email);
+  const ts=now_();
+  if(!u){
+    u={UserID:id_('WUSR'),Email:email,Name:name||email.split('@')[0],Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts,LastLoginAt:ts};
+    addRow_(W.S.U,u);
+    addRow_(W.S.W,{WalletID:id_('WAL'),UserID:u.UserID,Balance:0,ReservedBalance:0,Currency:'INR',Status:'ACTIVE',CreatedAt:ts,UpdatedAt:ts});
+  }else{
+    req_(String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE','Wallet account is inactive.');
+    updateRow_(W.S.U,'UserID',u.UserID,{Name:name||u.Name,UpdatedAt:ts,LastLoginAt:ts});
+    u=find_(W.S.U,'UserID',u.UserID);
+  }
+  req_(String(u.Status||'ACTIVE').toUpperCase()==='ACTIVE','Wallet account is inactive.');
+  const session=createWalletSession_(u);
+  return{ok:true,data:{user:pubUser_(u),session:session,linkedToShopping:true}};
 }
 function bootstrapShoppingSession_(d){
   const shoppingToken=clean_(d.shoppingToken,500);
