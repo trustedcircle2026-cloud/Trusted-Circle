@@ -320,8 +320,8 @@ function testMoneyWalletAdminEmails(){
     '<p><b>UPI:</b> test@upi</p>'+
     '<p><b>Sent at:</b> '+esc_(now)+'</p>'+
     '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Withdrawal emails will contain the live Approve / Reject actions.</div>');
-  var addSent=sendTransactionalEmail_(to,'Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Money Wallet Add Money email\nTransaction: '+sampleAdd+'\nAmount: ₹500');
-  var withdrawSent=sendTransactionalEmail_(to,'Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Money Wallet Withdrawal email\nTransaction: '+sampleWithdraw+'\nAmount: ₹500\nUPI: test@upi');
+  var addSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Money Wallet Add Money email\nTransaction: '+sampleAdd+'\nAmount: ₹500');
+  var withdrawSent=sendWalletAdminEmail_('Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Money Wallet Withdrawal email\nTransaction: '+sampleWithdraw+'\nAmount: ₹500\nUPI: test@upi');
   if(!addSent||!withdrawSent)throw new Error('One or both Money Wallet test emails failed. Check Apps Script Executions, authorization and MailApp quota.');
   return{ok:true,to:to,addMoneyEmail:true,withdrawalEmail:true,sentAt:now,remainingQuota:MailApp.getRemainingDailyQuota()};
 }
