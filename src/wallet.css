@@ -102,3 +102,11 @@
 .wallet-payment-progress-meta b{color:#16804d;white-space:nowrap}
 .wallet-payment-preparing-foot{margin-top:10px;padding-top:12px;border-top:1px solid #edf1ee;display:flex;align-items:center;gap:7px;color:#9aa29e;font-size:9px}
 @media(max-width:600px){.wallet-payment-preparing{padding:20px}.wallet-payment-summary{grid-template-columns:1fr}}
+
+.wallet-payment-error-icon{width:42px;height:42px;border-radius:13px;background:#fff0ee;color:#b42318;display:grid;place-items:center;font-weight:900;font-size:20px}
+.wallet-payment-error-box{margin-top:20px;padding:14px;border:1px solid #f2cfca;background:#fff7f5;border-radius:14px;display:grid;gap:6px}
+.wallet-payment-error-box strong{font-size:12px;color:#9f251b}
+.wallet-payment-error-box span{font-size:10px;line-height:1.5;color:#7b6966;word-break:break-word}
+.wallet-payment-preparing-actions{margin-top:17px;display:flex;justify-content:flex-end;gap:8px}
+.wallet-payment-preparing-actions .btn-primary,.wallet-payment-preparing-actions .btn-quiet{min-height:38px;padding:9px 14px}
+@media(max-width:600px){.wallet-payment-preparing-actions{display:grid;grid-template-columns:1fr}.wallet-payment-preparing-actions button{width:100%}}
