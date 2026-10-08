@@ -43,6 +43,13 @@ function iframeResponse_(result,requestId){
   const ok=!!(result&&result.ok);
   const d=ok&&result.data&&typeof result.data==='object'?result.data:{};
   const s=d&&d.session&&typeof d.session==='object'?d.session:null;
+  // Payment fields may live at the route result root or inside data.
+  // Prefer the root fields because they are the least ambiguous iframe contract.
+  const paymentLink=ok?String(result.paymentLink||d.paymentLink||''):'';
+  const paymentExpiresAt=ok?String(result.expiresAt||d.expiresAt||''):'';
+  const transaction=ok&&result.transaction&&typeof result.transaction==='object'
+    ?result.transaction
+    :(ok&&d.transaction&&typeof d.transaction==='object'?d.transaction:null);
   const u=d&&d.user&&typeof d.user==='object'?d.user:null;
   // Keep the iframe contract deliberately flat. Login must never depend on
   // nested response parsing: token/user/expiresAt are always top-level.
@@ -76,9 +83,9 @@ function iframeResponse_(result,requestId){
     expiresInSeconds:challenge?challenge.expiresInSeconds:0,
     // Payment responses are also promoted to top-level fields so browser
     // transports cannot lose the gateway URL during response normalization.
-    paymentLink:ok&&d.paymentLink?String(d.paymentLink):'',
-    expiresAt:ok&&d.expiresAt?String(d.expiresAt):'',
-    transaction:ok&&d.transaction&&typeof d.transaction==='object'?d.transaction:null,
+    paymentLink:paymentLink,
+    paymentExpiresAt:paymentExpiresAt,
+    transaction:transaction,
     data:ok?d:{},
     error:ok?'':String(result&&result.error||'Wallet Services request failed.')
   }).split('<').join('\\u003c');
@@ -601,7 +608,13 @@ function walletGateway_(d){
     g=stock[0]?{PaymentLink:stock[0].Link,Label:stock[0].Label||('Trusted Circle ₹'+amount+' Gateway'),GatewayID:stock[0].PaymentLinkStockID,Status:'ACTIVE'}:null;
   }
   req_(g&&/^https?:\/\//i.test(String(g.PaymentLink||'')),'No payment gateway is configured for ₹'+amount+'. Please add the ₹'+amount+' gateway link in the Wallet Business sheet.');
-  return{ok:true,data:{denomination:amount,paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),gatewayId:String(g.GatewayID||''),source:String(g.GatewayID||'').indexOf('WPL')===0?'WalletPaymentLinks':'WalletBusiness'}};
+  const paymentLink=String(g.PaymentLink);
+  const label=String(g.Label||('Trusted Circle ₹'+amount+' Gateway'));
+  const gatewayId=String(g.GatewayID||'');
+  const source=gatewayId.indexOf('WPL')===0?'WalletPaymentLinks':'WalletBusiness';
+  // Put payment fields at BOTH the result root and data root. This is intentional:
+  // Apps Script iframe transports can normalize nested objects differently.
+  return{ok:true,paymentLink:paymentLink,expiresAt:'',data:{denomination:amount,paymentLink:paymentLink,label:label,gatewayId:gatewayId,source:source}};
 }
 function walletOrders_(d){const u=auth_(d.token);return{ok:true,data:{transactions:txs_(u.UserID,500)}};}
 function transactionStatus_(d){const u=auth_(d.token),t=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(t&&String(t.UserID)===String(u.UserID),'Transaction not found.');return{ok:true,data:{transaction:pubTx_(t)}};}
@@ -696,7 +709,8 @@ function addMoney_(d){
     audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));
     try{createAdminActions_(t)}catch(emailError){audit_(u.UserID,tid,'ADMIN_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
     try{transactionSummaryEmail_(t)}catch(emailError){audit_(u.UserID,tid,'USER_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
-    return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
+    const publishedTransaction=pubTx_(t);
+    return{ok:true,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||''),transaction:publishedTransaction,data:{transaction:publishedTransaction,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||'')}};
   }finally{lock.releaseLock();}
 }
 function retryAddMoney_(d){
@@ -707,7 +721,8 @@ function retryAddMoney_(d){
     updateRow_(W.S.T,'TransactionID',old.TransactionID,{Status:'RETRY_CREATED',UpdatedAt:ts,Notes:'Retry created'});
     const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:Number(old.Amount),Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:Number(old.Attempt||1)+1,ParentTransactionID:old.TransactionID,CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Retry payment',AdminNote:''};
     addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_RETRY','USER',old.TransactionID);transactionSummaryEmail_(t);
-    return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
+    const publishedTransaction=pubTx_(t);
+    return{ok:true,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||''),transaction:publishedTransaction,data:{transaction:publishedTransaction,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||'')}};
   }finally{lock.releaseLock();}
 }
 
