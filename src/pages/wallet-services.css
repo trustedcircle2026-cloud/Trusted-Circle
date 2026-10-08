@@ -1149,3 +1149,105 @@
  .wallet-single-shell,.wallet-single-overview,.wallet-single-history{animation:none}
  .wallet-single-action,.wallet-single-transaction{transition:none}
 }
+
+/* =========================================================
+   Payment Flow — animated premium popup
+   ========================================================= */
+.wallet-modal-layer{
+  animation:walletOverlayIn .22s ease-out both;
+  backdrop-filter:blur(7px);
+}
+.wallet-modal{
+  animation:walletModalIn .32s cubic-bezier(.2,.8,.2,1) both;
+}
+.wallet-add-money-modal,.wallet-orders-modal{
+  box-shadow:0 28px 90px rgba(18,57,40,.22);
+}
+.wallet-modal-x{
+  transition:transform .18s ease,background .18s ease;
+}
+.wallet-modal-x:hover{transform:rotate(90deg)}
+.wallet-payment-live-head .wallet-loading-ring{
+  animation:walletRingPulse 1.8s ease-in-out infinite;
+  box-shadow:0 0 0 0 rgba(23,107,73,.20);
+}
+.wallet-payment-live-head h2{
+  animation:walletTextIn .35s ease-out both;
+}
+.wallet-live-summary{
+  animation:walletCardIn .4s ease-out .08s both;
+}
+.wallet-payment-step{
+  animation:walletStepIn .35s ease-out both;
+}
+.wallet-payment-step:nth-child(2){animation-delay:.08s}
+.wallet-payment-step:nth-child(3){animation-delay:.16s}
+.wallet-payment-step:nth-child(4){animation-delay:.24s}
+.wallet-payment-step.pending{
+  position:relative;
+  overflow:hidden;
+}
+.wallet-payment-step.pending:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.55) 50%,transparent 80%);
+  transform:translateX(-120%);
+  animation:walletShimmer 1.8s linear infinite;
+}
+.wallet-progress{
+  position:relative;
+  overflow:hidden;
+}
+.wallet-progress span,.wallet-progress .wallet-progress-indeterminate{
+  position:relative;
+  display:block;
+  overflow:hidden;
+}
+.wallet-progress span:after,.wallet-progress .wallet-progress-indeterminate:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);
+  transform:translateX(-100%);
+  animation:walletShimmer 1.15s linear infinite;
+}
+.payment-result .wallet-result-icon{
+  animation:walletResultPop .45s cubic-bezier(.2,1.4,.4,1) both;
+}
+.payment-result .wallet-live-summary{
+  animation-delay:.12s;
+}
+.payment-result .wallet-result-actions{
+  animation:walletTextIn .4s ease-out .2s both;
+}
+.wallet-submit{
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease;
+}
+.wallet-submit:hover:not(:disabled){
+  transform:translateY(-1px);
+  box-shadow:0 9px 25px rgba(18,91,61,.18);
+  filter:saturate(1.05);
+}
+.wallet-submit:active:not(:disabled){transform:translateY(0) scale(.985)}
+.wallet-secondary-btn{
+  transition:transform .16s ease,background .16s ease;
+}
+.wallet-secondary-btn:hover{transform:translateY(-1px);background:#f0f7f3}
+.wallet-denoms button{
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+.wallet-denoms button:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(20,70,50,.08)}
+.wallet-denoms button.selected{box-shadow:0 0 0 2px rgba(23,107,73,.10),0 8px 20px rgba(23,107,73,.10)}
+@keyframes walletOverlayIn{from{opacity:0}to{opacity:1}}
+@keyframes walletModalIn{from{opacity:0;transform:translateY(18px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes walletRingPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(23,107,73,.20)}50%{transform:scale(1.05);box-shadow:0 0 0 12px rgba(23,107,73,0)}}
+@keyframes walletTextIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes walletCardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes walletStepIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes walletShimmer{to{transform:translateX(120%)}}
+@keyframes walletResultPop{0%{opacity:0;transform:scale(.45)}70%{opacity:1;transform:scale(1.08)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){
+ .wallet-modal-layer,.wallet-modal,.wallet-payment-live-head h2,.wallet-live-summary,.wallet-payment-step,.payment-result .wallet-result-icon,.payment-result .wallet-result-actions{animation:none!important}
+ .wallet-payment-step.pending:after,.wallet-progress span:after,.wallet-progress .wallet-progress-indeterminate:after{animation:none!important}
+}
