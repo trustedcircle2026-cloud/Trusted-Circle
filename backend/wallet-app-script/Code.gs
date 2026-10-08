@@ -352,14 +352,14 @@ function bootstrapShoppingSession_(d){
       method:'get',muteHttpExceptions:true,followRedirects:true
     });
   }catch(err){throw new Error('Could not verify the Trusted Circle account. Please try again.');}
-  req_(response.getResponseCode()>=200&&response.getResponseCode()<300,'Could not verify the Trusted Circle account.');
+  req_(response.getResponseCode()>=200&&response.getResponseCode()<300,'Could not verify the Trusted Circle account (HTTP '+response.getResponseCode()+').');
   let body;
   try{body=JSON.parse(response.getContentText()||'{}');}catch(_){throw new Error('Invalid response from Trusted Circle account service.');}
-  req_(body.ok&&body.data,'Trusted Circle account verification failed. Please sign in again.');
+  req_(body.ok&&body.data,'Trusted Circle account verification failed: '+String(body.error&&body.error.message||body.error||'Please sign in again.'));
   const source=body.data;
   const su=source.user||source;
   const em=email_(su.email||su.Email);
-  req_(em&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(em),'Trusted Circle account email is invalid.');
+  req_(em&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em),'Trusted Circle account email is invalid.');
   const users=rows_(W.S.U);
   let u=null;
   for(let i=users.length-1;i>=0;i--)if(email_(users[i].Email)===em){u=users[i];break;}
