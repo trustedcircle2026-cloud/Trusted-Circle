@@ -9,7 +9,7 @@ export default function WalletPage({token,onBack}){
  const [data,setData]=useState({wallet:{balance:0,cashbackBalance:0,totalBalance:0,totalEarned:0,totalRedeemed:0},transactions:[]})
  const [shopping,setShopping]=useState({balance:0,cashback:0,total:0,totalEarned:0,totalRedeemed:0,transactions:[]})
  const [view,setView]=useState('wallet')
- const [addAmounts,setAddAmounts]=useState([500,1000,1500,2000]),[showAdd,setShowAdd]=useState(false),[showGateway,setShowGateway]=useState(false),[showWithdraw,setShowWithdraw]=useState(false),[selectedAmount,setSelectedAmount]=useState(500),[gateway,setGateway]=useState(null),[amount,setAmount]=useState(''),[upiId,setUpiId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
+ const [addAmounts,setAddAmounts]=useState([500,1000,1500,2000]),[showAdd,setShowAdd]=useState(false),[showGateway,setShowGateway]=useState(false),[showPaymentPreparing,setShowPaymentPreparing]=useState(false),[showWithdraw,setShowWithdraw]=useState(false),[selectedAmount,setSelectedAmount]=useState(500),[gateway,setGateway]=useState(null),[paymentProgress,setPaymentProgress]=useState(0),[paymentStep,setPaymentStep]=useState('Preparing your payment request…'),[amount,setAmount]=useState(''),[upiId,setUpiId]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false)
 
  const loadWallet=async()=>{
   try{
@@ -33,24 +33,40 @@ export default function WalletPage({token,onBack}){
  useEffect(()=>{load()},[token])
 
  const startAddMoney=async()=>{
-  setMessage('');setBusy(true);let popup=null
+  setMessage('');setBusy(true);setShowPaymentPreparing(true);setPaymentProgress(12);setPaymentStep('Finding a secure payment link for '+money(selectedAmount)+'…');
+  let popup=null;
   try{
-   popup=window.open('about:blank','trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes')
-   if(popup){try{popup.document.write('<!doctype html><html><head><title>Trusted Circle — Add Money</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f8f5;color:#173c2a;display:grid;place-items:center;height:100vh"><div style="text-align:center;padding:30px"><div style="font-size:30px;margin-bottom:12px">+</div><strong style="font-size:18px">Preparing Add Money</strong><p style="font-size:12px;color:#6f7772">Please wait while Trusted Circle creates your secure transaction.</p></div></body></html>');popup.document.close()}catch(_){}}
-   // Resolve the real gateway first from WalletPaymentLinks, then create the transaction.
-   // This makes the failure explicit instead of hiding a backend/deployment mismatch.
+   // Open only a blank browser window from the user click. The actual payment
+   // webpage is NOT loaded until the backend returns a real payment link.
+   popup=window.open('about:blank','trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes');
+   setPaymentProgress(28);
    const gatewayCheck=await walletApi.walletGateway(token,selectedAmount);
+   const gatewayData=gatewayCheck?.data&&typeof gatewayCheck.data==='object'?gatewayCheck.data:gatewayCheck;
+   const gatewayLink=gatewayData?.paymentLink||gatewayData?.PaymentLink||'';
+   setPaymentProgress(48);setPaymentStep('Creating your Wallet transaction…');
    const result=await walletApi.addMoney(token,selectedAmount);
-   const tx=result?.transaction||result?.data?.transaction;
-   const link=result?.paymentLink||result?.data?.paymentLink||gatewayCheck?.paymentLink||gatewayCheck?.data?.paymentLink;
-   const expiresAt=result?.expiresAt||result?.data?.expiresAt||'';
-   if(!link)throw new Error('Wallet gateway was found but the Add Money transaction did not return its payment link. Please redeploy the Wallet Apps Script Web App and try again.')
-   const transactionId=tx?.transactionId||tx?.TransactionID
-   if(!transactionId)throw new Error('Payment transaction could not be created.')
-   setGateway({amount:selectedAmount,paymentLink:link,expiresAt,transaction:tx});setShowAdd(false);setShowGateway(false)
-   const target=`#/wallet-payment/${encodeURIComponent(transactionId)}`
-   if(popup&&!popup.closed){popup.location.href=window.location.origin+window.location.pathname+target;popup.focus()}else window.location.hash=target
-  }catch(error){if(popup&&!popup.closed)popup.close();setMessage(error.message||'Unable to create the payment request.')}finally{setBusy(false)}
+   const resultData=result?.data&&typeof result.data==='object'?result.data:result;
+   const tx=resultData?.transaction||resultData?.Transaction||null;
+   const link=resultData?.paymentLink||resultData?.PaymentLink||tx?.PaymentLink||tx?.paymentLink||gatewayLink;
+   const expiresAt=resultData?.expiresAt||resultData?.ExpiresAt||tx?.ExpiresAt||'';
+   const transactionId=tx?.transactionId||tx?.TransactionID||resultData?.transactionId||resultData?.TransactionID;
+   if(!link)throw new Error('The Wallet backend did not return a payment link. Please redeploy the latest Wallet Apps Script and try again.');
+   if(!transactionId)throw new Error('Payment transaction could not be created.');
+   setGateway({amount:selectedAmount,paymentLink:link,expiresAt,transaction:tx});
+   setPaymentProgress(82);setPaymentStep('Secure payment link received. Opening payment page…');
+   await new Promise(resolve=>setTimeout(resolve,700));
+   setPaymentProgress(100);
+   setShowPaymentPreparing(false);setShowAdd(false);setShowGateway(false);
+   const target=`#/wallet-payment/${encodeURIComponent(transactionId)}`;
+   const paymentWindowUrl=window.location.origin+window.location.pathname+target;
+   // The small Trusted Circle payment page is opened only after the real link exists.
+   if(popup&&!popup.closed){popup.location.href=paymentWindowUrl;popup.focus()}
+   else window.location.hash=target;
+  }catch(error){
+   if(popup&&!popup.closed)popup.close();
+   setShowPaymentPreparing(false);
+   setMessage(error.message||'Unable to create the payment request.');
+  }finally{setBusy(false)}
  }
  const withdraw=async e=>{
   e.preventDefault();setMessage('');setBusy(true)
@@ -86,7 +102,8 @@ export default function WalletPage({token,onBack}){
 
   {message&&<div className="form-message">{message}</div>}
   {showAdd&&<div className="modal-layer" onMouseDown={e=>e.target===e.currentTarget&&setShowAdd(false)}><div className="wallet-add-modal"><button className="wallet-modal-close" onClick={()=>setShowAdd(false)}>×</button><div className="wallet-modal-icon"><Plus size={21}/></div><span className="eyebrow">ADD MONEY</span><h2>Choose an amount</h2><p>Select one of the supported denominations. A secure payment gateway link will be reserved from Trusted Circle Wallet Services.</p><div className="wallet-denomination-grid">{addAmounts.map(v=><button key={v} className={selectedAmount===v?'selected':''} onClick={()=>setSelectedAmount(v)}><span>{money(v)}</span><small>Payment gateway</small></button>)}</div><div className="wallet-safe-note"><ShieldCheck size={18}/><div><strong>Adding safely in Trusted Circle</strong><span>Your payment link is generated by the Wallet Apps Script and matched to this denomination.</span></div></div><div className="wallet-modal-actions"><button className="btn-quiet" onClick={()=>setShowAdd(false)}>Cancel</button><button className="btn-primary" onClick={startAddMoney} disabled={busy}>{busy?'Preparing…':'Add Money'} <ArrowRight size={16}/></button></div></div></div>}
-  {showGateway&&gateway&&<div className="modal-layer" onMouseDown={e=>e.target===e.currentTarget&&setShowGateway(false)}><div className="wallet-gateway-modal"><div className="wallet-gateway-top"><div className="wallet-gateway-lock"><ShieldCheck size={22}/></div><div><span className="eyebrow">SECURE PAYMENT</span><h2>Add {money(gateway.amount)}</h2></div><button className="wallet-modal-close" onClick={()=>setShowGateway(false)}>×</button></div><div className="wallet-gateway-card"><div><small>Amount to add</small><strong>{money(gateway.amount)}</strong></div><span className="wallet-gateway-status"><span/> Gateway reserved</span></div><div className="wallet-gateway-message"><ShieldCheck size={19}/><div><strong>Your money is being added safely in Trusted Circle</strong><p>Continue to the secure payment gateway below. Your Wallet balance is updated only after payment is verified by the Wallet Admin.</p></div></div>{gateway.expiresAt&&<div className="wallet-expiry"><Clock3 size={15}/> Payment link reserved until {date(gateway.expiresAt)}</div>}<a className="wallet-gateway-open" href={gateway.paymentLink} target="_blank" rel="noopener noreferrer" onClick={()=>setMessage('Payment gateway opened. Complete the payment, then wait for Wallet Admin verification.')}>Open Secure Payment Gateway <ExternalLink size={16}/></a><div className="wallet-gateway-footer"><span>Transaction {gateway.transaction?.TransactionID||gateway.transaction?.transactionId||'created'}</span><button onClick={()=>{setShowGateway(false);loadWallet()}}>Done</button></div></div></div>}
+  {showPaymentPreparing&&<div className="modal-layer payment-preparing-layer"><div className="wallet-payment-preparing"><div className="wallet-payment-preparing-head"><div className="wallet-modal-icon"><Plus size={21}/></div><div><span className="eyebrow">ADD MONEY</span><h2>Preparing payment</h2></div></div><div className="wallet-payment-summary"><div><span>Amount</span><strong>{money(selectedAmount)}</strong></div><div><span>Wallet</span><strong>Trusted Circle Wallet</strong></div><div><span>Payment</span><strong>Secure gateway</strong></div></div><div className="wallet-payment-progress"><div className="wallet-payment-progress-track"><span style={{width:paymentProgress+'%'}}/></div><div className="wallet-payment-progress-meta"><span>{paymentStep}</span><b>{paymentProgress}%</b></div></div><div className="wallet-safe-note"><ShieldCheck size={18}/><div><strong>Opening the payment page only after the link is received</strong><span>We first verify the denomination and create the transaction. The small payment webpage will open only after Trusted Circle receives a valid gateway link.</span></div></div><div className="wallet-payment-preparing-foot"><Clock3 size={15}/><span>Please keep this window open…</span></div></div></div>}
+  {showGateway&&gateway&&<div className="modal-layer" onMouseDown={e=>e.target===e.currentTarget&&setShowGateway(false)}><div className="wallet-gateway-modal"><div className="wallet-gateway-top"><div className="wallet-gateway-lock"><ShieldCheck size={22}/></div><div><span className="eyebrow">SECURE PAYMENT</span><h2>Add {money(gateway.amount)}</h2></div><button className="wallet-modal-close" onClick={()=>setShowGateway(false)}>×</button></div><div className="wallet-gateway-card"><div><small>Amount to add</small><strong>{money(gateway.amount)}</strong></div><span className="wallet-gateway-status"><span/> Gateway ready</span></div><div className="wallet-gateway-message"><ShieldCheck size={19}/><div><strong>Your payment page is ready</strong><p>Trusted Circle received the secure payment link. Complete payment, then wait for Wallet Admin verification before the Wallet balance is credited.</p></div></div>{gateway.expiresAt&&<div className="wallet-expiry"><Clock3 size={15}/> Payment link reserved until {date(gateway.expiresAt)}</div>}<a className="wallet-gateway-open" href={gateway.paymentLink} target="_blank" rel="noopener noreferrer">Open Secure Payment Gateway <ExternalLink size={16}/></a><div className="wallet-gateway-footer"><span>Transaction {gateway.transaction?.TransactionID||gateway.transaction?.transactionId||'created'}</span><button onClick={()=>{setShowGateway(false);loadWallet()}}>Done</button></div></div></div>}
   {showWithdraw&&<div className="modal-layer"><div className="wallet-redeem-modal"><button className="wallet-modal-close" onClick={()=>setShowWithdraw(false)}>×</button><span className="eyebrow">WITHDRAW MONEY</span><h2>Transfer from your wallet</h2><p>Available: <strong>{money(data.wallet.balance)}</strong></p><form onSubmit={withdraw}><label>Amount<input type="number" min="1" max={Number(data.wallet.balance)} step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} required/></label><label>UPI ID<input value={upiId} onChange={e=>setUpiId(e.target.value)} placeholder="name@bank" required/></label><div className="wallet-safe-note compact"><ShieldCheck size={18}/><div><strong>Secure withdrawal request</strong><span>Trusted Circle will review and process the transfer.</span></div></div><div className="wallet-modal-actions"><button type="button" className="btn-quiet" onClick={()=>setShowWithdraw(false)}>Cancel</button><button type="submit" className="btn-primary" disabled={busy}>{busy?'Submitting…':'Withdraw Money'} <CheckCircle2 size={16}/></button></div></form></div></div>}
  </main>
 }
