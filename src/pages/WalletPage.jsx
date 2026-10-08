@@ -51,12 +51,15 @@ export default function WalletPage({token,onBack}){
    if(!link)throw new Error('The Wallet backend did not return a payment link. Please redeploy the latest Wallet Apps Script and try again.')
    if(!transactionId)throw new Error('Payment transaction could not be created.')
    setGateway({amount:selectedAmount,paymentLink:link,expiresAt,transaction:tx})
-   setPaymentProgress(82);setPaymentStep('Secure payment link received. Opening payment page…')
-   await new Promise(resolve=>setTimeout(resolve,700))
+   setPaymentProgress(82);setPaymentStep('Secure payment link received. Opening Wallet payment page…')
+   await new Promise(resolve=>setTimeout(resolve,500))
    setPaymentProgress(100)
    setShowPaymentPreparing(false);setShowAdd(false);setShowGateway(false)
-   popup=window.open(link,'trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes')
-   if(!popup)window.location.href=link
+   // Always use the dedicated Wallet Payment Page. It loads the transaction
+   // from Wallet Services, displays the assigned gateway, and polls payment
+   // verification. This avoids popup blockers and keeps the payment flow
+   // connected to the transaction record.
+   window.location.hash='#/wallet-payment/'+encodeURIComponent(transactionId)
   }catch(error){
    if(popup&&!popup.closed)popup.close()
    setPaymentError(error.message||'Unable to create the payment request.')
