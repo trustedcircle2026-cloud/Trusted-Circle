@@ -57,11 +57,10 @@ export default function WalletPage({token,onBack}){
    await new Promise(resolve=>setTimeout(resolve,700));
    setPaymentProgress(100);
    setShowPaymentPreparing(false);setShowAdd(false);setShowGateway(false);
-   const target=`#/wallet-payment/${encodeURIComponent(transactionId)}`;
-   const paymentWindowUrl=window.location.origin+window.location.pathname+target;
-   // The small Trusted Circle payment page is opened only after the real link exists.
-   if(popup&&!popup.closed){popup.location.href=paymentWindowUrl;popup.focus()}
-   else window.location.hash=target;
+   // Open the actual payment-link URL only after the backend has returned it.
+   // This keeps the small payment window blank until a real gateway URL exists.
+   if(popup&&!popup.closed){popup.location.href=link;popup.focus()}
+   else window.open(link,'trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes');
   }catch(error){
    if(popup&&!popup.closed)popup.close();
    setShowPaymentPreparing(false);
