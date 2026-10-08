@@ -37,8 +37,14 @@ export default function WalletPage({token,onBack}){
   try{
    popup=window.open('about:blank','trustedCircleWalletPayment','width=470,height=760,resizable=yes,scrollbars=yes')
    if(popup){try{popup.document.write('<!doctype html><html><head><title>Trusted Circle — Add Money</title><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;font-family:Arial,sans-serif;background:#f4f8f5;color:#173c2a;display:grid;place-items:center;height:100vh"><div style="text-align:center;padding:30px"><div style="font-size:30px;margin-bottom:12px">+</div><strong style="font-size:18px">Preparing Add Money</strong><p style="font-size:12px;color:#6f7772">Please wait while Trusted Circle creates your secure transaction.</p></div></body></html>');popup.document.close()}catch(_){}}
-   const result=await walletApi.addMoney(token,selectedAmount),tx=result?.transaction||result?.data?.transaction,link=result?.paymentLink||result?.data?.paymentLink,expiresAt=result?.expiresAt||result?.data?.expiresAt
-   if(!link)throw new Error('No payment gateway is available for this denomination right now.')
+   // Resolve the real gateway first from WalletPaymentLinks, then create the transaction.
+   // This makes the failure explicit instead of hiding a backend/deployment mismatch.
+   const gatewayCheck=await walletApi.walletGateway(token,selectedAmount);
+   const result=await walletApi.addMoney(token,selectedAmount);
+   const tx=result?.transaction||result?.data?.transaction;
+   const link=result?.paymentLink||result?.data?.paymentLink||gatewayCheck?.paymentLink||gatewayCheck?.data?.paymentLink;
+   const expiresAt=result?.expiresAt||result?.data?.expiresAt||'';
+   if(!link)throw new Error('Wallet gateway was found but the Add Money transaction did not return its payment link. Please redeploy the Wallet Apps Script Web App and try again.')
    const transactionId=tx?.transactionId||tx?.TransactionID
    if(!transactionId)throw new Error('Payment transaction could not be created.')
    setGateway({amount:selectedAmount,paymentLink:link,expiresAt,transaction:tx});setShowAdd(false);setShowGateway(false)
