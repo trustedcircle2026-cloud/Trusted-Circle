@@ -79,7 +79,7 @@ function iframeResponse_(result,requestId){
 }
 function route_(d){
   const a=String(d.action||'health');
-  if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.1.0',status:'ok'};
+  if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.2.0',status:'ok'};
   if(a==='requestOtp')return requestOtp_(d);
   if(a==='verifyOtp')return verifyOtp_(d);
   if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
@@ -585,7 +585,7 @@ function releaseExpiredReservations_(){
 }
 function reservePaymentLink_(amount,tid){
   releaseExpiredReservations_();
-  const a=rows_(W.S.P).filter(x=>Number(x.Denomination)===Number(amount)&&x.Status==='AVAILABLE');
+  const a=rows_(W.S.P).filter(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'').trim().toUpperCase()==='AVAILABLE'&&/^https?:\/\//i.test(String(x.Link||'').trim()));
   if(a.length){
     const x=a[0],ts=now_(),exp=new Date(Date.now()+W.RESERVATION_MS).toISOString();
     updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
