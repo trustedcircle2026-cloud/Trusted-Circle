@@ -5,12 +5,19 @@ function emailMoney_(value){return '₹'+Number(value||0).toLocaleString('en-IN'
 function emailAliasList_(){try{return GmailApp.getAliases().map(function(a){return normalizeEmail_(a);});}catch(e){return [];}}
 function sendTransactionalEmail_(to,subject,htmlBody,textBody){
  if(!isValidEmail_(to))return false;
+ var payload={to:to,subject:subject,htmlBody:htmlBody,body:textBody,name:'Trusted Circle',replyTo:TC_EMAIL.INFO};
  try{
-  MailApp.sendEmail({to:to,subject:subject,htmlBody:htmlBody,body:textBody,name:'Trusted Circle',replyTo:TC_EMAIL.INFO});
+  MailApp.sendEmail(payload);
   return true;
  }catch(mailError){
-  console.error('Transactional email failed: '+String(mailError&&mailError.message||mailError));
-  return false;
+  console.error('MailApp transactional email failed: '+String(mailError&&mailError.message||mailError));
+  try{
+   GmailApp.sendEmail(to,subject,textBody,{htmlBody:htmlBody,name:'Trusted Circle',replyTo:TC_EMAIL.INFO});
+   return true;
+  }catch(gmailError){
+   console.error('GmailApp transactional email failed: '+String(gmailError&&gmailError.message||gmailError));
+   return false;
+  }
  }
 }
 function sendDualTransactionalEmail_(subject,htmlBody,textBody,userEmail){return{userSent:sendTransactionalEmail_(userEmail,subject,htmlBody,textBody),infoSent:sendTransactionalEmail_(TC_EMAIL.INFO,'[Trusted Circle] '+subject,htmlBody,textBody)};}
