@@ -276,7 +276,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
     // The network request continues in the background after 10 seconds.
     // Only the blocking preparation UI is removed.
+    let uiTimedOut = false
     const uiTimer = window.setTimeout(() => {
+      uiTimedOut = true
       setLinkLoading(false)
       setLinkWaitSeconds(0)
       if (popup && !popup.closed) popup.close()
@@ -323,6 +325,16 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         if (!orderId && typeof onCreateOrder === 'function') {
           onCreateOrder(result)
         }
+      } else if (uiTimedOut) {
+        // The original popup was intentionally closed after 10 seconds.
+        // Keep the returned link on the normal checkout screen so the user
+        // can open it manually without restarting the backend request.
+        setLinkRequest({
+          link,
+          expiresAt,
+          orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId,
+          orderNumber: result?.order?.order?.OrderNumber || result?.order?.OrderNumber || ''
+        })
       } else {
         setLinkRequest({
           link,
