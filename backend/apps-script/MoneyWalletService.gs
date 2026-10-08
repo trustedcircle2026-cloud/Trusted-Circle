@@ -168,6 +168,7 @@ function walletAdminEmailButton_(label,url,bg){
 function walletAdminEmailShell_(title,body){
   return '<div style="font-family:Arial,sans-serif;background:#f4f7f5;padding:24px;color:#18241e"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dfe8e2;border-radius:18px;overflow:hidden"><div style="padding:24px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle</div><div style="margin-top:5px;opacity:.85">Money Wallet Administration</div></div><div style="padding:24px"><h2 style="margin:0 0 18px;color:#173c2a">'+escapeHtml_(title)+'</h2>'+body+'</div><div style="padding:15px 24px;background:#f5f8f6;color:#68736d;font-size:12px">System generated notification · Trusted Circle</div></div></div>';
 }
+function moneyWalletAdminEmail_(){return 'trustedcircle2026@gmail.com';}
 function moneyWalletAdminActions_(t){
   var received=moneyWalletActionToken_(t.TransactionID,'RECEIVED');
   var notReceived=moneyWalletActionToken_(t.TransactionID,'NOT_RECEIVED');
@@ -180,7 +181,7 @@ function moneyWalletAdminActions_(t){
   var subject='Trusted Circle — Money Wallet Add Money ₹'+t.Amount;
   var html=walletAdminEmailShell_('Money Wallet Add Money',body);
   var text='Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+customer+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID+'\n\nAdmin action links:\nReceived: '+moneyWalletActionUrl_(received,'RECEIVED')+'\nNot Received: '+moneyWalletActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+moneyWalletActionUrl_(rejected,'REJECTED');
-  var adminEmail=String(TC_CONFIG.ADMIN_EMAIL||'trustedcircle2026@gmail.com').trim().toLowerCase();var sent=sendTransactionalEmail_(adminEmail,subject,html,text);
+  var adminEmail=moneyWalletAdminEmail_();var sent=sendTransactionalEmail_(adminEmail,subject,html,text);
   if(!sent)throw new Error('Admin email could not be sent. Please check Apps Script email authorization/quota.');
   return true;
 }
@@ -202,7 +203,7 @@ function moneyWalletWithdrawalActions_(t){
     '\nUPI: '+(t.UPIId||'')+
     '\n\nAdmin action links:\nApprove: '+moneyWalletActionUrl_(approve,'WITHDRAW_APPROVE')+
     '\nReject: '+moneyWalletActionUrl_(reject,'WITHDRAW_REJECT');
-  var sent=sendTransactionalEmail_(getAdminEmail_(),'Trusted Circle — Money Wallet Withdrawal ₹'+t.Amount,html,text);
+  var sent=sendTransactionalEmail_(moneyWalletAdminEmail_(),'Trusted Circle — Money Wallet Withdrawal ₹'+t.Amount,html,text);
   if(!sent)throw new Error('Admin withdrawal email could not be sent. Please check Apps Script email authorization/quota.');
   return true;
 }
@@ -288,4 +289,37 @@ function moneyWalletAdminAction_(params){
     updateRowById_(TC_MONEY_WALLET.ACTIONS,'ActionID',row.ActionID,{UsedAt:now});
     return html_('Trusted Circle Money Wallet','Action completed successfully.',true);
   }finally{lock.releaseLock();}
+}
+
+
+/**
+ * Manual Apps Script test for Money Wallet admin email delivery.
+ * Run this function once from the Apps Script editor to authorize MailApp/GmailApp,
+ * then check trustedcircle2026@gmail.com.
+ * This test sends email only; it does not create wallet transactions or change Sheets.
+ */
+function testMoneyWalletAdminEmails(){
+  var to=moneyWalletAdminEmail_();
+  var now=isoNow_();
+  var sampleAdd='TEST-ADD-'+newId_('TCMW');
+  var sampleWithdraw='TEST-WITHDRAW-'+newId_('TCMW');
+  var addHtml=walletAdminEmailShell_('Money Wallet Add Money — TEST',
+    '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
+    '<p><b>Transaction:</b> '+esc_(sampleAdd)+'</p>'+
+    '<p><b>Customer:</b> Test Customer</p>'+
+    '<p><b>Amount:</b> ₹500</p>'+
+    '<p><b>Sent at:</b> '+esc_(now)+'</p>'+
+    '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Add Money emails will contain the live Received / Not Received / Rejected actions.</div>');
+  var withdrawHtml=walletAdminEmailShell_('Money Wallet Withdrawal — TEST',
+    '<p>This is a <b>TEST EMAIL ONLY</b>. No wallet transaction was created.</p>'+
+    '<p><b>Transaction:</b> '+esc_(sampleWithdraw)+'</p>'+
+    '<p><b>Customer:</b> Test Customer</p>'+
+    '<p><b>Amount:</b> ₹500</p>'+
+    '<p><b>UPI:</b> test@upi</p>'+
+    '<p><b>Sent at:</b> '+esc_(now)+'</p>'+
+    '<div style="padding:14px;border-radius:10px;background:#eef8f1;color:#175c40"><b>Admin mail delivery is working.</b><br>Real Withdrawal emails will contain the live Approve / Reject actions.</div>');
+  var addSent=sendTransactionalEmail_(to,'Trusted Circle — TEST · Money Wallet Add Money',addHtml,'TEST Money Wallet Add Money email\nTransaction: '+sampleAdd+'\nAmount: ₹500');
+  var withdrawSent=sendTransactionalEmail_(to,'Trusted Circle — TEST · Money Wallet Withdrawal',withdrawHtml,'TEST Money Wallet Withdrawal email\nTransaction: '+sampleWithdraw+'\nAmount: ₹500\nUPI: test@upi');
+  if(!addSent||!withdrawSent)throw new Error('One or both Money Wallet test emails failed. Check Apps Script Executions, authorization and MailApp quota.');
+  return{ok:true,to:to,addMoneyEmail:true,withdrawalEmail:true,sentAt:now,remainingQuota:MailApp.getRemainingDailyQuota()};
 }
