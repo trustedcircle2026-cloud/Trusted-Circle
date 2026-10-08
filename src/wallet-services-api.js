@@ -42,6 +42,8 @@ export const walletApi={
       wallet:moneyWallet,
       balance:Number(moneyWallet.balance||0),
       availableBalance:Number(moneyWallet.availableBalance||0),
+      cashbackBalance:Number(cashbackWallet.balance||0),
+      totalBalance:Number(moneyWallet.balance||0)+Number(cashbackWallet.balance||0),
       reservedBalance:Number(moneyWallet.reservedBalance||0),
       transactions,
       moneyTransactions,
