@@ -591,13 +591,10 @@ function reservePaymentLink_(amount,tid){
     updateRow_(W.S.P,'PaymentLinkStockID',x.PaymentLinkStockID,{Status:'RESERVED',WalletTransactionID:tid,ReservedAt:ts,ExpiresAt:exp,UpdatedAt:ts,Notes:''});
     return{reservationId:x.PaymentLinkStockID,paymentLink:x.Link,label:x.Label||'',expiresAt:exp,source:'WalletPaymentLinks'};
   }
-  let gateways=[];
-  try{gateways=rows_(W.S.G)}catch(_){gateways=[];}
-  const g=gateways.find(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE'&&/^https?:\/\//i.test(String(x.PaymentLink||'')));
-  req_(g,'No payment gateway is configured for ₹'+amount+'. Please ask Wallet Admin to add the gateway link.');
-  return{reservationId:'',paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),expiresAt:'',source:'WalletGateways'};
+  const g=gatewayConfigRows_().find(x=>Number(x.Denomination)===Number(amount)&&String(x.Status||'ACTIVE').toUpperCase()==='ACTIVE'&&/^https?:\/\//i.test(x.PaymentLink));
+  req_(g,'No payment gateway is configured for ₹'+amount+'. Please add the ₹'+amount+' gateway link in the Wallet Business sheet.');
+  return{reservationId:'',paymentLink:String(g.PaymentLink),label:String(g.Label||('Trusted Circle ₹'+amount+' Gateway')),expiresAt:'',source:'WalletBusiness'};
 }
-
 function releasePaymentLink_(rid,tid){
   const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
   req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
