@@ -74,6 +74,11 @@ function iframeResponse_(result,requestId){
     email:challenge?challenge.email:'',
     isNewUser:challenge?challenge.isNewUser:false,
     expiresInSeconds:challenge?challenge.expiresInSeconds:0,
+    // Payment responses are also promoted to top-level fields so browser
+    // transports cannot lose the gateway URL during response normalization.
+    paymentLink:ok&&d.paymentLink?String(d.paymentLink):'',
+    expiresAt:ok&&d.expiresAt?String(d.expiresAt):'',
+    transaction:ok&&d.transaction&&typeof d.transaction==='object'?d.transaction:null,
     data:ok?d:{},
     error:ok?'':String(result&&result.error||'Wallet Services request failed.')
   }).split('<').join('\\u003c');
