@@ -80,6 +80,7 @@ async function walletRequest(action,payload={}){
 
 export const walletApi={
   requestLoginChallenge:email=>walletRequest('requestLoginChallenge',{email}),
+  bootstrapShoppingSession:shoppingToken=>walletRequest('bootstrapShoppingSession',{shoppingToken}),
   verifyLoginChallenge:(email,challengeId,selectedNumber)=>walletRequest('verifyLoginChallenge',{email,challengeId,selectedNumber}),
   me:token=>walletRequest('me',{token}),
   wallet:token=>walletRequest('wallet',{token}),
