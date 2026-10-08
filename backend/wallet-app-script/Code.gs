@@ -3,10 +3,13 @@
  * Completely independent from Shopping.
  *
  * Script Properties:
- * SPREADSHEET_ID   = 1Q5-xDelfCBiYldQAnToDTuQRy4c_rZlHoDvtsaP1mNI
+ * SPREADSHEET_ID   = 1hM8CAV5olKIJEWhXlXhEobpAXy1VUUoeOPzU-dequag
  * ADMIN_EMAIL      = trustedcircle2026@gmail.com
  * WALLET_ADMIN_KEY = private key (never commit)
  */
+
+const WALLET_DEFAULT_SPREADSHEET_ID='1hM8CAV5olKIJEWhXlXhEobpAXy1VUUoeOPzU-dequag';
+const WALLET_DEFAULT_WEB_APP_URL='https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec';
 
 const W = {
   ADD:[500,1000,1500,2000],
@@ -107,12 +110,32 @@ function props_(){return PropertiesService.getScriptProperties();}
 function requiredProp_(name){const v=String(props_().getProperty(name)||'').trim();if(!v)throw new Error('Missing Script Property: '+name);return v;}
 let WALLET_SS_CACHE=null;
 function spreadsheet_(){
-  if(!WALLET_SS_CACHE)WALLET_SS_CACHE=SpreadsheetApp.openById(requiredProp_('SPREADSHEET_ID'));
+  if(!WALLET_SS_CACHE){
+    const configured=String(props_().getProperty('SPREADSHEET_ID')||'').trim();
+    WALLET_SS_CACHE=SpreadsheetApp.openById(configured||WALLET_DEFAULT_SPREADSHEET_ID);
+  }
   return WALLET_SS_CACHE;
 }
 function cacheKey_(prefix,value){return prefix+hash_(String(value||'')).slice(0,40);}
 function cacheJson_(key,value,seconds){try{CacheService.getScriptCache().put(key,JSON.stringify(value),seconds);}catch(_){}} 
 function readCacheJson_(key){try{const v=CacheService.getScriptCache().get(key);return v?JSON.parse(v):null;}catch(_){return null;}}
+function setupPaymentGatewayBackend(){
+  props_().setProperty('SPREADSHEET_ID',WALLET_DEFAULT_SPREADSHEET_ID);
+  props_().setProperty('WALLET_WEB_APP_URL',WALLET_DEFAULT_WEB_APP_URL);
+  const ss=SpreadsheetApp.openById(WALLET_DEFAULT_SPREADSHEET_ID);
+  const schemas={
+    WalletPaymentLinks:['PaymentLinkStockID','Denomination','Link','Label','Status','WalletTransactionID','ReservedAt','ExpiresAt','UsedAt','CreatedAt','UpdatedAt','Notes'],
+    WalletGateways:['GatewayID','Denomination','PaymentLink','Label','Status','CreatedAt','UpdatedAt','Notes']
+  };
+  Object.entries(schemas).forEach(([name,headers])=>{
+    const sh=ss.getSheetByName(name)||ss.insertSheet(name);
+    if(sh.getLastRow()===0) sh.getRange(1,1,1,headers.length).setValues([headers]);
+    else { const existing=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(String); headers.forEach(h=>{if(existing.indexOf(h)<0)sh.getRange(1,sh.getLastColumn()+1).setValue(h);}); }
+    sh.setFrozenRows(1);sh.getRange(1,1,1,sh.getLastColumn()).setFontWeight('bold');
+  });
+  return {ok:true,spreadsheetId:WALLET_DEFAULT_SPREADSHEET_ID,sheets:Object.keys(schemas),denominations:W.ADD,webAppUrl:WALLET_DEFAULT_WEB_APP_URL};
+}
+
 function setupBackend(){
   const headers={
     WalletUsers:['UserID','Email','Name','Status','CreatedAt','UpdatedAt','LastLoginAt'],
@@ -127,6 +150,8 @@ function setupBackend(){
     WalletAuditLogs:['AuditID','UserID','TransactionID','Action','Actor','Metadata','CreatedAt']
   };
   const ss=spreadsheet_();
+  props_().setProperty('SPREADSHEET_ID',WALLET_DEFAULT_SPREADSHEET_ID);
+  props_().setProperty('WALLET_WEB_APP_URL',WALLET_DEFAULT_WEB_APP_URL);
   if(!props_().getProperty('SHOPPING_APPS_SCRIPT_URL')) props_().setProperty('SHOPPING_APPS_SCRIPT_URL','https://script.google.com/macros/s/AKfycbxkIICfsVN783oq04KPBTN73ATEYaBuMXPaPCDsbnvP4uTHFDKH2wglKNAj2nWo5He9/exec');
   Object.keys(headers).forEach(name=>{
     const sh=ss.getSheetByName(name)||ss.insertSheet(name),h=headers[name];
