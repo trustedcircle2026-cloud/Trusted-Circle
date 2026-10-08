@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, ChevronRight, Clock3, Link2, LockKeyhole, MessageCircle, ShieldCheck, X, RefreshCw, Home, PackageCheck, AlertCircle, Ban } from 'lucide-react'
 import { api } from '../api'
 import './PaymentGateway.css'
@@ -38,6 +38,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [gatewayOutcome, setGatewayOutcome] = useState('pending')
   const [outcomePopup, setOutcomePopup] = useState(null)
   const [latestOrder, setLatestOrder] = useState(null)
+  const linkRequestInFlight = useRef(false)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
   const orderRef = linkRequest?.orderId || orderId
@@ -199,8 +200,18 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
 
   
 
+  const openResolvedPayment = () => {
+    const link = String(linkRequest?.link || '').trim()
+    if (!link) return
+    window.open(link, '_blank', 'noopener,noreferrer')
+    const token = localStorage.getItem('tc_session')
+    const id = linkRequest?.orderId || orderId
+    if (token && id) api.paymentLinkOpened(token, id).catch(()=>{})
+  }
+
   const requestPayment = async () => {
-    if (overLimit || linkLoading) return
+    if (overLimit || linkLoading || linkRequestInFlight.current) return
+    linkRequestInFlight.current = true
 
     // IMPORTANT: reserve the popup synchronously inside the user's click.
     // Opening it only after the async Apps Script request completes can be
@@ -263,6 +274,14 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     setLinkValidSeconds(0)
     setLinkRequest(null)
 
+    // The network request continues in the background after 10 seconds.
+    // Only the blocking preparation UI is removed.
+    const uiTimer = window.setTimeout(() => {
+      setLinkLoading(false)
+      setLinkWaitSeconds(0)
+      if (popup && !popup.closed) popup.close()
+    }, 10000)
+
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in first.')
@@ -320,7 +339,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
     } finally {
+      window.clearTimeout(uiTimer)
       setLinkLoading(false)
+      linkRequestInFlight.current = false
     }
   }
 
@@ -363,8 +384,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <h2>{money(total)}</h2>
             <strong>{linkLoading ? 'Preparing payment…' : activeLink ? 'Payment link ready' : 'Ready to pay?'}</strong>
             {linkLoading ? <div className="gateway-link-progress" role="progressbar" aria-label="Preparing secure payment link" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}><i style={{width:`${Math.min(100,Math.max(0,((LINK_WAIT_SECONDS-linkWaitSeconds)/LINK_WAIT_SECONDS)*100))}%`}} /></div> : activeLink ? <p>Link valid for {formatDuration(linkValidSeconds)}.</p> : null}
-            <button className="gateway-pay-button gateway-primary-action" type="button" onClick={requestPayment} disabled={overLimit || linkLoading}>
-              {linkLoading ? 'Preparing secure payment…' : activeLink ? 'Make Payment Again' : 'Make Payment'}
+            <button className="gateway-pay-button gateway-primary-action" type="button" onClick={activeLink ? openResolvedPayment : requestPayment} disabled={overLimit || linkLoading || linkRequestInFlight.current}>
+              {linkLoading ? 'Preparing secure payment…' : activeLink ? 'Open Payment Page' : 'Make Payment'}
               <ChevronRight size={17} />
             </button>
             {overLimit && <div className="gateway-note"><ShieldCheck size={14} /> Maximum order value is ₹2,000.</div>}
