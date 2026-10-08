@@ -54,33 +54,52 @@ function Login({onLogin}){
    if(!em)return;
    setBusy(true);
    setMessage('');
+   let uiTimedOut=false;
+   const uiTimer=setTimeout(()=>{
+     uiTimedOut=true;
+     setBusy(false);
+     setMessage('Verification is still being prepared in the background. You can continue using the page.');
+   },10000);
    try{
      const d=await walletApi.requestLoginChallenge(em);
+     clearTimeout(uiTimer);
+     if(uiTimedOut)return;
      setEmail(em);
      setChallengeId(d.challengeId||'');
      setOptions(Array.isArray(d.options)?d.options.map(String):[]);
      setSelected('');
      setStep('challenge');
    }catch(err){
-     setMessage('Could not send verification: '+err.message);
-   }finally{setBusy(false)}
+     clearTimeout(uiTimer);
+     if(!uiTimedOut)setMessage('Could not send verification: '+err.message);
+   }finally{clearTimeout(uiTimer);if(!uiTimedOut)setBusy(false)}
  }
  const verify=async number=>{
    if(!challengeId||!number||busy)return;
    setSelected(number);
    setBusy(true);
    setMessage('');
+   let uiTimedOut=false;
+   const uiTimer=setTimeout(()=>{
+     uiTimedOut=true;
+     setBusy(false);
+     setMessage('Login verification is still running in the background. Please wait for the result.');
+   },10000);
    try{
      const d=await walletApi.verifyLoginChallenge(email,challengeId,number);
+     clearTimeout(uiTimer);
      const token=d?.session?.token||d?.token||'';
      const verifiedUser=d?.user||null;
      if(!token)throw new Error('Login failed. Please request a new verification number.');
      localStorage.setItem(SESSION_KEY,token);
      onLogin(token,verifiedUser,null);
    }catch(err){
-     setBusy(false);
-     setSelected('');
-     setMessage(err.message);
+     clearTimeout(uiTimer);
+     if(!uiTimedOut){
+       setBusy(false);
+       setSelected('');
+       setMessage(err.message);
+     }
    }
  }
  return <main className="wallet-services-page wallet-login-page"><section className="wallet-login-card"><div className="wallet-login-brand"><img className="wallet-brand-logo" src={LOGO_URL} alt="Trusted Circle"/><div className="wallet-login-brand-name">Trusted<span>Circle</span></div></div>
