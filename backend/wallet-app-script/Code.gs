@@ -660,7 +660,12 @@ function addMoney_(d){
     }
     const w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
     const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
-    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));transactionSummaryEmail_(t);
+    // Persist the transaction before sending any email. A mail-service delay/quota
+    // issue must never leave the user stuck on "Preparing Add Money".
+    addRow_(W.S.T,t);
+    audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));
+    try{createAdminActions_(t)}catch(emailError){audit_(u.UserID,tid,'ADMIN_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
+    try{transactionSummaryEmail_(t)}catch(emailError){audit_(u.UserID,tid,'USER_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
     return{ok:true,data:{transaction:pubTx_(t),paymentLink:link.paymentLink,expiresAt:link.expiresAt}};
   }finally{lock.releaseLock();}
 }
