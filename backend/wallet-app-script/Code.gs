@@ -701,4 +701,166 @@ function reservePaymentLink_(amount,tid){
   return{reservationId:x.stockId,paymentLink:x.paymentLink,label:x.label||'',expiresAt:exp,source:'WalletPaymentLinks'};
 }
 
+function releasePaymentLink_(rid,tid){
+  const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
+  req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
+  return updateRow_(W.S.P,'PaymentLinkStockID',rid,{Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UpdatedAt:now_(),Notes:'Reservation released'});
+}
+function consumePaymentLink_(rid,tid){
+  const x=find_(W.S.P,'PaymentLinkStockID',rid);if(!x)return false;
+  req_(x.Status==='RESERVED'&&String(x.WalletTransactionID)===String(tid),'Payment link reservation mismatch.');
+  return updateRow_(W.S.P,'PaymentLinkStockID',rid,{Status:'USED',UsedAt:now_(),UpdatedAt:now_(),Notes:'Payment confirmed by admin'});
+}
 
+/* ADD MONEY */
+function addMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),amount=Number(d.amount);req_(W.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
+    const tid=id_('WTXN');
+    const link=reservePaymentLink_(amount,tid);
+    const w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
+    const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
+    // Persist the transaction before sending any email. A mail-service delay/quota
+    // issue must never leave the user stuck on "Preparing Add Money".
+    addRow_(W.S.T,t);
+    audit_(u.UserID,tid,'ADD_MONEY_CREATED','USER',JSON.stringify({amount:amount}));
+    try{createAdminActions_(t)}catch(emailError){audit_(u.UserID,tid,'ADMIN_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
+    try{transactionSummaryEmail_(t)}catch(emailError){audit_(u.UserID,tid,'USER_EMAIL_FAILED','SYSTEM',String(emailError&&emailError.message||emailError));}
+    const publishedTransaction=pubTx_(t);
+    return{ok:true,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||''),transaction:publishedTransaction,data:{transaction:publishedTransaction,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||'')}};
+  }finally{lock.releaseLock();}
+}
+function retryAddMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),old=find_(W.S.T,'TransactionID',clean_(d.transactionId,100));req_(old&&String(old.UserID)===String(u.UserID),'Transaction not found.');req_(old.Status==='NOT_RECEIVED','Only a Not Received payment can be retried.');
+    const tid=id_('WTXN'),link=reservePaymentLink_(Number(old.Amount),tid),w=walletRow_(u.UserID),bal=Number(w.Balance||0),ts=now_();
+    updateRow_(W.S.T,'TransactionID',old.TransactionID,{Status:'RETRY_CREATED',UpdatedAt:ts,Notes:'Retry created'});
+    const t={TransactionID:tid,UserID:u.UserID,Type:'ADD_MONEY',Amount:Number(old.Amount),Status:'PENDING_PAYMENT',BalanceBefore:bal,BalanceAfter:bal,UPIId:'',PaymentLink:link.paymentLink,PaymentLinkLabel:link.label,PaymentReservationId:link.reservationId,Attempt:Number(old.Attempt||1)+1,ParentTransactionID:old.TransactionID,CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Retry payment',AdminNote:''};
+    addRow_(W.S.T,t);createAdminActions_(t);audit_(u.UserID,tid,'ADD_MONEY_RETRY','USER',old.TransactionID);transactionSummaryEmail_(t);
+    const publishedTransaction=pubTx_(t);
+    return{ok:true,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||''),transaction:publishedTransaction,data:{transaction:publishedTransaction,paymentLink:String(link.paymentLink||''),expiresAt:String(link.expiresAt||'')}};
+  }finally{lock.releaseLock();}
+}
+
+/* WITHDRAW */
+function withdrawMoney_(d){
+  const lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    const u=auth_(d.token),amount=Number(d.amount),upi=clean_(d.upiId,200),w=walletRow_(u.UserID),bal=Number(w.Balance||0),reserved=Number(w.ReservedBalance||0);
+    req_(amount>0&&isFinite(amount),'Enter a valid withdrawal amount.');
+    req_(/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upi),'Enter a valid UPI ID.');
+    req_(amount<=bal-reserved,'Insufficient available wallet balance.');
+    const ts=now_(),tid=id_('WTXN');
+    updateRow_(W.S.W,'UserID',u.UserID,{ReservedBalance:reserved+amount,UpdatedAt:ts});
+    const t={TransactionID:tid,UserID:u.UserID,Type:'WITHDRAW',Amount:amount,Status:'WITHDRAWAL_REQUESTED',BalanceBefore:bal,BalanceAfter:bal,UPIId:upi,PaymentLink:'',PaymentLinkLabel:'',PaymentReservationId:'',Attempt:1,ParentTransactionID:'',CreatedAt:ts,UpdatedAt:ts,CompletedAt:'',Notes:'Withdrawal requested',AdminNote:''};
+    addRow_(W.S.T,t);createWithdrawalActions_(t);audit_(u.UserID,tid,'WITHDRAW_REQUESTED','USER',JSON.stringify({amount:amount,upiId:upi}));transactionSummaryEmail_(t);
+    return{ok:true,data:{transaction:pubTx_(t)}};
+  }finally{lock.releaseLock();}
+}
+
+/* ADMIN STOCK */
+function walletAdminKey_(){return requiredProp_('WALLET_ADMIN_KEY');}
+function adminReq_(d){req_(same_(clean_(d.adminKey,500),walletAdminKey_()),'Invalid Wallet Admin Key.');}
+function adminAddPaymentLink_(d){
+  adminReq_(d);const amount=Number(d.denomination),link=clean_(d.link,2000),label=clean_(d.label,200);
+  req_(W.ADD.indexOf(amount)>=0,'Invalid denomination.');req_(/^https?:\/\//i.test(link),'Enter a valid payment gateway URL.');
+  const ts=now_(),id=id_('WPL');addRow_(W.S.P,{PaymentLinkStockID:id,Denomination:amount,Link:link,Label:label||('₹'+amount+' Wallet Payment'),Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UsedAt:'',CreatedAt:ts,UpdatedAt:ts,Notes:''});
+  audit_('SYSTEM','', 'ADMIN_PAYMENT_LINK_ADDED','ADMIN',JSON.stringify({id:id,amount:amount}));return{ok:true,data:{paymentLinkStockId:id}};
+}
+function adminAddPaymentLinkBulk_(d){
+  adminReq_(d);const amount=Number(d.denomination),label=clean_(d.label,200),links=String(d.links||'').split(/\r?\n/).map(x=>clean_(x,2000)).filter(Boolean);
+  req_(W.ADD.indexOf(amount)>=0,'Invalid denomination.');req_(links.length,'Paste at least one payment link.');
+  let added=0;const ts=now_();links.forEach(link=>{if(!/^https?:\/\//i.test(link))return;addRow_(W.S.P,{PaymentLinkStockID:id_('WPL'),Denomination:amount,Link:link,Label:label||('₹'+amount+' Wallet Payment'),Status:'AVAILABLE',WalletTransactionID:'',ReservedAt:'',ExpiresAt:'',UsedAt:'',CreatedAt:ts,UpdatedAt:ts,Notes:'Bulk added'});added++;});
+  req_(added,'No valid payment gateway links were found.');audit_('SYSTEM','','ADMIN_PAYMENT_LINK_BULK_ADDED','ADMIN',JSON.stringify({amount:amount,added:added}));return{ok:true,data:{added:added}};
+}
+function adminPaymentStock_(d){
+  adminReq_(d);releaseExpiredReservations_();const links=rows_(W.S.P),summary={};
+  W.ADD.forEach(a=>summary[String(a)]={denomination:a,available:0,reserved:0,used:0,removed:0});
+  links.forEach(x=>{const s=summary[String(Number(x.Denomination))];if(!s)return;if(x.Status==='AVAILABLE')s.available++;else if(x.Status==='RESERVED')s.reserved++;else if(x.Status==='USED')s.used++;else if(x.Status==='REMOVED')s.removed++;});
+  return{ok:true,data:{summary:Object.keys(summary).map(k=>summary[k]),links:links.map(x=>({paymentLinkStockId:x.PaymentLinkStockID,denomination:Number(x.Denomination),link:x.Link,label:x.Label||'',status:x.Status,walletTransactionId:x.WalletTransactionID||'',reservedAt:x.ReservedAt||'',expiresAt:x.ExpiresAt||'',usedAt:x.UsedAt||''}))}};
+}
+function adminRemovePaymentLink_(d){
+  adminReq_(d);const id=clean_(d.paymentLinkStockId,100),x=find_(W.S.P,'PaymentLinkStockID',id);req_(x,'Payment link not found.');req_(x.Status==='AVAILABLE','Only an AVAILABLE payment link can be removed.');
+  updateRow_(W.S.P,'PaymentLinkStockID',id,{Status:'REMOVED',UpdatedAt:now_(),Notes:'Removed by Wallet Admin'});audit_('SYSTEM','', 'ADMIN_PAYMENT_LINK_REMOVED','ADMIN',id);return{ok:true,data:{removed:true}};
+}
+
+function userEmail_(uid){const u=find_(W.S.U,'UserID',uid);return u&&u.Email?String(u.Email):'';}
+function transactionSummaryEmail_(t){
+  try{
+    const to=userEmail_(t.UserID);if(!to)return;
+    const title=t.Type==='ADD_MONEY'?'Add Money':'Wallet Withdrawal';
+    const status=String(t.Status||'').replace(/_/g,' ');
+    const statusColor=/COMPLETED/.test(t.Status)?'#0f7a4f':/REJECTED|NOT_RECEIVED/.test(t.Status)?'#b42318':'#a66a00';
+    const body='<p><b>Transaction ID:</b> '+esc_(t.TransactionID)+'</p>'+
+      '<p><b>Type:</b> '+esc_(title)+'</p>'+
+      '<p><b>Amount:</b> ₹'+Number(t.Amount||0).toLocaleString('en-IN')+'</p>'+
+      '<p><b>Status:</b> <span style="color:'+statusColor+'"><b>'+esc_(status)+'</b></span></p>'+
+      '<p><b>Date:</b> '+esc_(new Date(t.CreatedAt).toLocaleString('en-IN'))+'</p>'+
+      (t.UPIId?'<p><b>UPI ID:</b> '+esc_(t.UPIId)+'</p>':'')+
+      '<p><b>Balance Before:</b> ₹'+Number(t.BalanceBefore||0).toLocaleString('en-IN')+'</p>'+
+      '<p><b>Balance After:</b> ₹'+Number(t.BalanceAfter||0).toLocaleString('en-IN')+'</p>'+
+      '<p>'+esc_(t.Notes||'')+'</p>'+
+      '<p><a href="https://trustedcircle.shop/#/wallet-services" style="display:inline-block;padding:11px 17px;background:#0f5132;color:#fff;text-decoration:none;border-radius:8px">Open Wallet Services</a></p>';
+    MailApp.sendEmail({to:to,subject:'Trusted Circle Wallet — '+title+' ₹'+Number(t.Amount||0)+' — '+status,name:'Trusted Circle',replyTo:'info@trustedcircle.in',body:'Trusted Circle Wallet transaction '+t.TransactionID+' — '+status,htmlBody:shell_('Wallet Transaction Summary',body)});
+  }catch(_){/* Email must never block wallet transaction processing. */}
+}
+
+/* ADMIN ACTION EMAILS */
+function adminEmail_(){return props_().getProperty('ADMIN_EMAIL')||'trustedcircle2026@gmail.com';}
+function actionToken_(tid,action){const raw=token_();addRow_(W.S.A,{ActionID:id_('WACT'),TransactionID:tid,Action:action,TokenHash:hash_(raw),ExpiresAt:new Date(Date.now()+W.ACTION_MS).toISOString(),UsedAt:'',CreatedAt:now_()});return raw;}
+function actionUrl_(raw,action){return ScriptApp.getService().getUrl()+'?adminAction='+encodeURIComponent(action)+'&token='+encodeURIComponent(raw);}
+function createAdminActions_(t){
+  const r=actionToken_(t.TransactionID,'RECEIVED'),n=actionToken_(t.TransactionID,'NOT_RECEIVED'),x=actionToken_(t.TransactionID,'REJECTED');
+  const h='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Amount:</b> ₹'+t.Amount+'</p><p><b>Payment link:</b> '+esc_(t.PaymentLinkLabel||'Wallet Payment')+'</p>'+btn_('✓ Received',actionUrl_(r,'RECEIVED'),'#0f5132')+btn_('! Not Received',actionUrl_(n,'NOT_RECEIVED'),'#b26a00')+btn_('✕ Rejected',actionUrl_(x,'REJECTED'),'#b42318');
+  MailApp.sendEmail({to:adminEmail_(),subject:'Trusted Circle Wallet — Add Money ₹'+t.Amount,body:'Wallet Add Money request '+t.TransactionID,htmlBody:shell_('Wallet Add Money Request',h)});
+}
+function createWithdrawalActions_(t){
+  const a=actionToken_(t.TransactionID,'WITHDRAW_APPROVE'),r=actionToken_(t.TransactionID,'WITHDRAW_REJECT');
+  const h='<p><b>Transaction:</b> '+esc_(t.TransactionID)+'</p><p><b>Amount:</b> ₹'+t.Amount+'</p><p><b>UPI ID:</b> '+esc_(t.UPIId)+'</p>'+btn_('✓ Approve Withdrawal',actionUrl_(a,'WITHDRAW_APPROVE'),'#0f5132')+btn_('✕ Reject Withdrawal',actionUrl_(r,'WITHDRAW_REJECT'),'#b42318');
+  MailApp.sendEmail({to:adminEmail_(),subject:'Trusted Circle Wallet — Withdrawal ₹'+t.Amount,body:'Wallet Withdrawal request '+t.TransactionID,htmlBody:shell_('Wallet Withdrawal Request',h)});
+}
+function adminAction_(p){
+  try{
+    const action=clean_(p.adminAction,50),token=clean_(p.token,500),h=hash_(token),a=rows_(W.S.A);let row=null;
+    for(let i=a.length-1;i>=0;i--)if(same_(a[i].TokenHash,h)){row=a[i];break;}
+    req_(row,'Admin action not found.');req_(!row.UsedAt,'This admin action has already been used.');req_(new Date(row.ExpiresAt).getTime()>Date.now(),'This admin action has expired.');req_(row.Action===action,'Invalid admin action.');
+    const t=find_(W.S.T,'TransactionID',row.TransactionID);req_(t,'Transaction not found.');
+    const lock=LockService.getScriptLock();lock.waitLock(20000);
+    try{
+      if(action==='RECEIVED')received_(t);
+      else if(action==='NOT_RECEIVED')notReceived_(t);
+      else if(action==='REJECTED')rejected_(t);
+      else if(action==='WITHDRAW_APPROVE')withdrawApprove_(t);
+      else if(action==='WITHDRAW_REJECT')withdrawReject_(t);
+      else throw new Error('Unsupported admin action.');
+      updateRow_(W.S.A,'ActionID',row.ActionID,{UsedAt:now_()});audit_(t.UserID,t.TransactionID,'ADMIN_'+action,'ADMIN','');
+      return html_('Trusted Circle Wallet','Action completed successfully.',true);
+    }finally{lock.releaseLock();}
+  }catch(err){return html_('Trusted Circle Wallet',err.message,false);}
+}
+function received_(t){
+  req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');const w=walletRow_(t.UserID),before=Number(w.Balance||0),after=before+Number(t.Amount);
+  if(t.PaymentReservationId)consumePaymentLink_(t.PaymentReservationId,t.TransactionID);
+  updateRow_(W.S.W,'UserID',t.UserID,{Balance:after,UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'COMPLETED',BalanceBefore:before,BalanceAfter:after,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Payment received'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
+}
+function notReceived_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'NOT_RECEIVED',UpdatedAt:now_(),Notes:'Admin marked payment not received'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));}
+function rejected_(t){req_(t.Status==='PENDING_PAYMENT','Transaction is already '+t.Status+'.');if(t.PaymentReservationId)releasePaymentLink_(t.PaymentReservationId,t.TransactionID);updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'REJECTED',UpdatedAt:now_(),Notes:'Payment rejected'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));}
+function withdrawApprove_(t){
+  req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount),balance=Number(w.Balance||0);req_(reserved>=amount,'Reserved balance mismatch.');
+  updateRow_(W.S.W,'UserID',t.UserID,{Balance:balance-amount,ReservedBalance:reserved-amount,UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_COMPLETED',BalanceAfter:balance-amount,UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal approved'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
+}
+function withdrawReject_(t){
+  req_(t.Status==='WITHDRAWAL_REQUESTED','Withdrawal is already '+t.Status+'.');const w=walletRow_(t.UserID),reserved=Number(w.ReservedBalance||0),amount=Number(t.Amount);
+  updateRow_(W.S.W,'UserID',t.UserID,{ReservedBalance:Math.max(0,reserved-amount),UpdatedAt:now_()});
+  updateRow_(W.S.T,'TransactionID',t.TransactionID,{Status:'WITHDRAWAL_REJECTED',UpdatedAt:now_(),CompletedAt:now_(),Notes:'Withdrawal rejected; amount released'});transactionSummaryEmail_(find_(W.S.T,'TransactionID',t.TransactionID));
+}
+
+/* HTML */
+function esc_(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function btn_(label,url,bg){return'<a href="'+esc_(url)+'" style="display:inline-block;margin:6px;padding:13px 20px;background:'+bg+';color:#fff;text-decoration:none;border-radius:9px;font-weight:bold">'+esc_(label)+'</a>';}
+function shell_(title,body){return'<div style="font-family:Arial;max-width:650px;margin:auto;padding:25px;background:#f4f7f5"><div style="background:#fff;padding:28px;border-radius:16px"><h2 style="color:#0f5132">'+esc_(title)+'</h2>'+body+'<p style="font-size:12px;color:#777">Trusted Circle Wallet Services · Admin links expire after 24 hours.</p></div></div>';}
+function html_(title,msg,success){return HtmlService.createHtmlOutput('<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#f4f7f5"><div style="max-width:520px;margin:15vh auto;padding:40px;background:#fff;border-radius:18px;text-align:center"><div style="font-size:50px;color:'+(success?'#0f5132':'#b42318')+'">'+(success?'✓':'!')+'</div><h2>'+esc_(title)+'</h2><p>'+esc_(msg)+'</p><a href="https://trustedcircle.shop/#/wallet-services" style="display:inline-block;padding:12px 20px;background:#0f5132;color:#fff;text-decoration:none;border-radius:9px">Open Wallet Services</a></div></body></html>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
