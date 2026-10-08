@@ -1,6 +1,6 @@
 const WALLET_API_URL =
   import.meta.env.VITE_WALLET_APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec'
+  'https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec'
 
 async function walletRequest(action,payload={}){
   const iframeId='wallet-api-frame-'+Date.now()+'-'+Math.random().toString(36).slice(2);
