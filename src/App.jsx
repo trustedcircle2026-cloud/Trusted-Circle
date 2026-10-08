@@ -39,8 +39,25 @@ export default function App() {
     const status=String(order.Status||'').toUpperCase()
     return ['PENDING','NOT_RECEIVED'].includes(payment) && !['PAID','DELIVERED','CANCELLED','REFUNDED'].includes(status)
   }).length,[orders])
-  useEffect(()=>{let active=true;(async()=>{try{await api.health();const [brandData,productData]=await Promise.all([api.brands(),api.products('','')]);if(!active)return;setBrands(brandData?.items||[]);setProducts(productData?.items||[]);setAllProducts(productData?.items||[]);if(token){const savedUser=(()=>{try{return JSON.parse(localStorage.getItem('tc_user')||'null')}catch{return null}})();if(savedUser){setUser(savedUser);setProfileName(savedUser.name||'');if(!savedUser.name)setProfileOpen(true);Promise.all([loadCart(token),loadOrders(token)]).catch(()=>{})}}}catch(error){console.warn('Trusted Circle startup:',error.message)}})();return()=>{active=false}},[])
-  useEffect(()=>{if(!['vouchers','home'].includes(route.path))return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},250);return()=>clearTimeout(timer)},[query,brandFilter,route.path])
+  useEffect(()=>{let active=true;(async()=>{try{
+    // Do not block first paint on a health check. Catalog requests already validate the API.
+    // Brands and products are fetched in parallel, while cached responses return immediately.
+    const [brandData,productData]=await Promise.all([api.brands(),api.products('','')]);
+    if(!active)return;
+    setBrands(brandData?.items||[]);
+    const items=productData?.items||[];
+    setProducts(items);setAllProducts(items);
+    if(token){
+      const savedUser=(()=>{try{return JSON.parse(localStorage.getItem('tc_user')||'null')}catch{return null}})();
+      if(savedUser){
+        setUser(savedUser);setProfileName(savedUser.name||'');if(!savedUser.name)setProfileOpen(true);
+        // Restore local UI immediately; refresh private data during browser idle time.
+        const refresh=()=>Promise.all([loadCart(token),loadOrders(token)]).catch(()=>{});
+        if('requestIdleCallback' in window) window.requestIdleCallback(refresh,{timeout:1200}); else setTimeout(refresh,80);
+      }
+    }
+  }catch(error){console.warn('Trusted Circle startup:',error.message)}})();return()=>{active=false}},[])
+  useEffect(()=>{if(!['vouchers','home'].includes(route.path))return;if(!query&&!brandFilter&&products.length)return;const timer=setTimeout(()=>{loadCatalog(query,brandFilter).catch(()=>{})},180);return()=>clearTimeout(timer)},[query,brandFilter,route.path,products.length])
   const getCashbackRate=product=>{
     if(!product)return 0
     const candidates=[product.CashbackPercent,product.CashbackRate,product.Cashback,product.DiscountPercent,product.Discount]
