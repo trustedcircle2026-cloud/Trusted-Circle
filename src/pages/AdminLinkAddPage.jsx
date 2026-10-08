@@ -121,12 +121,11 @@ export default function AdminLinkAddPage({logoUrl}){
             {stockRows.length===0?<tr><td colSpan="6" className="admin-link-add-empty">No stock records loaded. Click Refresh Stock.</td></tr>:
             stockRows.slice().reverse().map((x,i)=>{
               const status=String(x.Status??x.status??'').toUpperCase()
-              return <tr key={x.PaymentLinkStockID||x.paymentLinkStockId||i}><td>₹{Number(x.Denomination??x.denomination||0).toLocaleString('en-IN')}</td><td><span className={'admin-link-add-status '+status.toLowerCase()}>{status||'—'}</span></td><td>{x.OrderID||x.orderId||x.TransactionID||x.transactionId||'—'}</td><td>{x.ExpiresAt||x.expiresAt?' '+new Date(x.ExpiresAt||x.expiresAt).toLocaleString('en-IN'):'—'}</td><td className="admin-link-add-url">{x.PaymentLink||x.paymentLink||x.Link||x.link||'—'}</td><td>—</td></tr>
+              return <tr key={x.PaymentLinkStockID||x.paymentLinkStockId||i}><td>₹{Number((x.Denomination??x.denomination)||0).toLocaleString('en-IN')}</td><td><span className={'admin-link-add-status '+status.toLowerCase()}>{status||'—'}</span></td><td>{x.OrderID||x.orderId||x.TransactionID||x.transactionId||'—'}</td><td>{x.ExpiresAt||x.expiresAt?' '+new Date(x.ExpiresAt||x.expiresAt).toLocaleString('en-IN'):'—'}</td><td className="admin-link-add-url">{x.PaymentLink||x.paymentLink||x.Link||x.link||'—'}</td><td>—</td></tr>
             })}
           </tbody></table>
         </div>
       </section>
-      </form>
     </section>
   </main>
 }
