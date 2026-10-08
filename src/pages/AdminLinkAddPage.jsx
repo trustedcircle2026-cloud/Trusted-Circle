@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react'
+import {useMemo,useState} from 'react'
 import {AlertCircle,CheckCircle2,Link2,LogIn,PackagePlus,RefreshCw,ShieldCheck,Trash2,UploadCloud,X} from 'lucide-react'
 import {api} from '../api'
 import '../admin-link-add.css'
@@ -6,7 +6,6 @@ import '../admin-link-add.css'
 const DENOMS=[500,1000,1500,2000]
 
 export default function AdminLinkAddPage({logoUrl}){
-  const[sessionToken,setSessionToken]=useState('')
   const[adminKey,setAdminKey]=useState('')
   const[denomination,setDenomination]=useState(500)
   const[label,setLabel]=useState('Shopping Payment ₹500')
@@ -24,7 +23,6 @@ export default function AdminLinkAddPage({logoUrl}){
   const authenticate=async()=>{
     if(!adminKey.trim())throw new Error('Enter the Admin Key.')
     const r=await api.adminLogin('trustedcircle2026@gmail.com',adminKey.trim())
-    setSessionToken(r.session.token)
     return r.session.token
   }
 
