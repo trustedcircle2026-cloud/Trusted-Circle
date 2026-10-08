@@ -140,7 +140,8 @@ function WalletHome({user,onLogout,initialWallet=null}){
       ?{...prev,phase:'error',error:e.message,linkTimeout:false}
       :null);
   }
- } const startAdd=amount=>openPaymentFlow(amount);
+ };
+ const startAdd=amount=>openPaymentFlow(amount);
  const retry=tx=>openPaymentFlow(null,tx);
 
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(user,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
