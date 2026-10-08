@@ -182,14 +182,14 @@ function WalletHome({token,user,onLogout,initialWallet=null}){
  const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(token,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
  const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(token);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
- const balance=wallet?.balance||0,available=wallet?.availableBalance||0
+ const balance=wallet?.balance||0,available=wallet?.availableBalance||0,cashbackBalance=Number(wallet?.cashbackWallet?.balance||0)
  return <main className="wallet-services-page"><section className="wallet-services-shell">
   <aside className="wallet-left-panel">
    <div className="wallet-brand-row"><img src={LOGO_URL} alt="Trusted Circle"/><div><b>Trusted Circle</b><span>Wallet Services</span></div></div>
    <div className="wallet-profile-wrap"><button className="wallet-profile-btn" onClick={()=>setProfileOpen(v=>!v)} title="Profile"><UserRound size={19}/></button>{profileOpen&&<ProfileMenu user={user} onLogout={onLogout} onClose={()=>setProfileOpen(false)}/>}</div>
-   <div className="wallet-left-content"><span className="wallet-services-eyebrow">AVAILABLE BALANCE</span><strong className="wallet-main-balance">₹{money(available)}</strong><div className="wallet-balance-meta">Total balance ₹{money(balance)}{wallet?.reservedBalance?' · Reserved ₹'+money(wallet.reservedBalance):''}</div>
+   <div className="wallet-left-content"><span className="wallet-services-eyebrow">AVAILABLE BALANCE</span><strong className="wallet-main-balance">₹{money(available)}</strong><div className="wallet-balance-meta">Money Wallet · Total ₹{money(balance)}{wallet?.reservedBalance?' · Reserved ₹'+money(wallet.reservedBalance):''} · Cashback ₹{money(cashbackBalance)}</div>
     <div className="wallet-primary-actions"><button onClick={()=>setModal({type:'add'})}><span>+</span><div><b>Add Money</b><small>₹500 · ₹1,000 · ₹1,500 · ₹2,000</small></div><ArrowRight size={17}/></button><button onClick={()=>setModal({type:'withdraw'})}><span>↓</span><div><b>Withdraw</b><small>Transfer available balance to UPI</small></div><ArrowRight size={17}/></button></div>
-    <div className="wallet-left-note"><CheckCircle2 size={16}/> Wallet activity is tracked securely.</div>
+    <div className="wallet-left-note"><CheckCircle2 size={16}/> Money Wallet + Cashback Wallet are linked to your Trusted Circle account.</div>
    </div>
    <div className="wallet-left-footer"><span>© Trusted Circle</span><span>{user.email}</span></div>
   </aside>
