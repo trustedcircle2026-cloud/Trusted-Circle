@@ -152,7 +152,8 @@ function moneyWalletAdminActions_(t){
     btn_('✓ Received',moneyWalletActionUrl_(received,'RECEIVED'),'#0f5132')+
     btn_('! Not Received',moneyWalletActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
     btn_('✕ Rejected',moneyWalletActionUrl_(rejected,'REJECTED'),'#b42318');
-  MailApp.sendEmail({to:getAdminEmail_(),subject:'Trusted Circle — Money Wallet Add Money ₹'+t.Amount,body:'Money Wallet Add Money request '+t.TransactionID,htmlBody:shell_('Money Wallet Add Money',body)});
+  var sent=sendTransactionalEmail_(getAdminEmail_(),'Trusted Circle — Money Wallet Add Money ₹'+t.Amount,shell_('Money Wallet Add Money',body),'Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+userEmail_(t.UserID)+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID);
+  if(!sent)throw new Error('Admin email could not be sent. Please check Apps Script email authorization/quota.');
   return true;
 }
 function moneyWalletWithdrawalActions_(t){
