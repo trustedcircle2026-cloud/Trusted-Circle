@@ -180,7 +180,7 @@ function moneyWalletAdminActions_(t){
   var subject='Trusted Circle — Money Wallet Add Money ₹'+t.Amount;
   var html=walletAdminEmailShell_('Money Wallet Add Money',body);
   var text='Money Wallet Add Money request '+t.TransactionID+'\nCustomer: '+customer+'\nAmount: ₹'+t.Amount+'\nTransaction: '+t.TransactionID+'\n\nAdmin action links:\nReceived: '+moneyWalletActionUrl_(received,'RECEIVED')+'\nNot Received: '+moneyWalletActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+moneyWalletActionUrl_(rejected,'REJECTED');
-  var sent=sendTransactionalEmail_(getAdminEmail_(),subject,html,text);
+  var adminEmail=String(TC_CONFIG.ADMIN_EMAIL||'trustedcircle2026@gmail.com').trim().toLowerCase();var sent=sendTransactionalEmail_(adminEmail,subject,html,text);
   if(!sent)throw new Error('Admin email could not be sent. Please check Apps Script email authorization/quota.');
   return true;
 }
