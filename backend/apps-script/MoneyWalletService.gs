@@ -16,9 +16,17 @@ function notifyWalletTransaction_(userId,ledger,type,amount,status,description,t
   }catch(e){console.error('Wallet transaction notification failed: '+String(e&&e.message||e));return false;}
 }
 function walletUserFromIdentity_(data){
-  var token=cleanText_(data&&data.token,500);
-  require_(token,'Trusted Circle account authentication is required.');
-  return authenticate_(token);
+  // Wallet Services intentionally does NOT use Shopping session tokens.
+  // Identity is resolved only from the Shopping account Email + UserID pair.
+  var email=normalizeEmail_(data&&data.email);
+  var userId=cleanText_(data&&(data.userId||data.UserID),100);
+  require_(isValidEmail_(email),'A valid Trusted Circle account email is required.');
+  require_(userId,'Trusted Circle UserID is required.');
+  var user=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',userId);
+  require_(user,'Trusted Circle account was not found.');
+  require_(normalizeEmail_(user.Email)===email,'Email and UserID do not match.');
+  require_(String(user.Status||'ACTIVE').toUpperCase()==='ACTIVE','User account is inactive.');
+  return user;
 }
 /** Integrated money wallet for the main Trusted Circle account.
  * Uses the SAME Shopping GSheet, Shopping session, and PaymentLinkStock.
