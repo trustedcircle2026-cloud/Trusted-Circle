@@ -49,7 +49,7 @@ export const walletApi={
       cashbackTransactions
     }
   },
-  orders:async token=>api.moneyWalletOrders(token),
+  orders:async token=>{const d=await walletApi.wallet(token);return{transactions:d.transactions||[]}},
   transactionStatus:async(token,transactionId)=>api.moneyWalletTransactionStatus(token,transactionId),
   walletGateway:async(token,amount)=>api.moneyAdd(token,amount),
   addMoney:async(token,amount)=>api.moneyAdd(token,amount),
