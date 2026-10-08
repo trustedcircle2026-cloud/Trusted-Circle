@@ -2,7 +2,7 @@ import {api} from './api'
 
 /**
  * Integrated Wallet Services API.
- * Uses the SAME Shopping Apps Script and Shopping GSheet. Wallet lookup uses the existing account email + User ID.
+ * Uses the SAME Shopping Apps Script and Shopping GSheet. Wallet lookup uses the existing Shopping authentication token.
  * Cashback Wallet and Money Wallet are separate ledgers for the same user.
  */
 export const walletApi={
