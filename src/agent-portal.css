@@ -921,3 +921,6 @@
 .ap-premium-status.paid{background:#e1f8e9;color:#157044}
 .ap-premium-status.partially_paid{background:#fff0cf;color:#98640b}
 .ap-premium-status.payable{background:#edf2f0;color:#68776e}
+
+.ap-paid-date-filter select{border:0;outline:0;background:transparent;color:#25372e;font:inherit;font-size:10px;min-width:0;max-width:140px;cursor:pointer}
+.ap-paid-date-filter select option{color:#25372e;background:#fff}
