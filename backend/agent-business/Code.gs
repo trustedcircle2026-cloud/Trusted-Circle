@@ -219,6 +219,7 @@ function agentBusinessRoute_(p){
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
   if(action==='createInvoice') return createInvoice_(p);
   if(action==='resendAgentInvoice') return resendAgentInvoice_(p);
+  if(action==='regenerateAgentInvoice') return regenerateAgentInvoice_(p);
   if(action==='receivables') return listReceivables_(ss,p);
   if(action==='markReceivableReceived') return markReceivableReceived_(ss,p);
   if(action==='assignInvoicePaymentLink') return assignInvoicePaymentLink_(p);
@@ -1172,6 +1173,29 @@ function sendInvoicePdfToAgent_(agent,invoice,pdf){
   MailApp.sendEmail({to:email,subject:'Trusted Circle Invoice '+String(invoice.InvoiceNumber||''),body:'Dear '+String(agent.AgentName||'Agent')+',\n\nPlease find attached the Trusted Circle premium payment receivable invoice '+String(invoice.InvoiceNumber||'')+'.\n\nTotal payable: '+formatMoney_(invoice.NetPayable)+'\n\nRegards,\nTrusted Circle',htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the Trusted Circle premium payment receivable invoice <b>'+escapeHtml_(invoice.InvoiceNumber||'')+'</b>.</p><p><b>Total payable: '+formatMoney_(invoice.NetPayable)+'</b></p><p>Regards,<br>Trusted Circle</p>',attachments:[pdf],name:'Trusted Circle'});
   return true;
 }
+
+function regenerateAgentInvoice_(p){
+  var ss=agentBusinessSpreadsheet_();requireAdmin_(p);
+  var invoiceId=String(p.invoiceId||'').trim();if(!invoiceId)throw new Error('Invoice ID is required.');
+  var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices'));
+  var invoice=invoices.find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  var agent=sheetRows_(ensureBusinessSheet_(ss,'Agents')).find(function(x){return String(x.AgentID)===String(invoice.AgentID);});
+  if(!agent)throw new Error('Agent record not found.');
+  var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')).filter(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!items.length)throw new Error('No saved premium line items exist for this invoice.');
+  // Refresh invoice contact details from the current agent record while preserving the historical invoice totals and line-item amounts.
+  invoice.AgentEmail=String(agent.Email||'').trim();
+  var pdfResult=buildInvoicePdfAndSend_(agent,invoice,items);
+  invoice.PdfUrl=pdfResult.pdfUrl||'';
+  invoice.PdfFileId=pdfResult.pdfFileId||'';
+  invoice.Status=pdfResult.sent?'SENT':'GENERATED';
+  invoice.UpdatedAt=new Date().toISOString();
+  saveRow_(ss,'Invoices',invoice);
+  invalidateSheetCache_('Invoices');
+  return {success:true,invoiceNumber:invoice.InvoiceNumber,pdfUrl:invoice.PdfUrl,sent:pdfResult.sent,email:invoice.AgentEmail,fileName:pdfResult.fileName};
+}
+
 function resendAgentInvoice_(p){
   var ss=agentBusinessSpreadsheet_();requireAdmin_(p);
   var invoiceId=String(p.invoiceId||'').trim();if(!invoiceId)throw new Error('Invoice ID is required.');
