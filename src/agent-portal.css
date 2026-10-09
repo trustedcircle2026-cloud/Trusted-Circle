@@ -909,3 +909,15 @@
 .ap-payment-receipt-upload small{font-size:10px;color:#748179;font-weight:600}
 .ap-payment-report-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:9px;margin-top:18px}
 @media(max-width:420px){.ap-receipt-filters{grid-template-columns:1fr}.ap-paid-date-filter{justify-content:flex-start}.ap-paid-date-filter input{flex:1;width:auto}.ap-home-payment-actions{grid-template-columns:1fr}.ap-payment-report-balance strong{font-size:17px}}
+
+.ap-premium-allocation-list{display:grid;gap:6px;margin:8px 0 10px}
+.ap-premium-allocation-row{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:9px 10px;border:1px solid #e4ece7;border-radius:10px;background:#fbfdfc}
+.ap-premium-allocation-row>div:first-child{display:grid;gap:3px;min-width:0}
+.ap-premium-allocation-row>div:first-child strong{font-size:10px;color:#263a30;overflow-wrap:anywhere}
+.ap-premium-allocation-row small{font-size:8px;color:#7a8780}
+.ap-premium-allocation-row>div:last-child{display:grid;justify-items:end;gap:4px;flex:0 0 auto}
+.ap-premium-allocation-row>div:last-child strong{font-size:10px;color:#064f3b}
+.ap-premium-status{font-size:7px;font-weight:900;letter-spacing:.02em;padding:4px 6px;border-radius:99px;background:#edf4ef;color:#53665b}
+.ap-premium-status.paid{background:#e1f8e9;color:#157044}
+.ap-premium-status.partially_paid{background:#fff0cf;color:#98640b}
+.ap-premium-status.payable{background:#edf2f0;color:#68776e}
