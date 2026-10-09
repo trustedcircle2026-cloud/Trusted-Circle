@@ -82,7 +82,9 @@ export default function AgentPortalPage(){
     setError('Some finance or receipt information could not be refreshed. Showing the latest available data.')
    }
   }catch(e){
-   if(!hadCache){
+   const authFailure=/session expired|invalid agent session|invalid mobile number or password|unauthorized/i.test(String(e?.message||''))
+   if(!hadCache||authFailure){
+    portalCache.clearScope(scope).catch(()=>{})
     localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
    }else setError('Live sync failed. Showing saved workspace data; verify payment status before acting.')
   }finally{clearInterval(timer);if(!hadCache)setLoading(false)}
@@ -139,6 +141,7 @@ export default function AgentPortalPage(){
   try{
    const data=await agentBusinessApi.agentAddPolicy(session,{...policyForm,DateOfBirth:savedDob(policyForm.DateOfBirth)})
    setClients(current=>[data.policy,...current]);setPolicyForm(emptyPolicy);setShowForm(false)
+   await load(session)
    setNotice('Client added successfully.')
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
@@ -248,7 +251,7 @@ export default function AgentPortalPage(){
       <div className="ap-card-actions ap-client-actions">
        <button className="ap-secondary" onClick={()=>openHistory(r)}><Clock3 size={14}/>History</button>
        <button className="ap-secondary" onClick={()=>openEditPolicy(r)}><Edit3 size={14}/>Edit</button>
-       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{String(r.RequestStatus||'').toUpperCase()==='PENDING'?'Requested':String(r.RequestStatus||'').toUpperCase()==='SUBMITTED'?'In Process':String(r.RequestStatus||'').toUpperCase()==='PAID'||String(r.RequestStatus||'').toUpperCase()==='COMPLETED'?'New Premium Request':'Raise Request'}</button>
+       <button className="ap-primary ap-request-action" disabled={loading||['PENDING','SUBMITTED','IN PROCESS','PROCESSING'].includes(String(r.RequestStatus||'').toUpperCase())} onClick={()=>requestPayment(r)}><Send size={14}/>{String(r.RequestStatus||'').toUpperCase()==='PENDING'?'Requested':['SUBMITTED','IN PROCESS','PROCESSING'].includes(String(r.RequestStatus||'').toUpperCase())?'In Process':['PAID','COMPLETED'].includes(String(r.RequestStatus||'').toUpperCase())?'New Premium Request':'Raise Request'}</button>
       </div>
     </div>)}</div>:<div className="ap-empty ap-empty-color"><div className="ap-empty-icon"><Users size={23}/></div><b>{clientSearch?'No matching client':'No clients added yet'}</b><span>{clientSearch?'Try the client name or policy number.':'Add the client and policy details first. You can raise premium payment requests whenever required.'}</span>{!clientSearch&&<button className="ap-primary" onClick={openAddPolicy}><Plus size={15}/>Add First Client</button>}</div>}
    </section>:activeTab==='requests'?<section className="ap-panel ap-data">
