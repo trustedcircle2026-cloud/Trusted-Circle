@@ -1123,7 +1123,8 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   var payTitle=body.appendParagraph('PAYMENT DETAILS & AUTHORISATION');payTitle.setBold(true).setFontSize(8).setForegroundColor(green).setSpacingBefore(4).setSpacingAfter(2);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   // Two-cell table: payment instructions (bank + QR) on the left, signature + official stamp on the right.
-  var paymentTable=body.appendTable([['BANK DETAILS & QR','SIGNATURE & SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);\n  try{paymentTable.setColumnWidth(0,245);paymentTable.setColumnWidth(1,245);}catch(widthError){}
+  var paymentTable=body.appendTable([['BANK DETAILS & QR','SIGNATURE & SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);
+  try{paymentTable.setColumnWidth(0,245);paymentTable.setColumnWidth(1,245);}catch(widthError){}
   for(var pc=0;pc<2;pc++){paymentTable.getCell(0,pc).setBackgroundColor(pale);paymentTable.getCell(0,pc).setPaddingTop(3);paymentTable.getCell(0,pc).setPaddingBottom(3);paymentTable.getCell(0,pc).editAsText().setBold(true).setFontSize(8).setForegroundColor(green);}
   var payRow=paymentTable.appendTableRow();var bankQrCell=payRow.appendTableCell('');bankQrCell.setPaddingTop(4);bankQrCell.setPaddingBottom(4);
   var bankText=bankQrCell.appendParagraph('Bank: '+bankName+'  |  A/c: '+accountNumber+'  |  IFSC: '+ifsc);bankText.setFontSize(7).setSpacingAfter(1);
