@@ -460,13 +460,16 @@ function agentOutstandingSummary_(p){
   if(!invoices.length)throw new Error('There is no outstanding payable balance.');
   var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems'));
   var payments=sheetRows_(ss.getSheetByName('Payments'));
+  var allocationSummary=invoicePaymentSummary_(ss,s.AgentID),allocations=allocationSummary.paidByItem;
   var rows=[],gross=0,discount=0,net=0;
   invoices.forEach(function(inv){
     items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);}).forEach(function(it){
       var pay=payments.find(function(x){return String(x.PaymentID)===String(it.PaymentID);})||{};
-      var amt=Number(it.Amount||0),disc=Number(it.DiscountAmount||0),n=Number(it.NetAmount||amt-disc);
-      gross+=amt;discount+=disc;net+=n;
-      rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(pay.PaymentDate||inv.InvoiceDate),String(it.ClientName||''),String(it.PolicyNumber||''),formatInvoiceDate_(it.DateOfBirth||''),formatMoney_(amt)]);
+      var amt=Number(it.Amount||0),disc=Number(it.DiscountAmount||0),n=Number(it.NetAmount||amt-disc),applied=Math.min(n,Number(allocations[String(it.InvoiceItemID)]||0)),due=Math.max(0,Math.round((n-applied)*100)/100);
+      if(due<=0.009)return;
+      var ratio=n>0?due/n:0,remainingGross=Math.round(amt*ratio*100)/100,remainingDiscount=Math.round(disc*ratio*100)/100;
+      gross+=remainingGross;discount+=remainingDiscount;net+=due;
+      rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(pay.PaymentDate||inv.InvoiceDate),String(it.ClientName||''),String(it.PolicyNumber||''),formatInvoiceDate_(it.DateOfBirth||''),formatMoney_(remainingGross),applied>0?'PARTIALLY PAID':'PAYABLE',formatMoney_(due)]);
     });
   });
   var reportDate=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'dd-MMM-yyyy');
@@ -478,7 +481,7 @@ function agentOutstandingSummary_(p){
   var agentName=String((sheetRows_(ss.getSheetByName('Agents')).find(function(a){return String(a.AgentID)===String(s.AgentID);})||{}).AgentName||'Agent');
   body.appendParagraph('Agent: '+agentName).setFontSize(9);
   body.appendParagraph('Outstanding Payable as on '+reportDate).setBold(true).setFontSize(10).setSpacingAfter(8);
-  var table=body.appendTable([['Invoice No.','Premium Paid Date','Name','Policy','DOB','Amt']].concat(rows));
+  var table=body.appendTable([['Invoice No.','Premium Paid Date','Name','Policy','DOB','Amt','Status','Remaining Payable']].concat(rows));
   table.setBorderWidth(1);
   for(var r=0;r<table.getNumRows();r++){for(var col=0;col<table.getRow(r).getNumCells();col++){var cell=table.getCell(r,col);cell.editAsText().setFontSize(7);if(r===0){cell.setBackgroundColor('#eef5f1');cell.editAsText().setBold(true);}}}
   body.appendParagraph('');
