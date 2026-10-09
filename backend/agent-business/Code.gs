@@ -1089,6 +1089,10 @@ function createInvoice_(p){
   return {invoice:invoice.item,items:items,agent:{AgentName:agent.AgentName||'',Email:agent.Email||''},pdfBase64:pdfResult.pdfBase64,fileName:pdfResult.fileName,sent:pdfResult.sent,pdfUrl:pdfResult.pdfUrl||''};
 }
 function buildInvoicePdfAndSend_(agent,invoice,items){
+  // Never create or email a PDF whose premium detail table would be blank/incomplete.
+  if(!Array.isArray(items)||!items.length)throw new Error('Invoice PDF blocked: no premium client rows were resolved. Regenerate after restoring the invoice items and linked payment/bill records.');
+  var incompleteItems=items.filter(function(x){return !String(x.ClientName||x.Name||x.InsuredPerson||'').trim()||!String(x.PolicyNumber||x.PolicyNo||'').trim();});
+  if(incompleteItems.length)throw new Error('Invoice PDF blocked: '+incompleteItems.length+' premium row(s) are missing client name or policy number. The PDF was not created or emailed. Repair the linked Clients, Policies, PremiumBills, Payments, or InvoiceItems records and retry.');
   var doc=DocumentApp.create(invoice.InvoiceNumber+' · Trusted Circle');
   var body=doc.getBody();
   // Compact one-page invoice layout.
