@@ -247,7 +247,7 @@ export default function AgentPortalPage(){
     {filteredClients.length?<div className="ap-client-grid">{filteredClients.map(r=><div className="ap-client-card ap-policy-card" key={r.PolicyID||r.ClientID}>
       <div className="ap-client-top"><span className="ap-avatar">{String(r.ClientName||'?').trim().charAt(0).toUpperCase()}</span><div><strong>{r.ClientName}</strong><small>Policy {r.PolicyNumber}</small></div><ChevronRight className="ap-client-chevron" size={20}/></div>
       <div className="ap-client-meta"><span><CalendarDays size={13}/>{r.DateOfBirth}</span><span><FileText size={13}/>Policy</span></div>
-      <div className="ap-client-bottom"><span>Latest request <b>{r.RequestStatus&&r.RequestStatus!=='PENDING'?r.RequestStatus:'Ready'}</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'READY').toLowerCase()}>{r.RequestStatus&&r.RequestStatus!=='PENDING'?r.RequestStatus:'READY'}</span></div>
+      <div className="ap-client-bottom"><span>Latest request <b>{r.RequestStatus||'Ready'}</b></span><span className={'ap-request-pill '+String(r.RequestStatus||'READY').toLowerCase()}>{r.RequestStatus||'READY'}</span></div>
       <div className="ap-card-actions ap-client-actions">
        <button className="ap-secondary" onClick={()=>openHistory(r)}><Clock3 size={14}/>History</button>
        <button className="ap-secondary" onClick={()=>openEditPolicy(r)}><Edit3 size={14}/>Edit</button>
