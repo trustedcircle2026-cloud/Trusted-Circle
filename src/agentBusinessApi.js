@@ -52,6 +52,7 @@ export const agentBusinessApi={
   markPaymentPaid:(data,adminToken)=>request('markPaymentPaid',{...data,adminToken}),
   createInvoice:(data,adminToken)=>request('createInvoice',{...data,adminToken}),
   resendAgentInvoice:(invoiceId,adminToken)=>request('resendAgentInvoice',{invoiceId,adminToken}),
+  regenerateAgentInvoice:(invoiceId,adminToken)=>request('regenerateAgentInvoice',{invoiceId,adminToken}),
   listReceivables:(agentId,adminToken)=>request('receivables',{agentId,adminToken}),
   markReceivableReceived:(receivableId,adminToken)=>request('markReceivableReceived',{receivableId,adminToken}),
   assignInvoicePaymentLink:(invoiceId,paymentLink,adminToken)=>request('assignInvoicePaymentLink',{invoiceId,paymentLink,adminToken}),
