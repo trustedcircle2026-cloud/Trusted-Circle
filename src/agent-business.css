@@ -573,3 +573,18 @@ body{background:#fff}
 .tc-qr-upload-box span,.tc-qr-upload-box small{font-size:12px;color:#6d7b73}
 .tc-qr-upload-box input[type=file]{width:100%;max-width:320px}
 .tc-invoice-payment-pending{display:inline-flex;align-items:center;padding:9px 11px;border-radius:10px;background:#f3f6f4;color:#65736b;font-size:12px;font-weight:700}
+
+/* Phase 2: Agent partial-payment receipt review */
+.tc-agent-payment-reports{max-height:88vh;overflow:auto}
+.tc-agent-payment-report-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:14px;border:1px solid #e1e9e4;border-radius:14px;background:#fff;margin:8px 0}
+.tc-agent-payment-report-main{display:grid;gap:5px;min-width:0}
+.tc-agent-payment-report-main strong{font-size:12px;color:#15271e}
+.tc-agent-payment-report-main small{font-size:9px;color:#77847d;overflow-wrap:anywhere}
+.tc-agent-payment-report-amount{display:grid;justify-items:end;align-content:start;gap:7px}
+.tc-agent-payment-report-amount>strong{font-size:15px;color:#064f3b}
+.tc-agent-payment-report-amount a{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#126844;text-decoration:none;font-weight:800}
+.tc-agent-payment-report-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:4px}
+.tc-agent-payment-report-actions button{min-height:38px;border:1px solid #d6e6dc;border-radius:10px;background:#effaf3;color:#126844;font-size:10px;font-weight:850;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer}
+.tc-agent-payment-report-actions button:last-child{background:#fff4f2;color:#a63f35;border-color:#f0d7d2}
+.tc-agent-payment-report-actions button:disabled{opacity:.55;cursor:wait}
+@media(max-width:430px){.tc-agent-payment-report-row{grid-template-columns:minmax(0,1fr)}.tc-agent-payment-report-amount{display:flex;align-items:center;justify-content:space-between}.tc-agent-payment-report-actions{grid-template-columns:1fr 1fr}}
