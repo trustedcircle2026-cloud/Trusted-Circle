@@ -1101,40 +1101,40 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   var brand=brandCell.appendParagraph('TRUSTED CIRCLE');brand.setBold(true).setFontSize(21).setForegroundColor(green).setSpacingAfter(1);
   var subtitle=brandCell.appendParagraph('INSURANCE PAYMENT & AGENT RECEIVABLE INVOICE');subtitle.setBold(true).setFontSize(9).setForegroundColor('#26372e').setSpacingAfter(0);
   body.appendParagraph('').setSpacingAfter(1);
-  var headerTable=body.appendTable([['INVOICE NO.',String(invoice.InvoiceNumber||''),'INVOICE DATE',formatInvoiceDate_(invoice.InvoiceDate)]]);headerTable.setBorderWidth(1).setBorderColor(line);try{headerTable.setColumnWidth(0,76);headerTable.setColumnWidth(1,155);headerTable.setColumnWidth(2,76);headerTable.setColumnWidth(3,150);}catch(headerWidthError){}
+  var headerTable=body.appendTable([['INVOICE NO.',String(invoice.InvoiceNumber||''),'INVOICE DATE',formatInvoiceDate_(invoice.InvoiceDate)]]);headerTable.setBorderWidth(1).setBorderColor(line);try{headerTable.setColumnWidth(0,82);headerTable.setColumnWidth(1,165);headerTable.setColumnWidth(2,86);headerTable.setColumnWidth(3,220);}catch(headerWidthError){}
   for(var hc=0;hc<4;hc++){headerTable.getCell(0,hc).setBackgroundColor(hc%2===0?pale:'#ffffff');headerTable.getCell(0,hc).editAsText().setFontSize(9);if(hc%2===0)headerTable.getCell(0,hc).editAsText().setBold(true);}
   var billTitle=body.appendParagraph('BILL TO');billTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
   var billTable=body.appendTable([
     ['Agent Name',String(agent.AgentName||'Agent'),'Agency Name',String(agent.AgencyName||'')],
     ['Address',String(agent.Address||''),'Mobile',String(agent.Mobile||'')],
     ['Email',String(agent.Email||''),'Insurance Company',String(agent.InsuranceCompany||'')]
-  ]);billTable.setBorderWidth(1).setBorderColor(line);
+   ]);billTable.setBorderWidth(1).setBorderColor(line);try{billTable.setColumnWidth(0,95);billTable.setColumnWidth(1,170);billTable.setColumnWidth(2,115);billTable.setColumnWidth(3,173);}catch(billWidthError){}
   for(var br=0;br<billTable.getNumRows();br++)for(var bc=0;bc<4;bc++){var cell=billTable.getCell(br,bc);cell.setPaddingTop(4);cell.setPaddingBottom(4);cell.editAsText().setFontSize(9);if(bc===0||bc===2){cell.setBackgroundColor(pale);cell.editAsText().setBold(true).setForegroundColor(green);}}
   var itemTitle=body.appendParagraph('PREMIUM PAYMENT DETAILS');itemTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
-  var table=body.appendTable([['S.NO.','CLIENT NAME','POLICY NO.','DATE OF BIRTH','PREMIUM AMOUNT']]);table.setBorderWidth(1).setBorderColor(line);
+  var table=body.appendTable([['S.NO.','CLIENT NAME','POLICY NO.','DATE OF BIRTH','PREMIUM AMOUNT']]);table.setBorderWidth(1).setBorderColor(line);try{table.setColumnWidth(0,42);table.setColumnWidth(1,126);table.setColumnWidth(2,108);table.setColumnWidth(3,104);table.setColumnWidth(4,145);}catch(itemWidthError){}
   for(var hc2=0;hc2<5;hc2++){table.getCell(0,hc2).setBackgroundColor(green);table.getCell(0,hc2).setPaddingTop(4);table.getCell(0,hc2).setPaddingBottom(4);table.getCell(0,hc2).editAsText().setBold(true).setFontSize(8).setForegroundColor('#ffffff');}
   items.forEach(function(x,i){var row=table.appendTableRow();var cells=[String(i+1),String(x.ClientName||''),String(x.PolicyNumber||''),formatInvoiceDate_(x.DateOfBirth||''),formatMoney_(x.Amount||0)];cells.forEach(function(value,col){var cell=row.appendTableCell(value);cell.setPaddingTop(3);cell.setPaddingBottom(3);cell.editAsText().setFontSize(9);if(i%2===1)cell.setBackgroundColor('#f7faf8');if(col===4)cell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);});});
   var totals=body.appendTable([
     ['GROSS PREMIUM PAID',formatMoney_(invoice.TotalAmount)],
     ['TRUSTED CIRCLE DISCOUNT ('+(Number(invoice.DiscountRate||0)*100).toFixed(0)+'%)','- '+formatMoney_(invoice.DiscountAmount)],
     ['BALANCE PAYABLE',formatMoney_(invoice.NetPayable)]
-  ]);totals.setBorderWidth(1).setBorderColor(line);
+   ]);totals.setBorderWidth(1).setBorderColor(line);try{totals.setColumnWidth(0,380);totals.setColumnWidth(1,145);}catch(totalsWidthError){}
   for(var tr=0;tr<3;tr++){totals.getCell(tr,0).setPaddingTop(4);totals.getCell(tr,0).setPaddingBottom(4);totals.getCell(tr,1).setPaddingTop(4);totals.getCell(tr,1).setPaddingBottom(4);totals.getCell(tr,0).editAsText().setBold(true).setFontSize(tr===2?10:9);totals.getCell(tr,1).editAsText().setFontSize(tr===2?10:9);totals.getCell(tr,1).getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);if(tr===2){totals.getCell(tr,0).setBackgroundColor('#e4f3ea');totals.getCell(tr,1).setBackgroundColor('#e4f3ea');totals.getCell(tr,0).editAsText().setForegroundColor(green);totals.getCell(tr,1).editAsText().setBold(true).setForegroundColor(green);}}
   var payTitle=body.appendParagraph('PAYMENT DETAILS & AUTHORISATION');payTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(4).setSpacingAfter(2);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   // Three-column payment section: bank details, QR only, and signature stamp.
   var paymentTable=body.appendTable([['BANK ACCOUNT DETAILS','PAYMENT QR','SIGNATURE & SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);
-  try{paymentTable.setColumnWidth(0,190);paymentTable.setColumnWidth(1,145);paymentTable.setColumnWidth(2,145);}catch(widthError){}
+  try{paymentTable.setColumnWidth(0,205);paymentTable.setColumnWidth(1,160);paymentTable.setColumnWidth(2,160);}catch(widthError){}
   for(var pc=0;pc<3;pc++){paymentTable.getCell(0,pc).setBackgroundColor(pale);paymentTable.getCell(0,pc).setPaddingTop(4);paymentTable.getCell(0,pc).setPaddingBottom(4);paymentTable.getCell(0,pc).editAsText().setBold(true).setFontSize(8).setForegroundColor(green);}
   var payRow=paymentTable.appendTableRow();
   var bankCell=payRow.appendTableCell('');bankCell.setPaddingTop(5);bankCell.setPaddingBottom(5);bankCell.setPaddingLeft(5);bankCell.setPaddingRight(5);
-  bankCell.appendParagraph('Bank: '+bankName).setFontSize(8).setSpacingAfter(2);
-  bankCell.appendParagraph('A/c No.: '+accountNumber).setFontSize(8).setSpacingAfter(2);
-  bankCell.appendParagraph('IFSC: '+ifsc).setFontSize(8).setSpacingAfter(2);
-  bankCell.appendParagraph('Branch: '+branch).setFontSize(8).setSpacingAfter(2);
-  bankCell.appendParagraph('UPI: '+upi).setFontSize(8).setSpacingAfter(0);
+  bankCell.appendParagraph('Bank: '+bankName).setFontSize(9).setSpacingAfter(3);
+  bankCell.appendParagraph('A/c No.: '+accountNumber).setFontSize(9).setSpacingAfter(3);
+  bankCell.appendParagraph('IFSC: '+ifsc).setFontSize(9).setSpacingAfter(3);
+  bankCell.appendParagraph('Branch: '+branch).setFontSize(9).setSpacingAfter(3);
+  bankCell.appendParagraph('UPI: '+upi).setFontSize(9).setSpacingAfter(0);
   var qrCell=payRow.appendTableCell('');qrCell.setPaddingTop(3);qrCell.setPaddingBottom(3);qrCell.setPaddingLeft(2);qrCell.setPaddingRight(2);
-  try{var qr=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/TC%20Payment%20QR.png').getBlob();var qrImage=qrCell.appendImage(qr);qrImage.setWidth(118);qrImage.setHeight(118);qrImage.getParent().asParagraph().setAlignment(DocumentApp.HorizontalAlignment.CENTER);}catch(qrError){}
+  try{var qr=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/TC%20Payment%20QR.png').getBlob();var qrImage=qrCell.appendImage(qr);qrImage.setWidth(132);qrImage.setHeight(132);qrImage.getParent().asParagraph().setAlignment(DocumentApp.HorizontalAlignment.CENTER);}catch(qrError){}
   var signCell=payRow.appendTableCell('');signCell.setPaddingTop(0);signCell.setPaddingBottom(0);signCell.setPaddingLeft(0);signCell.setPaddingRight(0);
   try{var stampBlob=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/Trusted%20Circle%20Stamp.png').getBlob();var stampImage=signCell.appendImage(stampBlob);stampImage.setWidth(132);stampImage.setHeight(132);stampImage.getParent().asParagraph().setAlignment(DocumentApp.HorizontalAlignment.CENTER);}catch(stampError){var stamp=signCell.appendParagraph('◯');stamp.setFontSize(72).setForegroundColor('#9bbbe8').setAlignment(DocumentApp.HorizontalAlignment.CENTER);}
   var footer=body.appendTable([['✉  info@trustedcircle.in','◎  www.trustedcircle.shop']]);footer.setBorderWidth(0);
@@ -1170,6 +1170,7 @@ function regenerateAgentInvoice_(p){
   var requests=sheetRows_(ensureBusinessSheet_(ss,'PaymentRequests'));
   var clients=sheetRows_(ensureBusinessSheet_(ss,'Clients'));
   var policies=sheetRows_(ensureBusinessSheet_(ss,'Policies'));
+  var premiumBills=sheetRows_(ensureBusinessSheet_(ss,'PremiumBills'));
   var paymentById={},requestById={},clientById={},policyById={};
   payments.forEach(function(x){paymentById[String(x.PaymentID||'')]=x;});
   requests.forEach(function(x){requestById[String(x.RequestID||'')]=x;});
@@ -1218,19 +1219,23 @@ function regenerateAgentInvoice_(p){
   items=items.map(function(item,index){
     var rec=linkedReceivables.find(function(r){return item.PaymentID&&String(r.PaymentID||'')===String(item.PaymentID);})||
       linkedReceivables.find(function(r){return item.ClientID&&String(r.ClientID||'')===String(item.ClientID);})||
+      linkedReceivables.find(function(r){return (item.PolicyNumber||item.PolicyNo)&&String(r.PolicyNumber||r.PolicyNo||'')===String(item.PolicyNumber||item.PolicyNo);})||
+      linkedReceivables.find(function(r){return (item.ClientName||item.Name)&&String(r.ClientName||r.Name||'').trim().toLowerCase()===String(item.ClientName||item.Name||'').trim().toLowerCase();})||
       linkedReceivables[index]||{};
     var payment=paymentById[String(item.PaymentID||rec.PaymentID||'')]||{};
     var request=requestById[String(payment.RequestID||'')]||{};
     var clientId=String(item.ClientID||rec.ClientID||payment.ClientID||request.ClientID||'');
+    var bill=premiumBills.find(function(x){return (clientId&&String(x.ClientID||'')===clientId)||((item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo)&&String(x.PolicyNumber||'')===String(item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo));})||{};
+    if(!clientId)clientId=String(bill.ClientID||'');
     var client=clientById[clientId]||{};
     var policy=policies.find(function(x){return String(x.PolicyID||'')===String(item.PolicyID||rec.PolicyID||payment.PolicyID||request.PolicyID||'' )&&String(x.PolicyID||'')!==' ';})||
       policies.find(function(x){return String(x.ClientID||'')===clientId&&(!item.PolicyNumber||String(x.PolicyNumber||'')===String(item.PolicyNumber));})||
       policies.find(function(x){return String(x.ClientID||'')===clientId;})||{};
     function firstNonBlank(values){for(var z=0;z<values.length;z++){if(values[z]!==undefined&&values[z]!==null&&String(values[z]).trim()!=='')return values[z];}return '';}
     item.ClientID=clientId;
-    item.ClientName=firstNonBlank([item.ClientName,rec.ClientName,client.ClientName,request.ClientName,policy.PolicyHolder,policy.InsuredPerson]);
-    item.PolicyNumber=firstNonBlank([item.PolicyNumber,rec.PolicyNumber,client.PolicyNumber,request.PolicyNumber,policy.PolicyNumber]);
-    item.DateOfBirth=firstNonBlank([item.DateOfBirth,rec.DateOfBirth,client.DateOfBirth,request.DateOfBirth]);
+    item.ClientName=firstNonBlank([item.ClientName,item.Name,item.InsuredPerson,rec.ClientName,rec.Name,client.ClientName,request.ClientName,request.Name,bill.ClientName,bill.Name,policy.PolicyHolder,policy.InsuredPerson]);
+    item.PolicyNumber=firstNonBlank([item.PolicyNumber,item.PolicyNo,rec.PolicyNumber,rec.PolicyNo,client.PolicyNumber,request.PolicyNumber,request.PolicyNo,bill.PolicyNumber,policy.PolicyNumber]);
+    item.DateOfBirth=firstNonBlank([item.DateOfBirth,item.DOB,item.BirthDate,rec.DateOfBirth,rec.DOB,client.DateOfBirth,client.DOB,request.DateOfBirth,request.DOB]);
     // If legacy item lacks a client ID, recover the client through a matching policy number.
     if(!clientId&&item.PolicyNumber){
       var policyByNumber=policies.find(function(x){return String(x.PolicyNumber||'')===String(item.PolicyNumber);})||{};
