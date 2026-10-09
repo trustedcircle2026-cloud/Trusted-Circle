@@ -133,3 +133,20 @@ freshSetupAgentBusinessSheets()
 ```
 
 The setup adds missing current columns without deleting existing rows.
+
+## Phase 2 — agent partial invoice payments (v1.8.0)
+
+The Agent Portal now supports partial payments against the total outstanding invoice balance. Agents choose an amount up to the current payable, upload a payment receipt, and submit it for Admin verification. The payable balance is **not** reduced while the report is pending.
+
+After Admin confirms the receipt, the backend applies the confirmed amount FIFO to the oldest outstanding InvoiceItems first. Each premium line is updated to PAID, PARTIALLY_PAID, or PAYABLE, with PaidAmount and OutstandingAmount; invoice status and the Agent Portal payable summary are recalculated. Rejected reports do not reduce the balance. A report is stored in AgentInvoicePayments, and an Admin email includes receipt access plus secure review links.
+
+The Receipts page supports text search and a single **Paid Date** filter. The Admin Portal's **More → Agent Receivables → Agent Payment Receipts** view can review and confirm/reject reports.
+
+### Activate the backend update
+
+The Apps Script source in this repository must also be deployed to the live Agent Business Web App; pushing Code.gs to GitHub alone does not update the running Apps Script deployment.
+
+1. Copy the latest backend/agent-business/Code.gs into the Agent Business Apps Script project.
+2. Run freshSetupAgentBusinessSheets() once. This is non-destructive and adds the new AgentInvoicePayments tab and the additional invoice-item balance columns while preserving existing records.
+3. Deploy a new Web App version (Execute as: Me; access: Anyone) and confirm the frontend VITE_AGENT_BUSINESS_API_URL still points to the active /exec deployment URL.
+4. Test a small partial payment end-to-end before using this for real settlements: submit a receipt as an agent, confirm it in Admin, and verify FIFO allocation, invoice status, remaining payable, and the updated Outstanding Summary PDF.
