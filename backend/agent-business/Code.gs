@@ -42,7 +42,7 @@ var AGENT_BUSINESS = {
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
     Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','PaidAmount','OutstandingAmount','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt'],
     AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
-    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
+    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','PaidAmount','OutstandingAmount','PaymentStatus','CreatedAt','UpdatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
   }
@@ -697,6 +697,9 @@ function applyAgentPaymentFifo_(ss,report){
   var agentId=String(report.AgentID||''),amount=Math.round(Number(report.Amount||0)*100)/100,lock=LockService.getScriptLock();
   lock.waitLock(20000);
   try{
+    var currentReport=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')).find(function(x){return String(x.PaymentReportID)===String(report.PaymentReportID);});
+    if(!currentReport||String(currentReport.Status||'').toUpperCase()!=='PENDING')throw new Error('This payment report has already been reviewed.');
+    report=currentReport;
     var summary=invoicePaymentSummary_(ss,agentId),remainingAvailable=Math.round(summary.items.reduce(function(sum,x){return sum+x.outstanding;},0)*100)/100;
     if(amount>remainingAvailable+0.009)throw new Error('Outstanding balance changed before confirmation. Refresh and review the payment report.');
     var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){return String(x.AgentID)===agentId;}),invoiceMap={};
@@ -708,6 +711,7 @@ function applyAgentPaymentFifo_(ss,report){
     if(left>0.009)throw new Error('Unable to allocate the full payment amount. Please refresh the invoice records.');
     report.Status='RECEIVED';report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=report.AdminDecisionBy||'ADMIN';report.AllocationsJson=JSON.stringify(allocations);report.Notes='Receipt confirmed; amount applied to oldest outstanding premiums using FIFO.';saveRow_(ss,'AgentInvoicePayments',report);
     var allAlloc=confirmedAgentPaymentAllocations_(ss,agentId);
+    items.forEach(function(item){var inv=invoiceMap[String(item.InvoiceID)]||{};if(['PAID','SETTLED','CANCELLED'].includes(String(inv.PaymentStatus||'').toUpperCase()))return;var net=Number(item.NetAmount||0),paid=Math.min(net,Number(allAlloc[String(item.InvoiceItemID)]||0)),due=Math.max(0,Math.round((net-paid)*100)/100);item.PaidAmount=Math.round(paid*100)/100;item.OutstandingAmount=due;item.PaymentStatus=due<=0.009?'PAID':paid>0?'PARTIALLY_PAID':'PAYABLE';item.UpdatedAt=new Date().toISOString();saveRow_(ss,'InvoiceItems',item);});
     invoices.forEach(function(inv){var invItems=items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);}),total=Number(inv.NetPayable||0),paid=invItems.length?invItems.reduce(function(sum,it){return sum+Math.min(Number(it.NetAmount||0),Number(allAlloc[String(it.InvoiceItemID)]||0));},0):0;if(['PAID','SETTLED'].includes(String(inv.PaymentStatus||'').toUpperCase()))paid=total;paid=Math.min(total,Math.round(paid*100)/100);var due=Math.max(0,Math.round((total-paid)*100)/100);inv.PaidAmount=paid;inv.OutstandingAmount=due;if(due<=0.009){inv.PaymentStatus='PAID';inv.Status='PAID';}else if(paid>0){inv.PaymentStatus='PARTIALLY_PAID';inv.Status='PARTIALLY_PAID';}else if(String(inv.PaymentStatus||'').toUpperCase()!=='CANCELLED'){inv.PaymentStatus='PAYABLE';if(String(inv.Status||'').toUpperCase()==='PARTIALLY_PAID')inv.Status='PAYMENT_LINK_ASSIGNED';}inv.UpdatedAt=new Date().toISOString();saveRow_(ss,'Invoices',inv);});
     saveRow_(ss,'MoneyLedger',{LedgerID:newId_('LedgerID'),TransactionDate:new Date().toISOString().slice(0,10),ReferenceType:'AGENT_PARTIAL_PAYMENT',ReferenceID:report.PaymentReportID,AgentID:agentId,ClientID:'',PaymentID:'',Description:'Agent partial payment confirmed · '+formatMoney_(amount)+' · FIFO',MoneyIn:amount,MoneyOut:'',Balance:'',PaymentMode:'Agent Bank/UPI Payment',BankAccount:'Trusted Circle',Category:'AGENT INVOICE SETTLEMENT',Status:'RECEIVED'});
     ['AgentInvoicePayments','Invoices','MoneyLedger','Notifications'].forEach(invalidateSheetCache_);cacheRemoveAgent_(agentId);return {payment:report,allocations:allocations};
@@ -1048,7 +1052,7 @@ function createInvoice_(p){
     var item=saveRow_(ss,'InvoiceItems',{
       InvoiceItemID:newId_('InvoiceItemID'),InvoiceID:invoiceId,PaymentID:x.PaymentID||'',ClientID:x.ClientID||'',
       ClientName:x.ClientName||'',PolicyNumber:x.PolicyNumber||'',DateOfBirth:x.DateOfBirth||'',
-      Amount:Number(x.GrossAmount||x.ReceivableAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetAmount:Number(x.ReceivableAmount||0)
+      Amount:Number(x.GrossAmount||x.ReceivableAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetAmount:Number(x.ReceivableAmount||0),PaidAmount:0,OutstandingAmount:Number(x.ReceivableAmount||0),PaymentStatus:'PAYABLE'
     });
     items.push(item.item);
     x.InvoiceID=invoiceId;
