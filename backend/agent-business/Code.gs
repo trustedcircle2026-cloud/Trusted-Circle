@@ -1123,7 +1123,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   var payTitle=body.appendParagraph('PAYMENT DETAILS & AUTHORISATION');payTitle.setBold(true).setFontSize(7).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   // Two-cell table: payment instructions (bank + QR) on the left, signature + official stamp on the right.
-  var paymentTable=body.appendTable([['BANK DETAILS & QR','SIGNATURE / SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);
+  var paymentTable=body.appendTable([['BANK DETAILS & QR','SIGNATURE & SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);
   for(var pc=0;pc<2;pc++){paymentTable.getCell(0,pc).setBackgroundColor(pale);paymentTable.getCell(0,pc).setPaddingTop(2);paymentTable.getCell(0,pc).setPaddingBottom(2);paymentTable.getCell(0,pc).editAsText().setBold(true).setFontSize(7).setForegroundColor(green);}
   var payRow=paymentTable.appendTableRow();var bankQrCell=payRow.appendTableCell('');bankQrCell.setPaddingTop(3);bankQrCell.setPaddingBottom(3);
   var bankText=bankQrCell.appendParagraph('Bank: '+bankName+'  |  A/c: '+accountNumber+'  |  IFSC: '+ifsc);bankText.setFontSize(6).setSpacingAfter(1);
@@ -1131,9 +1131,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   try{var qr=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/TC%20Payment%20QR.png').getBlob();var qrImage=bankQrCell.appendImage(qr);qrImage.setWidth(76);qrImage.setHeight(76);bankQrCell.appendParagraph('Scan to pay Trusted Circle').setFontSize(6).setForegroundColor(muted).setSpacingAfter(0);}catch(qrError){bankQrCell.appendParagraph('UPI ID: '+upi).setFontSize(7);}
   var signCell=payRow.appendTableCell('');signCell.setPaddingTop(3);signCell.setPaddingBottom(3);
   signCell.appendParagraph('').setSpacingBefore(18);
-  signCell.appendParagraph('Authorised Signatory').setBold(true).setFontSize(7).setForegroundColor(green).setSpacingAfter(2);
-  signCell.appendParagraph('Signature: __________________').setFontSize(7).setSpacingAfter(5);
-  try{var stampBlob=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/Trusted%20Circle%20Stamp.png').getBlob();var stampImage=signCell.appendImage(stampBlob);stampImage.setWidth(82);stampImage.setHeight(82);signCell.appendParagraph('Official Stamp').setFontSize(6).setForegroundColor(muted);}catch(stampError){var stamp=signCell.appendParagraph('◯');stamp.setFontSize(46).setForegroundColor('#9bbbe8').setAlignment(DocumentApp.HorizontalAlignment.CENTER);signCell.appendParagraph('TRUSTED CIRCLE').setFontSize(6).setBold(true).setForegroundColor('#8eaddb').setAlignment(DocumentApp.HorizontalAlignment.CENTER);}
+  try{var stampBlob=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/Trusted%20Circle%20Stamp.png').getBlob();var stampImage=signCell.appendImage(stampBlob);stampImage.setWidth(82);stampImage.setHeight(82);}catch(stampError){var stamp=signCell.appendParagraph('◯');stamp.setFontSize(46).setForegroundColor('#9bbbe8').setAlignment(DocumentApp.HorizontalAlignment.CENTER);}
   var footer=body.appendTable([['✉  info@trustedcircle.in','◎  www.trustedcircle.shop']]);footer.setBorderWidth(0);
   for(var fc=0;fc<2;fc++){footer.getCell(0,fc).editAsText().setFontSize(7).setForegroundColor(green);footer.getCell(0,fc).getChild(0).asParagraph().setAlignment(fc===0?DocumentApp.HorizontalAlignment.LEFT:DocumentApp.HorizontalAlignment.RIGHT);}
   doc.saveAndClose();Utilities.sleep(200);
