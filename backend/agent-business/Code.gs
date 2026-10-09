@@ -1151,18 +1151,69 @@ function sendInvoicePdfToAgent_(agent,invoice,pdf){
 
 function regenerateAgentInvoice_(p){
   var ss=agentBusinessSpreadsheet_();requireAdmin_(p);
-  var invoiceId=String(p.invoiceId||'').trim();if(!invoiceId)throw new Error('Invoice ID is required.');
-  var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices'));
-  var invoice=invoices.find(function(x){return String(x.InvoiceID)===invoiceId;});
+  var invoiceId=String(p.invoiceId||'').trim();
+  if(!invoiceId)throw new Error('Invoice ID is required.');
+  var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
   if(!invoice)throw new Error('Invoice not found.');
   var agent=sheetRows_(ensureBusinessSheet_(ss,'Agents')).find(function(x){return String(x.AgentID)===String(invoice.AgentID);});
   if(!agent)throw new Error('Agent record not found.');
+
   var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')).filter(function(x){return String(x.InvoiceID)===invoiceId;});
-  var linkedReceivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')).filter(function(x){return String(x.InvoiceID||'')===invoiceId&&String(x.AgentID||'')===String(invoice.AgentID||'');});
-  // Repair old invoice snapshots with blank client fields using their linked receivable records.
-  if(items.length&&linkedReceivables.length){items=items.map(function(item,index){var match=linkedReceivables.find(function(r){return item.PaymentID&&String(r.PaymentID||'')===String(item.PaymentID);})||linkedReceivables.find(function(r){return item.ClientID&&String(r.ClientID||'')===String(item.ClientID);})||linkedReceivables[index];if(match){['ClientName','PolicyNumber','DateOfBirth','ClientID','PaymentID'].forEach(function(k){if(!String(item[k]||'').trim()&&String(match[k]||'').trim())item[k]=match[k];});var all=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems'));var row=all.find(function(v){return String(v.InvoiceItemID||'')===String(item.InvoiceItemID||'');});if(row){Object.keys(item).forEach(function(k){row[k]=item[k];});saveRow_(ss,'InvoiceItems',row);}}return item;});}
-  if(!items.length&&linkedReceivables.length){items=linkedReceivables.map(function(r){return {InvoiceID:invoiceId,InvoiceItemID:'',PaymentID:r.PaymentID||'',ClientID:r.ClientID||'',ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||'',Amount:Number(r.GrossAmount||r.ReceivableAmount||0),DiscountAmount:Number(r.DiscountAmount||0),NetAmount:Number(r.ReceivableAmount||0),PaidAmount:Number(r.PaidAmount||0),OutstandingAmount:Number(r.ReceivableAmount||0),PaymentStatus:r.PaymentStatus||'PAYABLE'};});}
+  var allReceivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables')).filter(function(x){return String(x.AgentID||'')===String(invoice.AgentID||'');});
+  var linkedReceivables=allReceivables.filter(function(x){return String(x.InvoiceID||'')===invoiceId;});
+  var payments=sheetRows_(ensureBusinessSheet_(ss,'Payments'));
+  var requests=sheetRows_(ensureBusinessSheet_(ss,'PaymentRequests'));
+  var clients=sheetRows_(ensureBusinessSheet_(ss,'Clients'));
+  var policies=sheetRows_(ensureBusinessSheet_(ss,'Policies'));
+  var paymentById={},requestById={},clientById={},policyById={};
+  payments.forEach(function(x){paymentById[String(x.PaymentID||'')]=x;});
+  requests.forEach(function(x){requestById[String(x.RequestID||'')]=x;});
+  clients.forEach(function(x){clientById[String(x.ClientID||'')]=x;});
+  policies.forEach(function(x){policyById[String(x.PolicyID||'')]=x;});
+
+  // Some older receivables were saved without InvoiceID. Match them through PaymentID/ClientID.
+  var itemPaymentIds=items.map(function(x){return String(x.PaymentID||'');}).filter(Boolean);
+  allReceivables.forEach(function(r){
+    if(linkedReceivables.indexOf(r)>=0)return;
+    if((r.PaymentID&&itemPaymentIds.indexOf(String(r.PaymentID))>=0) ||
+       (r.ClientID&&items.some(function(it){return String(it.ClientID||'')===String(r.ClientID)&&(!it.PaymentID||!r.PaymentID||String(it.PaymentID)===String(r.PaymentID));}))){
+      linkedReceivables.push(r);
+    }
+  });
+
+  if(!items.length&&linkedReceivables.length){
+    items=linkedReceivables.map(function(r){return {
+      InvoiceID:invoiceId,InvoiceItemID:'',PaymentID:r.PaymentID||'',ClientID:r.ClientID||'',
+      ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||'',
+      Amount:Number(r.GrossAmount||r.ReceivableAmount||0),DiscountAmount:Number(r.DiscountAmount||0),
+      NetAmount:Number(r.ReceivableAmount||0),PaidAmount:Number(r.PaidAmount||0),
+      OutstandingAmount:Number(r.ReceivableAmount||0),PaymentStatus:r.PaymentStatus||'PAYABLE'
+    };});
+  }
   if(!items.length)throw new Error('No saved premium line items or linked receivables exist for this invoice.');
+
+  items=items.map(function(item,index){
+    var rec=linkedReceivables.find(function(r){return item.PaymentID&&String(r.PaymentID||'')===String(item.PaymentID);})||
+      linkedReceivables.find(function(r){return item.ClientID&&String(r.ClientID||'')===String(item.ClientID);})||
+      linkedReceivables[index]||{};
+    var payment=paymentById[String(item.PaymentID||rec.PaymentID||'')]||{};
+    var request=requestById[String(payment.RequestID||'')]||{};
+    var clientId=String(item.ClientID||rec.ClientID||payment.ClientID||request.ClientID||'');
+    var client=clientById[clientId]||{};
+    var policy=policies.find(function(x){return String(x.ClientID||'')===clientId&&(!item.PolicyNumber||String(x.PolicyNumber||'')===String(item.PolicyNumber));})||{};
+    function firstNonBlank(values){for(var z=0;z<values.length;z++){if(values[z]!==undefined&&values[z]!==null&&String(values[z]).trim()!=='')return values[z];}return '';}
+    item.ClientID=clientId;
+    item.ClientName=firstNonBlank([item.ClientName,rec.ClientName,client.ClientName,request.ClientName,policy.PolicyHolder,policy.InsuredPerson]);
+    item.PolicyNumber=firstNonBlank([item.PolicyNumber,rec.PolicyNumber,client.PolicyNumber,request.PolicyNumber,policy.PolicyNumber]);
+    item.DateOfBirth=firstNonBlank([item.DateOfBirth,rec.DateOfBirth,client.DateOfBirth,request.DateOfBirth]);
+    if(!item.PaymentID)item.PaymentID=String(rec.PaymentID||payment.PaymentID||'');
+    // Persist repaired details so future invoice regenerations retain the same client information.
+    if(item.InvoiceItemID){
+      var saved=saveRow_(ss,'InvoiceItems',item);
+    }
+    return item;
+  });
+
   invoice.AgentEmail=String(agent.Email||'').trim();
   var pdfResult=buildInvoicePdfAndSend_(agent,invoice,items);
   invoice.PdfUrl=pdfResult.pdfUrl||'';
@@ -1170,10 +1221,9 @@ function regenerateAgentInvoice_(p){
   invoice.Status=pdfResult.sent?'SENT':'GENERATED';
   invoice.UpdatedAt=new Date().toISOString();
   saveRow_(ss,'Invoices',invoice);
-  invalidateSheetCache_('Invoices');
-  return {success:true,invoiceNumber:invoice.InvoiceNumber,pdfUrl:invoice.PdfUrl,sent:pdfResult.sent,email:invoice.AgentEmail,fileName:pdfResult.fileName};
+  invalidateSheetCache_('Invoices');invalidateSheetCache_('InvoiceItems');invalidateSheetCache_('AgentReceivables');
+  return {success:true,invoiceNumber:invoice.InvoiceNumber,pdfUrl:invoice.PdfUrl,sent:pdfResult.sent,email:invoice.AgentEmail,fileName:pdfResult.fileName,clientDetailsRestored:items.filter(function(x){return String(x.ClientName||'').trim()||String(x.PolicyNumber||'').trim()||String(x.DateOfBirth||'').trim();}).length};
 }
-
 function resendAgentInvoice_(p){
   var ss=agentBusinessSpreadsheet_();requireAdmin_(p);
   var invoiceId=String(p.invoiceId||'').trim();if(!invoiceId)throw new Error('Invoice ID is required.');
