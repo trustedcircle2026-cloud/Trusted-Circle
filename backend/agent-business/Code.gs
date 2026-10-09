@@ -1092,48 +1092,48 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   var doc=DocumentApp.create(invoice.InvoiceNumber+' · Trusted Circle');
   var body=doc.getBody();
   // Compact one-page invoice layout.
-  body.setMarginTop(10).setMarginBottom(10).setMarginLeft(18).setMarginRight(18);
+  body.setMarginTop(12).setMarginBottom(12).setMarginLeft(18).setMarginRight(18);
   var green='#064f3b',pale='#eef5f1',line='#cbd8d1',muted='#64756c';
   var header=body.appendTable([['','']]);header.setBorderWidth(0);
   var logoCell=header.getCell(0,0),brandCell=header.getCell(0,1);
   try{logoCell.setWidth(54);brandCell.setWidth(430);logoCell.setPaddingRight(0);brandCell.setPaddingLeft(0);logoCell.setPaddingTop(0);logoCell.setPaddingBottom(0);brandCell.setPaddingTop(0);brandCell.setPaddingBottom(0);}catch(layoutError){}
-  try{var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();var logoImage=logoCell.appendImage(logo);logoImage.setWidth(42);logoImage.setHeight(42);}catch(e){logoCell.appendParagraph('TC').setBold(true).setFontSize(16).setForegroundColor(green);}
-  var brand=brandCell.appendParagraph('TRUSTED CIRCLE');brand.setBold(true).setFontSize(17).setForegroundColor(green).setSpacingAfter(1);
-  var subtitle=brandCell.appendParagraph('INSURANCE PAYMENT & AGENT RECEIVABLE INVOICE');subtitle.setBold(true).setFontSize(7).setForegroundColor('#26372e').setSpacingAfter(0);
+  try{var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();var logoImage=logoCell.appendImage(logo);logoImage.setWidth(48);logoImage.setHeight(48);}catch(e){logoCell.appendParagraph('TC').setBold(true).setFontSize(16).setForegroundColor(green);}
+  var brand=brandCell.appendParagraph('TRUSTED CIRCLE');brand.setBold(true).setFontSize(21).setForegroundColor(green).setSpacingAfter(1);
+  var subtitle=brandCell.appendParagraph('INSURANCE PAYMENT & AGENT RECEIVABLE INVOICE');subtitle.setBold(true).setFontSize(9).setForegroundColor('#26372e').setSpacingAfter(0);
   body.appendParagraph('').setSpacingAfter(1);
   var headerTable=body.appendTable([['INVOICE NO.',String(invoice.InvoiceNumber||''),'INVOICE DATE',formatInvoiceDate_(invoice.InvoiceDate)]]);headerTable.setBorderWidth(1).setBorderColor(line);
-  for(var hc=0;hc<4;hc++){headerTable.getCell(0,hc).setBackgroundColor(hc%2===0?pale:'#ffffff');headerTable.getCell(0,hc).editAsText().setFontSize(7);if(hc%2===0)headerTable.getCell(0,hc).editAsText().setBold(true);}
-  var billTitle=body.appendParagraph('BILL TO');billTitle.setBold(true).setFontSize(7).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
+  for(var hc=0;hc<4;hc++){headerTable.getCell(0,hc).setBackgroundColor(hc%2===0?pale:'#ffffff');headerTable.getCell(0,hc).editAsText().setFontSize(9);if(hc%2===0)headerTable.getCell(0,hc).editAsText().setBold(true);}
+  var billTitle=body.appendParagraph('BILL TO');billTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
   var billTable=body.appendTable([
     ['Agent Name',String(agent.AgentName||'Agent'),'Agency Name',String(agent.AgencyName||'')],
     ['Address',String(agent.Address||''),'Mobile',String(agent.Mobile||'')],
     ['Email',String(agent.Email||''),'Insurance Company',String(agent.InsuranceCompany||'')]
   ]);billTable.setBorderWidth(1).setBorderColor(line);
-  for(var br=0;br<billTable.getNumRows();br++)for(var bc=0;bc<4;bc++){var cell=billTable.getCell(br,bc);cell.setPaddingTop(2);cell.setPaddingBottom(2);cell.editAsText().setFontSize(7);if(bc===0||bc===2){cell.setBackgroundColor(pale);cell.editAsText().setBold(true).setForegroundColor(green);}}
-  var itemTitle=body.appendParagraph('PREMIUM PAYMENT DETAILS');itemTitle.setBold(true).setFontSize(7).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
+  for(var br=0;br<billTable.getNumRows();br++)for(var bc=0;bc<4;bc++){var cell=billTable.getCell(br,bc);cell.setPaddingTop(4);cell.setPaddingBottom(4);cell.editAsText().setFontSize(9);if(bc===0||bc===2){cell.setBackgroundColor(pale);cell.editAsText().setBold(true).setForegroundColor(green);}}
+  var itemTitle=body.appendParagraph('PREMIUM PAYMENT DETAILS');itemTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(3).setSpacingAfter(1);
   var table=body.appendTable([['S.NO.','CLIENT NAME','POLICY NO.','DATE OF BIRTH','PREMIUM AMOUNT']]);table.setBorderWidth(1).setBorderColor(line);
-  for(var hc2=0;hc2<5;hc2++){table.getCell(0,hc2).setBackgroundColor(green);table.getCell(0,hc2).setPaddingTop(2);table.getCell(0,hc2).setPaddingBottom(2);table.getCell(0,hc2).editAsText().setBold(true).setFontSize(6).setForegroundColor('#ffffff');}
-  items.forEach(function(x,i){var row=table.appendTableRow();var cells=[String(i+1),String(x.ClientName||''),String(x.PolicyNumber||''),formatInvoiceDate_(x.DateOfBirth||''),formatMoney_(x.Amount||0)];cells.forEach(function(value,col){var cell=row.appendTableCell(value);cell.setPaddingTop(1);cell.setPaddingBottom(1);cell.editAsText().setFontSize(7);if(i%2===1)cell.setBackgroundColor('#f7faf8');if(col===4)cell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);});});
+  for(var hc2=0;hc2<5;hc2++){table.getCell(0,hc2).setBackgroundColor(green);table.getCell(0,hc2).setPaddingTop(4);table.getCell(0,hc2).setPaddingBottom(4);table.getCell(0,hc2).editAsText().setBold(true).setFontSize(8).setForegroundColor('#ffffff');}
+  items.forEach(function(x,i){var row=table.appendTableRow();var cells=[String(i+1),String(x.ClientName||''),String(x.PolicyNumber||''),formatInvoiceDate_(x.DateOfBirth||''),formatMoney_(x.Amount||0)];cells.forEach(function(value,col){var cell=row.appendTableCell(value);cell.setPaddingTop(3);cell.setPaddingBottom(3);cell.editAsText().setFontSize(9);if(i%2===1)cell.setBackgroundColor('#f7faf8');if(col===4)cell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);});});
   var totals=body.appendTable([
     ['GROSS PREMIUM PAID',formatMoney_(invoice.TotalAmount)],
     ['TRUSTED CIRCLE DISCOUNT ('+(Number(invoice.DiscountRate||0)*100).toFixed(0)+'%)','- '+formatMoney_(invoice.DiscountAmount)],
     ['BALANCE PAYABLE',formatMoney_(invoice.NetPayable)]
   ]);totals.setBorderWidth(1).setBorderColor(line);
-  for(var tr=0;tr<3;tr++){totals.getCell(tr,0).setPaddingTop(2);totals.getCell(tr,0).setPaddingBottom(2);totals.getCell(tr,1).setPaddingTop(2);totals.getCell(tr,1).setPaddingBottom(2);totals.getCell(tr,0).editAsText().setBold(true).setFontSize(tr===2?8:7);totals.getCell(tr,1).editAsText().setFontSize(tr===2?8:7);totals.getCell(tr,1).getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);if(tr===2){totals.getCell(tr,0).setBackgroundColor('#e4f3ea');totals.getCell(tr,1).setBackgroundColor('#e4f3ea');totals.getCell(tr,0).editAsText().setForegroundColor(green);totals.getCell(tr,1).editAsText().setBold(true).setForegroundColor(green);}}
-  var payTitle=body.appendParagraph('PAYMENT DETAILS & AUTHORISATION');payTitle.setBold(true).setFontSize(8).setForegroundColor(green).setSpacingBefore(4).setSpacingAfter(2);
+  for(var tr=0;tr<3;tr++){totals.getCell(tr,0).setPaddingTop(4);totals.getCell(tr,0).setPaddingBottom(4);totals.getCell(tr,1).setPaddingTop(4);totals.getCell(tr,1).setPaddingBottom(4);totals.getCell(tr,0).editAsText().setBold(true).setFontSize(tr===2?10:9);totals.getCell(tr,1).editAsText().setFontSize(tr===2?10:9);totals.getCell(tr,1).getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);if(tr===2){totals.getCell(tr,0).setBackgroundColor('#e4f3ea');totals.getCell(tr,1).setBackgroundColor('#e4f3ea');totals.getCell(tr,0).editAsText().setForegroundColor(green);totals.getCell(tr,1).editAsText().setBold(true).setForegroundColor(green);}}
+  var payTitle=body.appendParagraph('PAYMENT DETAILS & AUTHORISATION');payTitle.setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(4).setSpacingAfter(2);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   // Two-cell table: payment instructions (bank + QR) on the left, signature + official stamp on the right.
   var paymentTable=body.appendTable([['BANK DETAILS & QR','SIGNATURE & SEAL']]);paymentTable.setBorderWidth(1).setBorderColor(line);
   try{paymentTable.setColumnWidth(0,245);paymentTable.setColumnWidth(1,245);}catch(widthError){}
-  for(var pc=0;pc<2;pc++){paymentTable.getCell(0,pc).setBackgroundColor(pale);paymentTable.getCell(0,pc).setPaddingTop(3);paymentTable.getCell(0,pc).setPaddingBottom(3);paymentTable.getCell(0,pc).editAsText().setBold(true).setFontSize(8).setForegroundColor(green);}
+  for(var pc=0;pc<2;pc++){paymentTable.getCell(0,pc).setBackgroundColor(pale);paymentTable.getCell(0,pc).setPaddingTop(4);paymentTable.getCell(0,pc).setPaddingBottom(4);paymentTable.getCell(0,pc).editAsText().setBold(true).setFontSize(9).setForegroundColor(green);}
   var payRow=paymentTable.appendTableRow();var bankQrCell=payRow.appendTableCell('');bankQrCell.setPaddingTop(4);bankQrCell.setPaddingBottom(4);
-  var bankText=bankQrCell.appendParagraph('Bank: '+bankName+'  |  A/c: '+accountNumber+'  |  IFSC: '+ifsc);bankText.setFontSize(7).setSpacingAfter(1);
-  bankQrCell.appendParagraph('Branch: '+branch+'  |  UPI: '+upi).setFontSize(7).setSpacingAfter(2);
-  try{var qr=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/TC%20Payment%20QR.png').getBlob();var qrImage=bankQrCell.appendImage(qr);qrImage.setWidth(92);qrImage.setHeight(92);bankQrCell.appendParagraph('Scan to pay Trusted Circle').setFontSize(7).setForegroundColor(muted).setSpacingAfter(0);}catch(qrError){bankQrCell.appendParagraph('UPI ID: '+upi).setFontSize(7);}
+  var bankText=bankQrCell.appendParagraph('Bank: '+bankName+'  |  A/c: '+accountNumber+'  |  IFSC: '+ifsc);bankText.setFontSize(8).setSpacingAfter(1);
+  bankQrCell.appendParagraph('Branch: '+branch+'  |  UPI: '+upi).setFontSize(8).setSpacingAfter(2);
+  try{var qr=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/TC%20Payment%20QR.png').getBlob();var qrImage=bankQrCell.appendImage(qr);qrImage.setWidth(100);qrImage.setHeight(100);bankQrCell.appendParagraph('Scan to pay Trusted Circle').setFontSize(8).setForegroundColor(muted).setSpacingAfter(0);}catch(qrError){bankQrCell.appendParagraph('UPI ID: '+upi).setFontSize(7);}
   var signCell=payRow.appendTableCell('');signCell.setPaddingTop(0);signCell.setPaddingBottom(0);signCell.setPaddingLeft(0);signCell.setPaddingRight(0);
   try{var stampBlob=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/backend/agent-business/Trusted%20Circle%20Stamp.png').getBlob();var stampImage=signCell.appendImage(stampBlob);stampImage.setWidth(132);stampImage.setHeight(132);stampImage.getParent().asParagraph().setAlignment(DocumentApp.HorizontalAlignment.CENTER);}catch(stampError){var stamp=signCell.appendParagraph('◯');stamp.setFontSize(72).setForegroundColor('#9bbbe8').setAlignment(DocumentApp.HorizontalAlignment.CENTER);}
   var footer=body.appendTable([['✉  info@trustedcircle.in','◎  www.trustedcircle.shop']]);footer.setBorderWidth(0);
-  for(var fc=0;fc<2;fc++){footer.getCell(0,fc).editAsText().setFontSize(8).setForegroundColor(green);footer.getCell(0,fc).getChild(0).asParagraph().setAlignment(fc===0?DocumentApp.HorizontalAlignment.LEFT:DocumentApp.HorizontalAlignment.RIGHT);}
+  for(var fc=0;fc<2;fc++){footer.getCell(0,fc).editAsText().setFontSize(9).setForegroundColor(green);footer.getCell(0,fc).getChild(0).asParagraph().setAlignment(fc===0?DocumentApp.HorizontalAlignment.LEFT:DocumentApp.HorizontalAlignment.RIGHT);}
   doc.saveAndClose();Utilities.sleep(200);
   var pdf=doc.getAs(MimeType.PDF).setName(invoice.InvoiceNumber+'.pdf');
   var invoiceFolder=DriveApp.getFolderById(TRUSTED_CIRCLE_INVOICE_FOLDER_ID);var file=invoiceFolder.createFile(pdf);file.setName(invoice.InvoiceNumber+'.pdf');
