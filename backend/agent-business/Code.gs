@@ -1132,7 +1132,12 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   for(var tr=0;tr<3;tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(tr===2?10:8);totals.getCell(tr,1).editAsText().setFontSize(tr===2?10:8);totals.getCell(tr,1).getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);if(tr===2){totals.getCell(tr,0).setBackgroundColor('#e4f3ea');totals.getCell(tr,1).setBackgroundColor('#e4f3ea');totals.getCell(tr,0).editAsText().setForegroundColor(green);totals.getCell(tr,1).editAsText().setBold(true).setForegroundColor(green);}}
   body.appendParagraph('').setSpacingAfter(2);
   var payTitle=body.appendParagraph('BANK TRANSFER & UPI PAYMENT');payTitle.setBold(true).setFontSize(8).setForegroundColor(green).setSpacingAfter(2);
-  // Payment details supplied by the account owner.\n  var bankName='Kotak Mahindra Bank';\n  var accountNumber='8949622673';\n  var ifsc='KKBK0008698';\n  var branch='TRICHY - THILLAI NAGAR';\n  var upi='6369175709@kotak811';
+  // Payment details supplied by the account owner.
+  var bankName='Kotak Mahindra Bank';
+  var accountNumber='8949622673';
+  var ifsc='KKBK0008698';
+  var branch='TRICHY - THILLAI NAGAR';
+  var upi='6369175709@kotak811';
   var paymentTable=body.appendTable([['BANK ACCOUNT DETAILS','SCAN TO PAY']]);paymentTable.setBorderWidth(1).setBorderColor(line);
   paymentTable.getCell(0,0).setBackgroundColor(pale);paymentTable.getCell(0,1).setBackgroundColor(pale);
   paymentTable.getCell(0,0).editAsText().setBold(true).setFontSize(8).setForegroundColor(green);
@@ -1157,7 +1162,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   signCell.appendParagraph('Signature: __________________________').setFontSize(8).setSpacingAfter(4);
   var stampCell=signatureTable.getCell(0,1);stampCell.setWidth(150);
   var stamp=stampCell.appendParagraph('◯');stamp.setFontSize(64).setForegroundColor('#9bbbe8').setAlignment(DocumentApp.HorizontalAlignment.CENTER).setSpacingAfter(-57);
-  var stampText=stampCell.appendParagraph('TRUSTED CIRCLE\\n\\n\\nAUTHORISED');stampText.setFontSize(7).setBold(true).setForegroundColor('#8eaddb').setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+  var stampText=stampCell.appendParagraph('TRUSTED CIRCLE\n\n\nAUTHORISED');stampText.setFontSize(7).setBold(true).setForegroundColor('#8eaddb').setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   var footer=body.appendTable([['✉  info@trustedcircle.in','◎  www.trustedcircle.shop']]);footer.setBorderWidth(0);
   for(var fc=0;fc<2;fc++){footer.getCell(0,fc).editAsText().setFontSize(8).setForegroundColor(green);footer.getCell(0,fc).getChild(0).asParagraph().setAlignment(fc===0?DocumentApp.HorizontalAlignment.LEFT:DocumentApp.HorizontalAlignment.RIGHT);}
   doc.saveAndClose();Utilities.sleep(300);
