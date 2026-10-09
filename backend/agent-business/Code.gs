@@ -40,9 +40,9 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
-    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','PaidAmount','OutstandingAmount','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt','PaidAmount','OutstandingAmount'],
     AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
-    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','PaidAmount','OutstandingAmount','PaymentStatus','CreatedAt','UpdatedAt'],
+    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt','PaidAmount','OutstandingAmount','PaymentStatus','UpdatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
   }
