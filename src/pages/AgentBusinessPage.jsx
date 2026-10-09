@@ -268,6 +268,10 @@ export default function AgentBusinessPage(){
         {moreModules.filter(m=>['Clients','Policies','PremiumBills'].includes(m.key)).map(m=><button className="tc-more-item" key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><span className="tc-more-item-icon"><m.icon size={18}/></span><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}
       </div>
       <div className="tc-more-group">
+        <span className="tc-more-group-title">TRUSTED CIRCLE PAYMENTS</span>
+        <button className="tc-more-item" onClick={()=>{setModule('Payments');setActiveTab('more')}}><span className="tc-more-item-icon"><CircleDollarSign size={18}/></span><div><strong>Trusted Circle Payments</strong><small>View and manage recorded premium payments, payment modes and receipt records.</small></div><ChevronRight size={16}/></button>
+      </div>
+      <div className="tc-more-group">
         <span className="tc-more-group-title">MONEY & CARDS</span>
         {moreModules.filter(m=>['Cards','CardRules','Cashback','MoneyLedger','Expenses'].includes(m.key)).map(m=><button className="tc-more-item" key={m.key} onClick={()=>{setModule(m.key);setActiveTab('more');loadModule()}}><span className="tc-more-item-icon"><m.icon size={18}/></span><div><strong>{m.label}</strong><small>{m.desc}</small></div><ChevronRight size={16}/></button>)}
       </div>
