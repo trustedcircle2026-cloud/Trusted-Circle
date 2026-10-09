@@ -434,8 +434,8 @@ function invoicePaymentSummary_(ss,agentId){
   var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){return String(x.AgentID)===String(agentId);});
   var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')),byItem=confirmedAgentPaymentAllocations_(ss,agentId);
   var result=invoices.map(function(inv){var invItems=items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);});var total=Number(inv.NetPayable||0),status=String(inv.PaymentStatus||'UNPAID').toUpperCase(),paid=0;
-    if(['PAID','SETTLED'].includes(status))paid=total;else if(invItems.length)paid=invItems.reduce(function(sum,it){return sum+Math.min(Number(it.NetAmount||0),Number(byItem[String(it.InvoiceItemID)]||0));},0);else paid=Math.min(total,Number(inv.PaidAmount||0));
-    paid=Math.max(0,Math.min(total,Math.round(paid*100)/100));return {invoice:inv,paid:paid,outstanding:Math.max(0,Math.round((total-paid)*100)/100)};});
+    if(['PAID','SETTLED','CANCELLED'].includes(status))paid=total;else if(invItems.length)paid=invItems.reduce(function(sum,it){return sum+Math.min(Number(it.NetAmount||0),Number(byItem[String(it.InvoiceItemID)]||0));},0);else paid=Math.min(total,Number(inv.PaidAmount||0));
+    paid=Math.max(0,Math.min(total,Math.round(paid*100)/100));return {invoice:inv,paid:paid,outstanding:['CANCELLED'].includes(status)?0:Math.max(0,Math.round((total-paid)*100)/100)};});
   return {items:result,paidByItem:byItem};
 }
 function agentInvoices_(p){
@@ -672,7 +672,7 @@ function agentReportPartialPayment_(p){
   if(!(amount>0))throw new Error('Enter a payment amount greater than zero.');
   var receipt=p.receipt||{},fileName=String(receipt.fileName||'').trim(),mime=String(receipt.mimeType||'').trim(),base64=String(receipt.base64||'').trim();
   if(!fileName||!mime||!base64)throw new Error('Upload your payment receipt before marking payment done.');
-  if(!/^application\\/pdf$|^image\\/(jpeg|png|webp)$/.test(mime))throw new Error('Receipt must be a PDF, JPG, PNG or WEBP file.');
+  if(!/^application\/pdf$|^image\/(jpeg|png|webp)$/.test(mime))throw new Error('Receipt must be a PDF, JPG, PNG or WEBP file.');
   if(base64.length>8*1024*1024)throw new Error('Receipt is too large. Upload a file below 6 MB.');
   var ss=agentBusinessSpreadsheet_(),summary=invoicePaymentSummary_(ss,s.AgentID);
   var outstanding=Math.round(summary.items.reduce(function(sum,x){return sum+x.outstanding;},0)*100)/100;
