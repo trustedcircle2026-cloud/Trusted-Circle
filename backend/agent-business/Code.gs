@@ -702,13 +702,13 @@ function agentReportPartialPayment_(p){
   invalidateSheetCache_('AgentInvoicePayments');invalidateSheetCache_('Notifications');cacheRemoveAgent_(s.AgentID);
   return {reported:true,payment:{PaymentReportID:row.PaymentReportID,Amount:amount,Status:'PENDING',ReportedAt:now},outstandingAmount:outstanding};
 }
-function applyAgentPaymentFifo_(ss,report){
+function applyAgentPaymentFifo_(ss,report,actor){
   var agentId=String(report.AgentID||''),amount=Math.round(Number(report.Amount||0)*100)/100,lock=LockService.getScriptLock();
   lock.waitLock(20000);
   try{
     var currentReport=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')).find(function(x){return String(x.PaymentReportID)===String(report.PaymentReportID);});
     if(!currentReport||String(currentReport.Status||'').toUpperCase()!=='PENDING')throw new Error('This payment report has already been reviewed.');
-    report=currentReport;
+    report=currentReport;report.AdminDecisionBy=actor||report.AdminDecisionBy||'ADMIN';
     var summary=invoicePaymentSummary_(ss,agentId),remainingAvailable=Math.round(summary.items.reduce(function(sum,x){return sum+x.outstanding;},0)*100)/100;
     if(amount>remainingAvailable+0.009)throw new Error('Outstanding balance changed before confirmation. Refresh and review the payment report.');
     var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){return String(x.AgentID)===agentId;}),invoiceMap={};
@@ -731,10 +731,18 @@ function processAgentInvoicePaymentDecision_(reportId,decision,actor){
   var ss=agentBusinessSpreadsheet_(),rows=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')),report=rows.find(function(x){return String(x.PaymentReportID)===String(reportId);});
   if(!report)throw new Error('Agent payment report not found.');
   var status=String(report.Status||'').toUpperCase();if(status==='RECEIVED')throw new Error('This payment has already been confirmed.');if(status!=='PENDING')throw new Error('This payment report is already '+status.toLowerCase()+'.');
-  if(decision==='RECEIVED'){report.AdminDecisionBy=actor||'ADMIN';applyAgentPaymentFifo_(ss,report);}
-  else if(decision==='PENDING'){report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=actor||'ADMIN';report.Notes='Admin reviewed the report and left it pending.';saveRow_(ss,'AgentInvoicePayments',report);}
-  else if(decision==='FAILED'){report.Status='REJECTED';report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=actor||'ADMIN';report.Notes='Admin rejected the reported payment receipt.';saveRow_(ss,'AgentInvoicePayments',report);}
-  else throw new Error('Unsupported payment decision.');
+  if(decision==='RECEIVED'){applyAgentPaymentFifo_(ss,report,actor);}
+  else if(decision==='PENDING'||decision==='FAILED'){
+    var lock=LockService.getScriptLock();lock.waitLock(20000);
+    try{
+      var latest=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')).find(function(x){return String(x.PaymentReportID)===String(reportId);});
+      if(!latest||String(latest.Status||'').toUpperCase()!=='PENDING')throw new Error('This payment report has already been reviewed.');
+      report=latest;report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=actor||'ADMIN';
+      if(decision==='PENDING'){report.Notes='Admin reviewed the report and left it pending.';}
+      else{report.Status='REJECTED';report.Notes='Admin rejected the reported payment receipt.';}
+      saveRow_(ss,'AgentInvoicePayments',report);
+    }finally{lock.releaseLock();}
+  }else throw new Error('Unsupported payment decision.');
   invalidateSheetCache_('AgentInvoicePayments');invalidateSheetCache_('Invoices');cacheRemoveAgent_(report.AgentID);return {report:report};
 }
 function agentInvoicePaymentDecision_(p){
