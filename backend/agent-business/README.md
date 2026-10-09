@@ -150,3 +150,13 @@ The Apps Script source in this repository must also be deployed to the live Agen
 2. Run freshSetupAgentBusinessSheets() once. This is non-destructive and adds the new AgentInvoicePayments tab and the additional invoice-item balance columns while preserving existing records.
 3. Deploy a new Web App version (Execute as: Me; access: Anyone) and confirm the frontend VITE_AGENT_BUSINESS_API_URL still points to the active /exec deployment URL.
 4. Test a small partial payment end-to-end before using this for real settlements: submit a receipt as an agent, confirm it in Admin, and verify FIFO allocation, invoice status, remaining payable, and the updated Outstanding Summary PDF.
+
+## Invoice PDF redesign and resend
+
+Newly generated invoices use a compact branded header, structured invoice/agent/premium tables, a bank transfer and UPI QR section, and the website/email footer. The payment note and discount explanatory text block has been removed; the discount remains itemized in the invoice totals. The QR image is loaded from `backend/agent-business/TC Payment QR.png` in the default branch.
+
+Trusted Circle bank details are read from Apps Script Script Properties so actual account numbers are not hard-coded in the repository. Configure `TRUSTED_CIRCLE_ACCOUNT_NAME`, `TRUSTED_CIRCLE_BANK_NAME`, `TRUSTED_CIRCLE_ACCOUNT_NUMBER`, `TRUSTED_CIRCLE_IFSC`, `TRUSTED_CIRCLE_BANK_BRANCH`, and `TRUSTED_CIRCLE_UPI_ID` with verified payment details before issuing invoices. Missing fields are omitted; if none are configured, the PDF instructs the agent to contact Trusted Circle.
+
+Invoice generation selects only un-invoiced receivables, so newly generated PDFs reflect current eligible records. Admins can use **More → Agent Receivables → Invoice History → Send Invoice** to email an earlier invoice's saved PDF again; this does not regenerate or mutate the historical invoice snapshot.
+
+Deploy the latest `backend/agent-business/Code.gs` as a new Apps Script Web App version after updating it in the Apps Script editor. Test the QR image, configured bank details, PDF pagination, email attachment and resend action before issuing live invoices.
