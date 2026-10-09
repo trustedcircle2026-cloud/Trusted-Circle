@@ -76,7 +76,7 @@ For a fresh database based on the current `AGENT_BUSINESS.SHEETS` schema, the re
 3. Recreate the current headers and Settings defaults.
 4. Preserve no old Agent, AgentUser, Client, Payment, Card, Cashback, Ledger, Settlement, Expense, Notification, or Audit records.
 
-Current schema version: `1.3.0` (PaymentRequests now includes `PolicyID`).
+Current Agent Business backend setup version: `1.8.0`. The non-destructive setup adds new tabs and columns without clearing existing records.
 
 After a fresh reset, create AgentUsers again because the agent login now requires a mobile number and 4-digit password.
 
