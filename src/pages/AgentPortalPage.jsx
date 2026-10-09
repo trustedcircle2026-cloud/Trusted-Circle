@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react'
 import {ArrowRight,Bell,CheckCircle2,CircleUserRound,Download,ExternalLink,FileText,Home,Link2,LogIn,Plus,RefreshCw,ShieldCheck,Users,X,LogOut,Send,CalendarDays,Clock3,ChevronRight,Edit3,WalletCards,MoreHorizontal} from 'lucide-react'
 import {agentBusinessApi} from '../agentBusinessApi'
+import {portalCache} from '../agentPortalStorage'
 import '../agent-portal.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
@@ -25,41 +26,65 @@ export default function AgentPortalPage(){
   setClients(data?.clients?.items||[])
   setRequests(data?.requests?.items||[])
  }
+ const cacheScope=token=>'agent:'+String(token||'').slice(-16)
  const load=async token=>{
+  if(!token)return
   setError('')
-  const cacheKey='tc_agent_bootstrap_cache'
+  const scope=cacheScope(token)
+  const bootstrapKey=scope+':bootstrap'
+  const receiptsKey=scope+':receipts'
+  const invoicesKey=scope+':invoices'
   let hadCache=false
+  let timer
   try{
-   const cached=JSON.parse(localStorage.getItem(cacheKey)||'null')
-   if(cached?.time&&Date.now()-Number(cached.time)<300000&&cached.data?.agent){
-    applyBootstrap(cached.data);hadCache=true;setLoading(false)
+   // Hydrate the interface from IndexedDB first. The server remains authoritative.
+   const [cachedBootstrap,cachedReceipts,cachedInvoices]=await Promise.all([
+    portalCache.get(bootstrapKey),portalCache.get(receiptsKey),portalCache.get(invoicesKey)
+   ])
+   if(cachedBootstrap?.data?.agent && Date.now()-Number(cachedBootstrap.savedAt||0)<7*24*60*60*1000){
+    applyBootstrap(cachedBootstrap.data)
+    hadCache=true
+    setLoading(false)
+   }
+   if(cachedReceipts?.data?.items && Date.now()-Number(cachedReceipts.savedAt||0)<7*24*60*60*1000)setReceipts(cachedReceipts.data.items)
+   if(cachedInvoices?.data && Date.now()-Number(cachedInvoices.savedAt||0)<7*24*60*60*1000){
+    setInvoices(cachedInvoices.data.items||[])
+    setPayableAmount(Number(cachedInvoices.data.outstandingAmount||0))
+    setEarningsToDate(Number(cachedInvoices.data.earningsToDate||0))
    }
   }catch{}
-  let timer
   try{
    if(!hadCache){
     setLoading(true);let i=0;setLoadingText(loadingMessages[0]);timer=setInterval(()=>setLoadingText(loadingMessages[++i%loadingMessages.length]),850)
    }
    const data=await agentBusinessApi.agentBootstrap(token)
-   try{localStorage.setItem(cacheKey,JSON.stringify({time:Date.now(),data}))}catch{}
    applyBootstrap(data)
+   await portalCache.set(bootstrapKey,{savedAt:Date.now(),data}).catch(()=>{})
    if(!hadCache)setLoading(false)
-   // Secondary data never blocks the first usable screen; fetch in parallel.
-   Promise.allSettled([
+   // Finance/document data loads separately so it never blocks the first usable screen.
+   const results=await Promise.allSettled([
     agentBusinessApi.agentPremiumReceipts(token),
     agentBusinessApi.agentInvoices(token)
-   ]).then(([receiptResult,invoiceResult])=>{
-    if(receiptResult.status==='fulfilled')setReceipts(receiptResult.value.items||[])
-    if(invoiceResult.status==='fulfilled'){
-      const invoiceData=invoiceResult.value
-      setInvoices(invoiceData.items||[])
-      setPayableAmount(Number(invoiceData.outstandingAmount||0))
-      setEarningsToDate(Number(invoiceData.earningsToDate||0))
-    }
-   })
+   ])
+   const [receiptResult,invoiceResult]=results
+   if(receiptResult.status==='fulfilled'){
+    setReceipts(receiptResult.value.items||[])
+    portalCache.set(receiptsKey,{savedAt:Date.now(),data:receiptResult.value}).catch(()=>{})
+   }
+   if(invoiceResult.status==='fulfilled'){
+    const invoiceData=invoiceResult.value
+    setInvoices(invoiceData.items||[])
+    setPayableAmount(Number(invoiceData.outstandingAmount||0))
+    setEarningsToDate(Number(invoiceData.earningsToDate||0))
+    portalCache.set(invoicesKey,{savedAt:Date.now(),data:invoiceData}).catch(()=>{})
+   }
+   if(receiptResult.status==='rejected' || invoiceResult.status==='rejected'){
+    setError('Some finance or receipt information could not be refreshed. Showing the latest available data.')
+   }
   }catch(e){
-   if(!hadCache){localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)}
-   else setError('Live sync failed. Showing your latest saved workspace data.')
+   if(!hadCache){
+    localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0);setError(e.message)
+   }else setError('Live sync failed. Showing saved workspace data; verify payment status before acting.')
   }finally{clearInterval(timer);if(!hadCache)setLoading(false)}
  }
  useEffect(()=>{
@@ -79,7 +104,7 @@ export default function AgentPortalPage(){
       if(Date.now()-lastActivity<INACTIVITY_LIMIT){resetInactivity();return}
       try{await agentBusinessApi.agentLogout(session)}catch{}
       localStorage.removeItem('tc_agent_session')
-      localStorage.removeItem('tc_agent_bootstrap_cache')
+      portalCache.clearScope(cacheScope(session)).catch(()=>{})
       setSession('')
       setAgent(null)
       setClients([])
@@ -140,7 +165,7 @@ export default function AgentPortalPage(){
   try{await agentBusinessApi.agentCancelPaymentRequest(session,requestId);await load(session);setNotice('Payment request cancelled successfully.')}
   catch(e){setError(e.message)}finally{setLoading(false)}
  }
- const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0)}
+ const logout=async()=>{try{if(session)await agentBusinessApi.agentLogout(session)}catch{}portalCache.clearScope(cacheScope(session)).catch(()=>{});localStorage.removeItem('tc_agent_session');setSession('');setAgent(null);setClients([]);setRequests([]);setReceipts([]);setInvoices([]);setPayableAmount(0);setEarningsToDate(0)}
  const reportInvoicePaymentDone=async invoice=>{
   if(!invoice?.InvoiceID)return;
   if(!window.confirm('Have you completed the payment for '+(invoice.InvoiceNumber||'this invoice')+'? This will notify Trusted Circle Admin for verification.'))return;
