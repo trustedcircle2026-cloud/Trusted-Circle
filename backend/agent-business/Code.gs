@@ -1171,11 +1171,12 @@ function regenerateAgentInvoice_(p){
   var clients=sheetRows_(ensureBusinessSheet_(ss,'Clients'));
   var policies=sheetRows_(ensureBusinessSheet_(ss,'Policies'));
   var premiumBills=sheetRows_(ensureBusinessSheet_(ss,'PremiumBills'));
-  var paymentById={},requestById={},clientById={},policyById={};
+  var paymentById={},requestById={},clientById={},policyById={},billById={};
   payments.forEach(function(x){paymentById[String(x.PaymentID||'')]=x;});
   requests.forEach(function(x){requestById[String(x.RequestID||'')]=x;});
   clients.forEach(function(x){clientById[String(x.ClientID||'')]=x;});
   policies.forEach(function(x){policyById[String(x.PolicyID||'')]=x;});
+  premiumBills.forEach(function(x){billById[String(x.BillID||'')]=x;});
 
   // Some older receivables were saved without InvoiceID. Match them through PaymentID/ClientID.
   var itemPaymentIds=items.map(function(x){return String(x.PaymentID||'');}).filter(Boolean);
@@ -1217,39 +1218,27 @@ function regenerateAgentInvoice_(p){
   if(!items.length)throw new Error('Client details could not be recovered: this invoice has no saved line items or linked premium receivables. Restore the original invoice/client records before regenerating.');
 
   items=items.map(function(item,index){
+    function firstNonBlank(values){for(var z=0;z<values.length;z++){if(values[z]!==undefined&&values[z]!==null&&String(values[z]).trim()!=='')return values[z];}return '';}
     var rec=linkedReceivables.find(function(r){return item.PaymentID&&String(r.PaymentID||'')===String(item.PaymentID);})||
       linkedReceivables.find(function(r){return item.ClientID&&String(r.ClientID||'')===String(item.ClientID);})||
       linkedReceivables.find(function(r){return (item.PolicyNumber||item.PolicyNo)&&String(r.PolicyNumber||r.PolicyNo||'')===String(item.PolicyNumber||item.PolicyNo);})||
       linkedReceivables.find(function(r){return (item.ClientName||item.Name)&&String(r.ClientName||r.Name||'').trim().toLowerCase()===String(item.ClientName||item.Name||'').trim().toLowerCase();})||
       linkedReceivables[index]||{};
-    var payment=paymentById[String(item.PaymentID||rec.PaymentID||'')]||{};
-    var request=requestById[String(payment.RequestID||'')]||{};
-    var clientId=String(item.ClientID||rec.ClientID||payment.ClientID||request.ClientID||'');
-    var bill=premiumBills.find(function(x){return (clientId&&String(x.ClientID||'')===clientId)||((item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo)&&String(x.PolicyNumber||'')===String(item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo));})||{};
-    if(!clientId)clientId=String(bill.ClientID||'');
-    var client=clientById[clientId]||{};
-    var policy=policies.find(function(x){return String(x.PolicyID||'')===String(item.PolicyID||rec.PolicyID||payment.PolicyID||request.PolicyID||'' )&&String(x.PolicyID||'')!==' ';})||
-      policies.find(function(x){return String(x.ClientID||'')===clientId&&(!item.PolicyNumber||String(x.PolicyNumber||'')===String(item.PolicyNumber));})||
-      policies.find(function(x){return String(x.ClientID||'')===clientId;})||{};
-    function firstNonBlank(values){for(var z=0;z<values.length;z++){if(values[z]!==undefined&&values[z]!==null&&String(values[z]).trim()!=='')return values[z];}return '';}
-    item.ClientID=clientId;
-    item.ClientName=firstNonBlank([item.ClientName,item.Name,item.InsuredPerson,rec.ClientName,rec.Name,client.ClientName,request.ClientName,request.Name,bill.ClientName,bill.Name,policy.PolicyHolder,policy.InsuredPerson]);
+    var payment=paymentById[String(item.PaymentID||rec.PaymentID||'')]||payments.find(function(x){return (item.BillID||rec.BillID)&&String(x.BillID||'')===String(item.BillID||rec.BillID);})||{};
+    var request=requestById[String(item.RequestID||payment.RequestID||'')]||requests.find(function(x){return (payment.PaymentID&&String(x.PaymentID||'')===String(payment.PaymentID))||((item.BillID||payment.BillID)&&String(x.BillID||'')===String(item.BillID||payment.BillID));})||{};
+    var billId=String(item.BillID||rec.BillID||payment.BillID||request.BillID||'');
+    var bill=billById[billId]||premiumBills.find(function(x){return (item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||request.PolicyNumber||request.PolicyNo)&&String(x.PolicyNumber||'')===String(item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||request.PolicyNumber||request.PolicyNo);})||{};
+    var clientId=String(item.ClientID||rec.ClientID||payment.ClientID||request.ClientID||bill.ClientID||'');
+    var client=clientById[clientId]||clients.find(function(x){return (item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||bill.PolicyNumber)&&String(x.PolicyNumber||'')===String(item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||bill.PolicyNumber);})||{};
+    if(!clientId)clientId=String(client.ClientID||'');
+    var policyId=String(item.PolicyID||rec.PolicyID||payment.PolicyID||request.PolicyID||bill.PolicyID||'');
+    var policy=policyById[policyId]||policies.find(function(x){return (item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||bill.PolicyNumber)&&String(x.PolicyNumber||'')===String(item.PolicyNumber||item.PolicyNo||rec.PolicyNumber||rec.PolicyNo||bill.PolicyNumber);})||policies.find(function(x){return clientId&&String(x.ClientID||'')===clientId;})||{};
+    item.ClientID=firstNonBlank([clientId,client.ClientID]);
+    item.ClientName=firstNonBlank([item.ClientName,item.Name,item.InsuredPerson,rec.ClientName,rec.Name,client.ClientName,client.Name,request.ClientName,request.Name,bill.ClientName,bill.Name,policy.PolicyHolder,policy.InsuredPerson]);
     item.PolicyNumber=firstNonBlank([item.PolicyNumber,item.PolicyNo,rec.PolicyNumber,rec.PolicyNo,client.PolicyNumber,request.PolicyNumber,request.PolicyNo,bill.PolicyNumber,policy.PolicyNumber]);
     item.DateOfBirth=firstNonBlank([item.DateOfBirth,item.DOB,item.BirthDate,rec.DateOfBirth,rec.DOB,client.DateOfBirth,client.DOB,request.DateOfBirth,request.DOB]);
-    // If legacy item lacks a client ID, recover the client through a matching policy number.
-    if(!clientId&&item.PolicyNumber){
-      var policyByNumber=policies.find(function(x){return String(x.PolicyNumber||'')===String(item.PolicyNumber);})||{};
-      var matchedClient=clientById[String(policyByNumber.ClientID||'')]||{};
-      if(matchedClient.ClientID){item.ClientID=String(matchedClient.ClientID);item.ClientName=firstNonBlank([item.ClientName,matchedClient.ClientName,policyByNumber.PolicyHolder,policyByNumber.InsuredPerson]);item.DateOfBirth=firstNonBlank([item.DateOfBirth,matchedClient.DateOfBirth]);}
-    }
-    // Use policy holder/insured person if the Clients row is unavailable.
-    item.ClientName=firstNonBlank([item.ClientName,policy.PolicyHolder,policy.InsuredPerson]);
-
-    if(!item.PaymentID)item.PaymentID=String(rec.PaymentID||payment.PaymentID||'');
-    // Persist repaired details so future invoice regenerations retain the same client information.
-    if(item.InvoiceItemID){
-      var saved=saveRow_(ss,'InvoiceItems',item);
-    }
+    if(!item.PaymentID)item.PaymentID=String(rec.PaymentID||payment.PaymentID||request.PaymentID||'');
+    if(item.InvoiceItemID)saveRow_(ss,'InvoiceItems',item);
     return item;
   });
 
