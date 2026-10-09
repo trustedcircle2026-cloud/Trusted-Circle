@@ -667,6 +667,75 @@ function assignInvoicePaymentLink_(p){
     PaymentLinkAssignedAt:invoice.PaymentLinkAssignedAt,PaymentStatus:invoice.PaymentStatus,Status:invoice.Status
   }};
 }
+function agentReportPartialPayment_(p){
+  var s=agentSession_(p.token),amount=Math.round(Number(p.amount||0)*100)/100;
+  if(!(amount>0))throw new Error('Enter a payment amount greater than zero.');
+  var receipt=p.receipt||{},fileName=String(receipt.fileName||'').trim(),mime=String(receipt.mimeType||'').trim(),base64=String(receipt.base64||'').trim();
+  if(!fileName||!mime||!base64)throw new Error('Upload your payment receipt before marking payment done.');
+  if(!/^application\\/pdf$|^image\\/(jpeg|png|webp)$/.test(mime))throw new Error('Receipt must be a PDF, JPG, PNG or WEBP file.');
+  if(base64.length>8*1024*1024)throw new Error('Receipt is too large. Upload a file below 6 MB.');
+  var ss=agentBusinessSpreadsheet_(),summary=invoicePaymentSummary_(ss,s.AgentID);
+  var outstanding=Math.round(summary.items.reduce(function(sum,x){return sum+x.outstanding;},0)*100)/100;
+  if(outstanding<=0)throw new Error('There is no outstanding payable amount.');
+  if(amount>outstanding+0.009)throw new Error('Payment cannot exceed the current outstanding payable of '+formatMoney_(outstanding)+'. Refresh and try again.');
+  var reportId=newId_('AgentPaymentReportID'),now=new Date().toISOString();
+  var blob=Utilities.newBlob(Utilities.base64Decode(base64),mime,'AGENT-PAYMENT-'+reportId+'-'+fileName);
+  var file=DriveApp.getFolderById(INSURANCE_PREMIUM_RECEIPT_FOLDER_ID).createFile(blob);
+  var agent=(sheetRows_(ss.getSheetByName('Agents')).find(function(a){return String(a.AgentID)===String(s.AgentID);})||{});
+  var row=saveRow_(ss,'AgentInvoicePayments',{PaymentReportID:reportId,AgentID:s.AgentID,Amount:amount,Status:'PENDING',ReceiptFileId:file.getId(),ReceiptUrl:file.getUrl(),ReceiptFileName:file.getName(),ReceiptMimeType:mime,ReportedAt:now,AdminDecisionAt:'',AdminDecisionBy:'',AllocationsJson:'[]',Notes:'Agent reported partial payment; waiting for Admin receipt verification.',CreatedAt:now,UpdatedAt:now}).item;
+  saveRow_(ss,'Notifications',{NotificationID:newId_('NotificationID'),RecipientType:'ADMIN',RecipientID:'ADMIN',Type:'AGENT_PARTIAL_PAYMENT_REPORTED',Title:'Agent partial payment reported',Message:String(agent.AgentName||'Agent')+' · '+formatMoney_(amount)+' · Report '+reportId,Status:'UNREAD',CreatedAt:now});
+  var email=String(PropertiesService.getScriptProperties().getProperty('AGENT_BUSINESS_ADMIN_EMAIL')||'trustedcircle2026@gmail.com').trim(),base=ScriptApp.getService().getUrl()||'';
+  var buttons=['RECEIVED','PENDING','FAILED'].map(function(dec){var token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');CacheService.getScriptCache().put('AGENT_PARTIAL_REVIEW_'+token,JSON.stringify({reportId:reportId,decision:dec,agentId:s.AgentID}),21600);return {decision:dec,url:base+'?action=agentInvoicePaymentDecision&reviewToken='+encodeURIComponent(token)};});
+  if(email&&base&&MailApp.getRemainingDailyQuota()>0){
+    var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto"><h2 style="color:#064f3b">Trusted Circle · Partial Agent Payment</h2><p><b>'+escapeHtml_(agent.AgentName||'Agent')+'</b> reported a payment of <b>'+formatMoney_(amount)+'</b>.</p><p>Outstanding before this report: <b>'+formatMoney_(outstanding)+'</b></p><p><a href="'+escapeHtml_(file.getUrl())+'">View uploaded payment receipt</a></p><p>Verify the receipt and choose an action:</p><p><a href="'+buttons[0].url+'" style="display:inline-block;padding:12px 18px;background:#16834f;color:#fff;text-decoration:none;border-radius:8px;margin-right:8px">✓ Received — Apply FIFO</a><a href="'+buttons[1].url+'" style="display:inline-block;padding:12px 18px;background:#d39a18;color:#fff;text-decoration:none;border-radius:8px;margin-right:8px">⏳ Keep Pending</a><a href="'+buttons[2].url+'" style="display:inline-block;padding:12px 18px;background:#c83f3f;color:#fff;text-decoration:none;border-radius:8px">✕ Reject</a></p><p style="color:#777;font-size:12px">Review links expire in 6 hours. Confirmation applies this payment to the oldest unpaid premium first.</p></div>';
+    MailApp.sendEmail({to:email,subject:'Agent Payment Receipt Review · '+formatMoney_(amount),body:'Agent '+String(agent.AgentName||'Agent')+' reported '+formatMoney_(amount)+'. Please review the receipt and confirm.',htmlBody:html,name:'Trusted Circle'});
+  }
+  invalidateSheetCache_('AgentInvoicePayments');invalidateSheetCache_('Notifications');cacheRemoveAgent_(s.AgentID);
+  return {reported:true,payment:{PaymentReportID:row.PaymentReportID,Amount:amount,Status:'PENDING',ReportedAt:now},outstandingAmount:outstanding};
+}
+function applyAgentPaymentFifo_(ss,report){
+  var agentId=String(report.AgentID||''),amount=Math.round(Number(report.Amount||0)*100)/100,lock=LockService.getScriptLock();
+  lock.waitLock(20000);
+  try{
+    var summary=invoicePaymentSummary_(ss,agentId),remainingAvailable=Math.round(summary.items.reduce(function(sum,x){return sum+x.outstanding;},0)*100)/100;
+    if(amount>remainingAvailable+0.009)throw new Error('Outstanding balance changed before confirmation. Refresh and review the payment report.');
+    var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){return String(x.AgentID)===agentId;}),invoiceMap={};
+    invoices.forEach(function(inv){invoiceMap[String(inv.InvoiceID)]=inv;});
+    var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')).filter(function(it){return invoiceMap[String(it.InvoiceID)];});
+    items.sort(function(a,b){var ia=invoiceMap[String(a.InvoiceID)]||{},ib=invoiceMap[String(b.InvoiceID)]||{};var da=new Date(ia.InvoiceDate||ia.CreatedAt||a.CreatedAt||0).getTime(),db=new Date(ib.InvoiceDate||ib.CreatedAt||b.CreatedAt||0).getTime();return da-db||new Date(a.CreatedAt||0).getTime()-new Date(b.CreatedAt||0).getTime();});
+    var paidByItem=summary.paidByItem,allocations=[],left=amount;
+    items.forEach(function(item){if(left<=0.009)return;var invoice=invoiceMap[String(item.InvoiceID)]||{},status=String(invoice.PaymentStatus||'').toUpperCase();if(['PAID','SETTLED','CANCELLED'].includes(status))return;var net=Math.max(0,Number(item.NetAmount||0)),paid=Math.min(net,Number(paidByItem[String(item.InvoiceItemID)]||0)),due=Math.max(0,Math.round((net-paid)*100)/100);if(due<=0.009)return;var applied=Math.round(Math.min(due,left)*100)/100;if(applied>0){allocations.push({InvoiceItemID:String(item.InvoiceItemID),InvoiceID:String(item.InvoiceID),ClientID:String(item.ClientID||''),ClientName:String(item.ClientName||''),PolicyNumber:String(item.PolicyNumber||''),Amount:applied});left=Math.round((left-applied)*100)/100;}});
+    if(left>0.009)throw new Error('Unable to allocate the full payment amount. Please refresh the invoice records.');
+    report.Status='RECEIVED';report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=report.AdminDecisionBy||'ADMIN';report.AllocationsJson=JSON.stringify(allocations);report.Notes='Receipt confirmed; amount applied to oldest outstanding premiums using FIFO.';saveRow_(ss,'AgentInvoicePayments',report);
+    var allAlloc=confirmedAgentPaymentAllocations_(ss,agentId);
+    invoices.forEach(function(inv){var invItems=items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);}),total=Number(inv.NetPayable||0),paid=invItems.length?invItems.reduce(function(sum,it){return sum+Math.min(Number(it.NetAmount||0),Number(allAlloc[String(it.InvoiceItemID)]||0));},0):0;if(['PAID','SETTLED'].includes(String(inv.PaymentStatus||'').toUpperCase()))paid=total;paid=Math.min(total,Math.round(paid*100)/100);var due=Math.max(0,Math.round((total-paid)*100)/100);inv.PaidAmount=paid;inv.OutstandingAmount=due;if(due<=0.009){inv.PaymentStatus='PAID';inv.Status='PAID';}else if(paid>0){inv.PaymentStatus='PARTIALLY_PAID';inv.Status='PARTIALLY_PAID';}else if(String(inv.PaymentStatus||'').toUpperCase()!=='CANCELLED'){inv.PaymentStatus='PAYABLE';if(String(inv.Status||'').toUpperCase()==='PARTIALLY_PAID')inv.Status='PAYMENT_LINK_ASSIGNED';}inv.UpdatedAt=new Date().toISOString();saveRow_(ss,'Invoices',inv);});
+    saveRow_(ss,'MoneyLedger',{LedgerID:newId_('LedgerID'),TransactionDate:new Date().toISOString().slice(0,10),ReferenceType:'AGENT_PARTIAL_PAYMENT',ReferenceID:report.PaymentReportID,AgentID:agentId,ClientID:'',PaymentID:'',Description:'Agent partial payment confirmed · '+formatMoney_(amount)+' · FIFO',MoneyIn:amount,MoneyOut:'',Balance:'',PaymentMode:'Agent Bank/UPI Payment',BankAccount:'Trusted Circle',Category:'AGENT INVOICE SETTLEMENT',Status:'RECEIVED'});
+    ['AgentInvoicePayments','Invoices','MoneyLedger','Notifications'].forEach(invalidateSheetCache_);cacheRemoveAgent_(agentId);return {payment:report,allocations:allocations};
+  }finally{lock.releaseLock();}
+}
+function processAgentInvoicePaymentDecision_(reportId,decision,actor){
+  var ss=agentBusinessSpreadsheet_(),rows=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')),report=rows.find(function(x){return String(x.PaymentReportID)===String(reportId);});
+  if(!report)throw new Error('Agent payment report not found.');
+  var status=String(report.Status||'').toUpperCase();if(status==='RECEIVED')throw new Error('This payment has already been confirmed.');if(status!=='PENDING')throw new Error('This payment report is already '+status.toLowerCase()+'.');
+  if(decision==='RECEIVED'){report.AdminDecisionBy=actor||'ADMIN';applyAgentPaymentFifo_(ss,report);}
+  else if(decision==='PENDING'){report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=actor||'ADMIN';report.Notes='Admin reviewed the report and left it pending.';saveRow_(ss,'AgentInvoicePayments',report);}
+  else if(decision==='FAILED'){report.Status='REJECTED';report.AdminDecisionAt=new Date().toISOString();report.AdminDecisionBy=actor||'ADMIN';report.Notes='Admin rejected the reported payment receipt.';saveRow_(ss,'AgentInvoicePayments',report);}
+  else throw new Error('Unsupported payment decision.');
+  invalidateSheetCache_('AgentInvoicePayments');invalidateSheetCache_('Invoices');cacheRemoveAgent_(report.AgentID);return {report:report};
+}
+function agentInvoicePaymentDecision_(p){
+  var token=String(p.reviewToken||'').trim();if(!token)throw new Error('Review link is invalid.');
+  var raw=CacheService.getScriptCache().get('AGENT_PARTIAL_REVIEW_'+token);if(!raw)throw new Error('This review link has expired or has already been used.');
+  var review=JSON.parse(raw),decision=String(p.decision||review.decision||'').toUpperCase();if(review.decision!==decision)throw new Error('Invalid review action.');
+  CacheService.getScriptCache().remove('AGENT_PARTIAL_REVIEW_'+token);processAgentInvoicePaymentDecision_(review.reportId,decision,'ADMIN EMAIL');
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #dfe8e3;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>Payment '+(decision==='RECEIVED'?'confirmed and applied using FIFO':decision==='PENDING'?'kept pending':'rejected')+'.</h3><p>You can close this window.</p></div>');
+}
+function agentInvoicePaymentReports_(p){
+  requireAdmin_(p);var ss=agentBusinessSpreadsheet_(),agents=sheetRows_(ss.getSheetByName('Agents')),agentMap={};agents.forEach(function(a){agentMap[String(a.AgentID)]=a;});
+  var rows=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')).map(function(r){var a=agentMap[String(r.AgentID)]||{};return Object.assign({},r,{AgentName:a.AgentName||'',Email:a.Email||'',ReceiptUrl:r.ReceiptUrl||''});}).sort(function(a,b){return new Date(b.ReportedAt||0)-new Date(a.ReportedAt||0);});
+  return {items:rows,total:rows.length};
+}
+function adminDecideAgentInvoicePayment_(p){requireAdmin_(p);return processAgentInvoicePaymentDecision_(String(p.paymentReportId||'').trim(),String(p.decision||'').toUpperCase(),'ADMIN PORTAL');}
 function agentInvoicePdf_(p){
   var s=agentSession_(p.token),invoiceId=String(p.invoiceId||'').trim();
   if(!invoiceId)throw new Error('Invoice is required.');
