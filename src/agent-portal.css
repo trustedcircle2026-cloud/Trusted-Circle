@@ -891,3 +891,21 @@
 /* Home 2x2 summary and spacious finance layout */
 .ap-home-stats-four{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.ap-home-stats-four>button{min-height:112px;padding:18px;text-align:left;border-radius:18px}.ap-home-stats-four>button strong{font-size:22px}.ap-home-stats-four>button span{font-size:10px}.ap-home-panel{padding-bottom:34px}.ap-home-hero{padding-bottom:8px}.ap-home-payable-summary{padding:20px;margin-top:16px}.ap-home-invoice-mini{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin:12px 0;padding:13px;border:1px solid #dceae4;border-radius:15px;background:#fff}.ap-home-invoice-mini>div:first-child{display:flex;flex-direction:column;gap:3px}.ap-home-invoice-mini small{font-size:9px;color:#74817b}.ap-home-invoice-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.ap-home-invoice-actions button{min-height:36px}.ap-next-cycle-card{margin-top:16px;padding:22px}.ap-home-payable-summary>.wide{margin-top:8px}@media(max-width:380px){.ap-home-stats-four{gap:9px}.ap-home-stats-four>button{min-height:102px;padding:14px}.ap-home-stats-four>button strong{font-size:18px}}
 .ap-payable-pending{min-height:118px}.ap-payable-pulse{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:#fff4da;color:#9a6808;border:1px solid #f1d99b;border-radius:999px;padding:9px 12px;font-size:10px;font-weight:850;animation:apPayablePulse 1.5s ease-in-out infinite}.ap-payable-pulse svg{animation:apSpin 1s linear infinite}@keyframes apPayablePulse{50%{opacity:.62}}
+/* Phase 2: receipt search/date filtering and partial-payments */
+.ap-receipt-filters{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;margin:12px 0 14px;align-items:center}
+.ap-receipt-filters .ap-client-search{margin:0;min-width:0}
+.ap-paid-date-filter{display:flex;align-items:center;gap:7px;border:1px solid #dce7e1;border-radius:12px;padding:9px 10px;background:#fff;color:#064f3b;font-size:10px;font-weight:800;white-space:nowrap}
+.ap-paid-date-filter input{border:0;outline:0;background:transparent;color:#25372e;font:inherit;font-size:10px;min-width:0;width:125px}
+.ap-paid-date-filter button{border:0;background:transparent;color:#748179;display:grid;place-items:center;padding:2px;cursor:pointer}
+.ap-home-payment-actions{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:8px;margin-top:10px}
+.ap-home-payment-actions button{min-height:42px}
+.ap-payment-report-modal{width:min(460px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto}
+.ap-payment-report-modal>label{display:grid;gap:7px;margin-top:14px;font-size:11px;font-weight:850;color:#40584b}
+.ap-payment-report-modal>label input{width:100%;box-sizing:border-box;border:1px solid #dce7e1;border-radius:12px;padding:12px;outline:0;font:inherit;font-size:13px;background:#fff}
+.ap-payment-report-balance{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid #d5e9de;background:#f3fbf6;border-radius:14px;color:#426253;font-size:11px}
+.ap-payment-report-balance strong{font-size:19px;color:#064f3b;font-weight:950}
+.ap-payment-report-hint{display:block;margin-top:7px;color:#7a8980;font-size:10px;line-height:1.5}
+.ap-payment-receipt-upload input{padding:10px!important;font-size:11px!important}
+.ap-payment-receipt-upload small{font-size:10px;color:#748179;font-weight:600}
+.ap-payment-report-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:9px;margin-top:18px}
+@media(max-width:420px){.ap-receipt-filters{grid-template-columns:1fr}.ap-paid-date-filter{justify-content:flex-start}.ap-paid-date-filter input{flex:1;width:auto}.ap-home-payment-actions{grid-template-columns:1fr}.ap-payment-report-balance strong{font-size:17px}}
