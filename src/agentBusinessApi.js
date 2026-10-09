@@ -74,6 +74,9 @@ export const agentBusinessApi={
  agentReceiptFile:(token,paymentId)=>request('agentReceiptFile',{token,paymentId}),
  agentOutstandingSummary:(token)=>request('agentOutstandingSummary',{token}),
   agentReportInvoicePaymentDone:(token,invoiceId)=>request('agentReportInvoicePaymentDone',{token,invoiceId}),
+  agentReportPartialPayment:(token,amount,receipt)=>request('agentReportPartialPayment',{token,amount,receipt}),
+  agentInvoicePaymentReports:(adminToken)=>request('agentInvoicePaymentReports',{adminToken}),
+  adminDecideAgentInvoicePayment:(paymentReportId,decision,adminToken)=>request('adminDecideAgentInvoicePayment',{paymentReportId,decision,adminToken}),
   agentLogout:(token)=>request('agentLogout',{token}),
   isConfigured:()=>Boolean(API_URL)
 };
