@@ -1195,7 +1195,25 @@ function regenerateAgentInvoice_(p){
       OutstandingAmount:Number(r.ReceivableAmount||0),PaymentStatus:r.PaymentStatus||'PAYABLE'
     };});
   }
-  if(!items.length)throw new Error('No saved premium line items or linked receivables exist for this invoice.');
+  // Recover client details by stable IDs and policy numbers before building the PDF.
+  // Some legacy invoices have blank InvoiceItems but still retain payment/receivable/client data.
+  if(!items.length){
+    var invoicePaymentIds={};
+    allReceivables.forEach(function(r){if(String(r.InvoiceID||'')===invoiceId&&r.PaymentID)invoicePaymentIds[String(r.PaymentID)]=true;});
+    var fallbackReceivables=allReceivables.filter(function(r){
+      return String(r.InvoiceID||'')===invoiceId ||
+        (r.PaymentID&&invoicePaymentIds[String(r.PaymentID)]) ||
+        (r.ClientID&&linkedReceivables.some(function(x){return String(x.ClientID||'')===String(r.ClientID);}));
+    });
+    if(fallbackReceivables.length)items=fallbackReceivables.map(function(r){return {
+      InvoiceID:invoiceId,InvoiceItemID:'',PaymentID:r.PaymentID||'',ClientID:r.ClientID||'',
+      ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:r.DateOfBirth||'',
+      Amount:Number(r.GrossAmount||r.ReceivableAmount||0),DiscountAmount:Number(r.DiscountAmount||0),
+      NetAmount:Number(r.ReceivableAmount||0),PaidAmount:Number(r.PaidAmount||0),
+      OutstandingAmount:Number(r.ReceivableAmount||0),PaymentStatus:r.PaymentStatus||'PAYABLE'
+    };});
+  }
+  if(!items.length)throw new Error('Client details could not be recovered: this invoice has no saved line items or linked premium receivables. Restore the original invoice/client records before regenerating.');
 
   items=items.map(function(item,index){
     var rec=linkedReceivables.find(function(r){return item.PaymentID&&String(r.PaymentID||'')===String(item.PaymentID);})||
@@ -1205,12 +1223,23 @@ function regenerateAgentInvoice_(p){
     var request=requestById[String(payment.RequestID||'')]||{};
     var clientId=String(item.ClientID||rec.ClientID||payment.ClientID||request.ClientID||'');
     var client=clientById[clientId]||{};
-    var policy=policies.find(function(x){return String(x.ClientID||'')===clientId&&(!item.PolicyNumber||String(x.PolicyNumber||'')===String(item.PolicyNumber));})||{};
+    var policy=policies.find(function(x){return String(x.PolicyID||'')===String(item.PolicyID||rec.PolicyID||payment.PolicyID||request.PolicyID||'' )&&String(x.PolicyID||'')!==' ';})||
+      policies.find(function(x){return String(x.ClientID||'')===clientId&&(!item.PolicyNumber||String(x.PolicyNumber||'')===String(item.PolicyNumber));})||
+      policies.find(function(x){return String(x.ClientID||'')===clientId;})||{};
     function firstNonBlank(values){for(var z=0;z<values.length;z++){if(values[z]!==undefined&&values[z]!==null&&String(values[z]).trim()!=='')return values[z];}return '';}
     item.ClientID=clientId;
     item.ClientName=firstNonBlank([item.ClientName,rec.ClientName,client.ClientName,request.ClientName,policy.PolicyHolder,policy.InsuredPerson]);
     item.PolicyNumber=firstNonBlank([item.PolicyNumber,rec.PolicyNumber,client.PolicyNumber,request.PolicyNumber,policy.PolicyNumber]);
     item.DateOfBirth=firstNonBlank([item.DateOfBirth,rec.DateOfBirth,client.DateOfBirth,request.DateOfBirth]);
+    // If legacy item lacks a client ID, recover the client through a matching policy number.
+    if(!clientId&&item.PolicyNumber){
+      var policyByNumber=policies.find(function(x){return String(x.PolicyNumber||'')===String(item.PolicyNumber);})||{};
+      var matchedClient=clientById[String(policyByNumber.ClientID||'')]||{};
+      if(matchedClient.ClientID){item.ClientID=String(matchedClient.ClientID);item.ClientName=firstNonBlank([item.ClientName,matchedClient.ClientName,policyByNumber.PolicyHolder,policyByNumber.InsuredPerson]);item.DateOfBirth=firstNonBlank([item.DateOfBirth,matchedClient.DateOfBirth]);}
+    }
+    // Use policy holder/insured person if the Clients row is unavailable.
+    item.ClientName=firstNonBlank([item.ClientName,policy.PolicyHolder,policy.InsuredPerson]);
+
     if(!item.PaymentID)item.PaymentID=String(rec.PaymentID||payment.PaymentID||'');
     // Persist repaired details so future invoice regenerations retain the same client information.
     if(item.InvoiceItemID){
@@ -1219,6 +1248,8 @@ function regenerateAgentInvoice_(p){
     return item;
   });
 
+  var missingDetails=items.filter(function(x){return !String(x.ClientName||'').trim()||!String(x.PolicyNumber||'').trim();});
+  if(missingDetails.length)throw new Error('Invoice regeneration stopped: '+missingDetails.length+' client line(s) still lack a client name or policy number. No incomplete PDF was generated.');
   invoice.AgentEmail=String(agent.Email||'').trim();
   var pdfResult=buildInvoicePdfAndSend_(agent,invoice,items);
   invoice.PdfUrl=pdfResult.pdfUrl||'';
