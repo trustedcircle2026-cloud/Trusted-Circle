@@ -1095,7 +1095,8 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   var green='#064f3b',pale='#eef5f1',line='#cbd8d1',muted='#64756c';
   // Brand header: logo at left and brand/invoice title at right.
   var header=body.appendTable([['','']]);header.setBorderWidth(0);
-  var logoCell=header.getCell(0,0),brandCell=header.getCell(0,1);\n  try{logoCell.setWidth(66);brandCell.setWidth(430);logoCell.setPaddingRight(0);brandCell.setPaddingLeft(0);logoCell.setPaddingTop(0);logoCell.setPaddingBottom(0);brandCell.setPaddingTop(0);brandCell.setPaddingBottom(0);}catch(layoutError){}
+  var logoCell=header.getCell(0,0),brandCell=header.getCell(0,1);
+  try{logoCell.setWidth(66);brandCell.setWidth(430);logoCell.setPaddingRight(0);brandCell.setPaddingLeft(0);logoCell.setPaddingTop(0);logoCell.setPaddingBottom(0);brandCell.setPaddingTop(0);brandCell.setPaddingBottom(0);}catch(layoutError){}
   try{
     var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();
     var logoImage=logoCell.appendImage(logo);logoImage.setWidth(58);logoImage.setHeight(58);
