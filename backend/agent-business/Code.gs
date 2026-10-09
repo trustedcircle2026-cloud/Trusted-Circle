@@ -19,7 +19,7 @@ var AGENT_BUSINESS = {
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.7.0',
+  SETUP_VERSION: '1.8.0',
   SESSION_TTL_SECONDS: 21600,
   READ_CACHE_TTL_SECONDS: 30,
   SHEETS: {
@@ -40,7 +40,8 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
-    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','PaidAmount','OutstandingAmount','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt'],
+    AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     Settings:['Key','Value','Description','UpdatedAt']
@@ -154,6 +155,9 @@ function freshSetupAgentBusinessSheets(spreadsheetId){
 
 function doGet(e){
   var p=e&&e.parameter?e.parameter:{};
+  if(String(p.action||'')==='agentInvoicePaymentDecision'){
+    try{return agentInvoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
+  }
   if(String(p.action||'')==='invoicePaymentDecision'){
     try{return invoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#a52b2b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
   }
@@ -199,6 +203,9 @@ function agentBusinessRoute_(p){
   if(action==='agentReceiptFile') return agentReceiptFile_(p);
   if(action==='agentOutstandingSummary') return agentOutstandingSummary_(p);
   if(action==='agentReportInvoicePaymentDone') return agentReportInvoicePaymentDone_(p);
+  if(action==='agentReportPartialPayment') return agentReportPartialPayment_(p);
+  if(action==='agentInvoicePaymentReports') return agentInvoicePaymentReports_(p);
+  if(action==='adminDecideAgentInvoicePayment') return adminDecideAgentInvoicePayment_(p);
   if(action==='invoicePaymentDecision') return invoicePaymentDecision_(p);
   if(action==='agentLogout') return agentLogout_(p);
 
@@ -418,37 +425,26 @@ function agentPaymentRequests_(p){
   return {items:rows.reverse().map(function(r){var c=clientMap[String(r.ClientID)]||{},p=policyMap[String(r.PolicyID)]||{};return safeAgentRequest_(Object.assign({},r,{ClientName:c.ClientName||'',PolicyNumber:c.PolicyNumber||p.PolicyNumber||''}));}),total:rows.length};
   */
 }
+function confirmedAgentPaymentAllocations_(ss,agentId){
+  var rows=sheetRows_(ensureBusinessSheet_(ss,'AgentInvoicePayments')).filter(function(r){return String(r.AgentID)===String(agentId)&&String(r.Status||'').toUpperCase()==='RECEIVED';});
+  var byItem={};rows.forEach(function(r){var allocations=[];try{allocations=JSON.parse(String(r.AllocationsJson||'[]'));}catch(e){}allocations.forEach(function(a){var key=String(a.InvoiceItemID||'');if(key)byItem[key]=(byItem[key]||0)+Number(a.Amount||0);});});
+  return byItem;
+}
+function invoicePaymentSummary_(ss,agentId){
+  var invoices=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).filter(function(x){return String(x.AgentID)===String(agentId);});
+  var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')),byItem=confirmedAgentPaymentAllocations_(ss,agentId);
+  var result=invoices.map(function(inv){var invItems=items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);});var total=Number(inv.NetPayable||0),status=String(inv.PaymentStatus||'UNPAID').toUpperCase(),paid=0;
+    if(['PAID','SETTLED'].includes(status))paid=total;else if(invItems.length)paid=invItems.reduce(function(sum,it){return sum+Math.min(Number(it.NetAmount||0),Number(byItem[String(it.InvoiceItemID)]||0));},0);else paid=Math.min(total,Number(inv.PaidAmount||0));
+    paid=Math.max(0,Math.min(total,Math.round(paid*100)/100));return {invoice:inv,paid:paid,outstanding:Math.max(0,Math.round((total-paid)*100)/100)};});
+  return {items:result,paidByItem:byItem};
+}
 function agentInvoices_(p){
-  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
-  var invoices=cachedSheetRows_(ensureBusinessSheet_(ss,'Invoices'),'Invoices')
-    .filter(function(x){return String(x.AgentID)===String(s.AgentID);})
-    .sort(function(a,b){return new Date(b.InvoiceDate||b.CreatedAt||0).getTime()-new Date(a.InvoiceDate||a.CreatedAt||0).getTime();});
-  var outstanding=invoices.filter(function(x){return !['PAID','SETTLED','CANCELLED'].includes(String(x.PaymentStatus||'UNPAID').toUpperCase());})
-    .reduce(function(sum,x){return sum+Number(x.NetPayable||0);},0);
-  var receivedDiscount=cachedSheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'),'AgentReceivables')
-    .filter(function(x){return String(x.AgentID)===String(s.AgentID)&&String(x.Status||'').toUpperCase()==='RECEIVED';})
-    .reduce(function(sum,x){return sum+Number(x.DiscountAmount||0);},0);
-  return {
-    items:invoices.map(function(x){
-      return {
-        InvoiceID:x.InvoiceID||'',
-        InvoiceNumber:x.InvoiceNumber||'',
-        InvoiceDate:x.InvoiceDate||'',
-        TotalAmount:Number(x.TotalAmount||0),
-        DiscountAmount:Number(x.DiscountAmount||0),
-        NetPayable:Number(x.NetPayable||0),
-        Status:x.Status||'GENERATED',
-        PdfUrl:x.PdfUrl||'',
-        PaymentLink:x.PaymentLink||COMMON_AGENT_PAYMENT_LINK,
-        PaymentLinkAssigned:Boolean(String(x.PaymentLink||'').trim()),
-        PaymentStatus:x.PaymentStatus||'PAYABLE',
-        PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''
-      };
-    }),
-    total:invoices.length,
-    outstandingAmount:Math.round(outstanding*100)/100,
-    earningsToDate:Math.round(receivedDiscount*100)/100
-  };
+  var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_(),summary=invoicePaymentSummary_(ss,s.AgentID);
+  var invoices=summary.items.map(function(x){return x.invoice;}).sort(function(a,b){return new Date(b.InvoiceDate||b.CreatedAt||0).getTime()-new Date(a.InvoiceDate||a.CreatedAt||0).getTime();});
+  var byId={};summary.items.forEach(function(x){byId[String(x.invoice.InvoiceID)]={paid:x.paid,outstanding:x.outstanding};});
+  var outstanding=invoices.reduce(function(sum,x){return sum+Number((byId[String(x.InvoiceID)]||{}).outstanding||0);},0);
+  var receivedDiscount=cachedSheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'),'AgentReceivables').filter(function(x){return String(x.AgentID)===String(s.AgentID)&&String(x.Status||'').toUpperCase()==='RECEIVED';}).reduce(function(sum,x){return sum+Number(x.DiscountAmount||0);},0);
+  return {items:invoices.map(function(x){var sums=byId[String(x.InvoiceID)]||{paid:0,outstanding:Number(x.NetPayable||0)};var status=String(x.PaymentStatus||'PAYABLE').toUpperCase();if(sums.outstanding<=0.009)status='PAID';else if(sums.paid>0)status='PARTIALLY_PAID';else if(['PAID','SETTLED'].includes(status))status='PAID';else status='PAYABLE';return {InvoiceID:x.InvoiceID||'',InvoiceNumber:x.InvoiceNumber||'',InvoiceDate:x.InvoiceDate||'',TotalAmount:Number(x.TotalAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetPayable:Number(x.NetPayable||0),PaidAmount:sums.paid,OutstandingAmount:sums.outstanding,Status:x.Status||'GENERATED',PdfUrl:x.PdfUrl||'',PaymentLink:x.PaymentLink||COMMON_AGENT_PAYMENT_LINK,PaymentLinkAssigned:Boolean(String(x.PaymentLink||'').trim()),PaymentStatus:status,PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''};}),total:invoices.length,outstandingAmount:Math.round(outstanding*100)/100,earningsToDate:Math.round(receivedDiscount*100)/100};
 }
 function agentOutstandingSummary_(p){
   var s=agentSession_(p.token),ss=agentBusinessSpreadsheet_();
