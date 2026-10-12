@@ -70,7 +70,7 @@ function ProfileMenu({user,onLogout,onClose}){
 }
 
 function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}){
- const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false),[txFilter,setTxFilter]=useState('all'),[txStatus,setTxStatus]=useState('all'),[txSearch,setTxSearch]=useState(''),[successNotice,setSuccessNotice]=useState(null)
+ const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false),[txFilter,setTxFilter]=useState('all'),[txStatus,setTxStatus]=useState('all'),[txSearch,setTxSearch]=useState(''),[successNotice,setSuccessNotice]=useState(null),[showMoreTransactions,setShowMoreTransactions]=useState(false),[transactionPage,setTransactionPage]=useState(1)
  const load=async()=>{
   setBusy(true);
   const safetyTimer=setTimeout(()=>{
@@ -208,7 +208,13 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
  const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(identity);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
  const balance=Number(wallet?.balance||0),available=Number(wallet?.availableBalance||0),cashbackBalance=Number(wallet?.cashbackBalance ?? (wallet?.cashbackWallet?.balance || 0)),combinedBalance=Number(wallet?.totalBalance ?? (balance+cashbackBalance))
- const isCashbackTx=t=>t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'; const visibleOrders=orders.filter(t=>(txFilter==='all'||(txFilter==='cashback'?isCashbackTx(t):!isCashbackTx(t)))&&(txStatus==='all'||(txStatus==='success'?String(t.status||'').toUpperCase()==='COMPLETED':['PENDING_PAYMENT','WITHDRAWAL_REQUESTED','RETRY_CREATED','CREATING_PAYMENT','REQUESTED','PROCESSING'].includes(String(t.status||'').toUpperCase())))&&(!txSearch.trim()||[t.transactionId,t.type,t.status,t.notes].some(v=>String(v||'').toLowerCase().includes(txSearch.trim().toLowerCase()))))
+ const isCashbackTx=t=>t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST';
+ const matchesStatus=t=>txStatus==='all'||(txStatus==='success'?String(t.status||'').toUpperCase()==='COMPLETED':txStatus==='pending'?['PENDING_PAYMENT','WITHDRAWAL_REQUESTED','RETRY_CREATED','CREATING_PAYMENT','REQUESTED','PROCESSING'].includes(String(t.status||'').toUpperCase()):String(t.status||'').toUpperCase()==='CANCELLED');
+ const matchesSearch=t=>!txSearch.trim()||[t.transactionId,t.type,t.status,t.notes].some(v=>String(v||'').toLowerCase().includes(txSearch.trim().toLowerCase()));
+ const visibleOrders=orders.filter(t=>(txFilter==='all'||(txFilter==='cashback'?isCashbackTx(t):!isCashbackTx(t)))&&matchesStatus(t)&&matchesSearch(t)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+ const transactionPageSize=15;
+ const displayedOrders=showMoreTransactions?visibleOrders.slice((transactionPage-1)*transactionPageSize,transactionPage*transactionPageSize):visibleOrders.slice(0,5);
+ const activeCountFor=key=>orders.filter(t=>(key==='all'||(key==='cashback'?isCashbackTx(t):!isCashbackTx(t)))&&matchesStatus(t)&&matchesSearch(t)).length;
  return <main className="wallet-services-page wallet-single-page wallet-split-page">
  <section className="wallet-single-shell wallet-split-shell">
   <header className="wallet-single-topbar">
@@ -225,11 +231,12 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
     <div className="wallet-left-security"><CheckCircle2 size={16}/><span><b>Separate wallet ledgers</b><small>Money Wallet and Cashback Wallet balances are tracked independently.</small></span></div>
    </section>
    <section className="wallet-split-right">
-    <div className="wallet-history-title"><h1>Transaction History</h1><div className="wallet-transaction-controls"><input className="wallet-field wallet-transaction-search" value={txSearch} onChange={e=>setTxSearch(e.target.value)} placeholder="Search transactions or ID…" aria-label="Search transactions"/><select className="wallet-field wallet-transaction-status" value={txStatus} onChange={e=>setTxStatus(e.target.value)} aria-label="Filter by status"><option value="all">All Status</option><option value="success">Success</option><option value="pending">Pending</option></select></div></div>
+    <div className="wallet-history-title"><h1>Transaction History</h1><div className="wallet-transaction-controls"><input className="wallet-field wallet-transaction-search" value={txSearch} onChange={e=>{setTxSearch(e.target.value);setTransactionPage(1)}} placeholder="Search transactions or ID…" aria-label="Search transactions"/><select className="wallet-field wallet-transaction-status" value={txStatus} onChange={e=>{setTxStatus(e.target.value);setTransactionPage(1)}} aria-label="Filter by status"><option value="all">All Status</option><option value="success">Success</option><option value="pending">Pending</option></select></div></div>
     <div className="wallet-history-filters" role="tablist" aria-label="Filter transactions">{[['all','All'],['cashback','Cashback'],['money','Money Wallet']].map(([key,label])=><button key={key} role="tab" aria-selected={txFilter===key} className={txFilter===key?'active':''} onClick={()=>setTxFilter(key)}>{label}<span>{orders.filter(t=>key==='all'||(key==='cashback'?(t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'):(t.source!=='CASHBACK'&&t.type!=='CASHBACK_EARNED'&&t.type!=='REDEMPTION_REQUEST'))).length}</span></button>)}</div>
     {notice&&<div className="wallet-notice">{notice}</div>}
-    <div className="wallet-history-scroll">{busy?<div className="wallet-empty">Loading transactions…</div>:visibleOrders.length?visibleOrders.map(t=>{const isCashback=t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST';const isCredit=isCashback?t.type==='CASHBACK_EARNED':t.type==='ADD_MONEY';return <button className="wallet-transaction wallet-single-transaction wallet-split-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(isCredit?'add':'withdraw')}>{isCredit?'+':'−'}</span><span className="wallet-tx-main"><b>{isCashback?(t.type==='REDEMPTION_REQUEST'?'Cashback Redemption':'Cashback Earned'):t.type==='ADD_MONEY'?'Add Money':t.type==='WITHDRAW'?'Withdrawal':'Wallet Transaction'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')} · {isCashback?'Cashback Wallet':'Money Wallet'}</small></span><span className="wallet-tx-right"><b className={isCredit?'wallet-credit-amount':'wallet-debit-amount'}>{isCredit?'+':'−'}₹{money(Math.abs(Number(t.amount||0)))}</b><small className={'wallet-status '+statusClass(t.status)}>{String(t.status||'').replace(/_/g,' ')}</small></span><ArrowRight className="wallet-single-tx-arrow" size={16}/></button>}):<div className="wallet-empty wallet-filter-empty">{txFilter==='cashback'?'No cashback transactions found.':txFilter==='money'?'No Money Wallet transactions found.':'No wallet transactions yet.'}</div>}</div>
-    <div className="wallet-history-foot"><span>{visibleOrders.length} transaction{visibleOrders.length===1?'':'s'}</span><span>Live account ledger</span></div>
+    <div className="wallet-history-scroll">{busy?<div className="wallet-empty">Loading transactions…</div>:visibleOrders.length?displayedOrders.map(t=>{const isCashback=t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST';const isCredit=isCashback?t.type==='CASHBACK_EARNED':t.type==='ADD_MONEY';return <button className="wallet-transaction wallet-single-transaction wallet-split-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(isCredit?'add':'withdraw')}>{isCredit?'+':'−'}</span><span className="wallet-tx-main"><b>{isCashback?(t.type==='REDEMPTION_REQUEST'?'Cashback Redemption':'Cashback Earned'):t.type==='ADD_MONEY'?'Add Money':t.type==='WITHDRAW'?'Withdrawal':'Wallet Transaction'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')} · {isCashback?'Cashback Wallet':'Money Wallet'}</small></span><span className="wallet-tx-right"><b className={isCredit?'wallet-credit-amount':'wallet-debit-amount'}>{isCredit?'+':'−'}₹{money(Math.abs(Number(t.amount||0)))}</b><small className={'wallet-status '+statusClass(t.status)}>{String(t.status||'').replace(/_/g,' ')}</small></span><ArrowRight className="wallet-single-tx-arrow" size={16}/></button>}):<div className="wallet-empty wallet-filter-empty">{txFilter==='cashback'?'No cashback transactions found.':txFilter==='money'?'No Money Wallet transactions found.':'No wallet transactions yet.'}</div>}</div>
+    {visibleOrders.length>5&&<div className="wallet-transaction-pagination">{!showMoreTransactions?<button className="wallet-view-more" onClick={()=>{setShowMoreTransactions(true);setTransactionPage(1)}}>View More <ArrowRight size={15}/></button>:<><span className="wallet-page-count">Showing {Math.min((transactionPage-1)*transactionPageSize+1,visibleOrders.length)}–{Math.min(transactionPage*transactionPageSize,visibleOrders.length)} of {visibleOrders.length}</span><div className="wallet-page-buttons"><button disabled={transactionPage===1} onClick={()=>setTransactionPage(p=>Math.max(1,p-1))}>Previous</button><span>Page {transactionPage} of {Math.max(1,Math.ceil(visibleOrders.length/transactionPageSize))}</span><button disabled={transactionPage>=Math.ceil(visibleOrders.length/transactionPageSize)} onClick={()=>setTransactionPage(p=>Math.min(Math.ceil(visibleOrders.length/transactionPageSize),p+1))}>Next</button></div></>}</div>}
+     <div className="wallet-history-foot"><span>{visibleOrders.length} matching transaction{visibleOrders.length===1?'':'s'}</span><span>Live account ledger</span></div>
    </section>
   </div>
   <footer className="wallet-single-footer"><span>© Trusted Circle</span><span>{user.email}</span><span>Money + Cashback Wallet</span></footer>
@@ -258,7 +265,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
  const initialSeconds=expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900;
  const[left,setLeft]=useState(initialSeconds),[result,setResult]=useState(null),[liveTx,setLiveTx]=useState(tx);
  useEffect(()=>{
-   if(phase!=='verifying'||!liveTx?.transactionId||liveTx.transactionId==='CREATING…')return;
+   if(result||phase!=='verifying'||!liveTx?.transactionId||liveTx.transactionId==='CREATING…')return;
    let active=true;
    const check=async()=>{
      try{
@@ -273,9 +280,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    check();
    const timer=setInterval(check,1000)
    return()=>{active=false;clearInterval(timer)};
- },[user,liveTx?.transactionId,expiresAt,phase]);
-
- useEffect(()=>{if(result&&['COMPLETED','NOT_RECEIVED','REJECTED'].includes(String(result.status||'').toUpperCase()))onViewBalance()},[result?.status,result?.transactionId]);
+ },[user,liveTx?.transactionId,expiresAt,phase,result?.status]);
  if(phase==='error')return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
    <div className="wallet-result-icon failed"><X size={42}/></div>
    <span className="wallet-services-eyebrow">PAYMENT SETUP FAILED</span>
