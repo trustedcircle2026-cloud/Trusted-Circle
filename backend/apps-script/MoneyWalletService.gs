@@ -212,14 +212,14 @@ function moneyWalletAdminActions_(t){
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
-    '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">Shopping Payment Link Stock</td></tr></table>'+
+    '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">'+walletMailEscape_(t.PaymentLinkStockID?'Shopping Payment Link Stock':'Manual UPI')+'</td></tr></table>'+
     '<div style="margin-top:22px">'+
     walletMailButton_('✓ Received',walletMailActionUrl_(received,'RECEIVED'),'#0f5132')+
     walletMailButton_('! Not Received',walletMailActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
     walletMailButton_('✕ Rejected',walletMailActionUrl_(rejected,'REJECTED'),'#b42318')+
     '</div><p style="font-size:12px;color:#68736d;margin-top:18px">Use one button to update this transaction.</p>';
   var html=walletMailShell_('Money Wallet · Add Money',body);
-  var text='Trusted Circle Money Wallet Add Money\n\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\n\nReceived: '+walletMailActionUrl_(received,'RECEIVED')+'\nNot Received: '+walletMailActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+walletMailActionUrl_(rejected,'REJECTED');
+  var text='Trusted Circle Money Wallet Add Money\n\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\n\nOpen Payment Link: '+String(t.PaymentLink||'')+'\n\nReceived: '+walletMailActionUrl_(received,'RECEIVED')+'\nNot Received: '+walletMailActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+walletMailActionUrl_(rejected,'REJECTED');
   if(!walletMailSend_('Trusted Circle — Action Required · Money Wallet Add Money '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Add Money email failed.');
   return true;
 }
@@ -247,7 +247,11 @@ function moneyWalletWithdrawalActions_(t){
 }
 function moneyWalletAdd_(data){
   var user=walletUserFromIdentity_(data),amount=Number(data.amount);
-  require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
+  var manualUPI=String(data.manualUPI||'').toLowerCase()==='true'||data.manualUPI===true;
+  var note=cleanText_(data.notes||'TC-Wallet',80)||'TC-Wallet';
+  require_(isFinite(amount)&&amount>0&&amount<=100000,'Enter a valid wallet top-up amount.');
+  if(!manualUPI)require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose a preset amount or use custom amount with UPI.');
+
   var tx,stock,w,balance,reserved,now;
   // IMPORTANT: MailApp/GmailApp is intentionally called OUTSIDE the wallet ScriptLock.
   // This prevents the real transaction flow from failing even when the email service
@@ -256,12 +260,12 @@ function moneyWalletAdd_(data){
   try{
     ensureMoneyWalletSheets_();
     var tid=newId_('TCMWTX');
-    stock=moneyWalletReserveStock_(amount,tid);
+    stock=manualUPI?{stockId:'',link:'upi://pay?pa=paytm.s2eunub@pty&pn=Paytm&am='+encodeURIComponent(String(amount))+'&cu=INR&tn='+encodeURIComponent(note),label:'Manual UPI',expiresAt:new Date(Date.now()+TC_MONEY_WALLET.RESERVATION_MS).toISOString()}:moneyWalletReserveStock_(amount,tid);
     w=moneyWalletRow_(user.UserID);
     balance=Number(w.Balance||0);
     reserved=Number(w.ReservedBalance||0);
     now=isoNow_();
-    tx={TransactionID:tid,UserID:user.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:stock.link,PaymentLinkStockID:stock.stockId,Attempt:1,ParentTransactionID:'',CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:'Awaiting payment',AdminNote:''};
+    tx={TransactionID:tid,UserID:user.UserID,Type:'ADD_MONEY',Amount:amount,Status:'PENDING_PAYMENT',BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:reserved,ReservedAfter:reserved,UPIId:'',PaymentLink:stock.link,PaymentLinkStockID:stock.stockId,Attempt:1,ParentTransactionID:'',CreatedAt:now,UpdatedAt:now,CompletedAt:'',Notes:manualUPI?'Awaiting manual UPI payment · '+note:'Awaiting payment',AdminNote:''};
     appendRowObject_(TC_MONEY_WALLET.TX,tx);
   }finally{lock.releaseLock();}
   var adminEmailSent=true;
