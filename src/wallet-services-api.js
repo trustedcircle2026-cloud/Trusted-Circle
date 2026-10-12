@@ -31,6 +31,7 @@ export const walletApi={
   walletGateway:async(identity,amount)=>api.moneyAdd(identity,amount),
   addMoney:async(identity,amount,options={})=>api.moneyAdd(identity,amount,options),
   retryAddMoney:async(identity,transactionId)=>api.moneyRetryAdd(identity,transactionId),
+  cancelAddMoney:async(identity,transactionId)=>api.moneyCancelAdd(identity,transactionId),
   withdraw:async(identity,amount,upiId)=>api.moneyWithdraw(identity,amount,upiId),
   
   adminAddPaymentLink:async(token,denomination,link,label='Pay securely')=>api.adminAddPaymentLinkStock(token,denomination,link,label),
