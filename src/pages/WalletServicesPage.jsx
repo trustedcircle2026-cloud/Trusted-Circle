@@ -69,7 +69,7 @@ function ProfileMenu({user,onLogout,onClose}){
 }
 
 function WalletHome({user,identity,onLogout,initialWallet=null}){
- const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false),[txFilter,setTxFilter]=useState('all'),[successNotice,setSuccessNotice]=useState(null)
+ const[wallet,setWallet]=useState(initialWallet),[orders,setOrders]=useState(initialWallet?.transactions||[]),[busy,setBusy]=useState(!initialWallet),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false),[txFilter,setTxFilter]=useState('all'),[txStatus,setTxStatus]=useState('all'),[txSearch,setTxSearch]=useState(''),[successNotice,setSuccessNotice]=useState(null)
  const load=async()=>{
   setBusy(true);
   const safetyTimer=setTimeout(()=>{
@@ -121,7 +121,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
     }catch{}
    }
   }
-  const timer=setInterval(checkPendingWalletPayments,5000)
+  const timer=setInterval(checkPendingWalletPayments,1000)
   checkPendingWalletPayments()
   return()=>{active=false;clearInterval(timer)}
  },[pendingWalletSignature,identity.email,identity.userId,modal?.type])
@@ -150,7 +150,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
   try{
     const d=retryTransaction
       ?await walletApi.retryAddMoney(identity,retryTransaction.transactionId)
-      :await walletApi.addMoney(identity,requestedAmount,{manualUPI:!!options.manualUPI,notes:String(options.notes||'TC-Wallet')});
+      :await walletApi.addMoney(identity,requestedAmount,{manualUPI:!!options.manualUPI,notes:String(options.notes||'Verified')});
     settled=true;
     clearTimeout(uiTimer);
     const paymentLink=String(d?.paymentLink||d?.data?.paymentLink||'').trim();
@@ -186,11 +186,11 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
  }; const startAdd=(amount,options={})=>openPaymentFlow(amount,null,options);
  const retry=tx=>openPaymentFlow(null,tx);
 
- const withdraw=async(amount,upi)=>{const d=await walletApi.withdraw(identity,amount,upi);setModal(null);setSelectedTx(d.transaction);await load()}
+ const withdraw=async(amount,upi,accountType='MONEY_WALLET')=>{const d=await walletApi.withdraw(identity,amount,upi,accountType);setModal(null);setSelectedTx(d.transaction);await load()}
  const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(identity);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
  const balance=Number(wallet?.balance||0),available=Number(wallet?.availableBalance||0),cashbackBalance=Number(wallet?.cashbackBalance ?? (wallet?.cashbackWallet?.balance || 0)),combinedBalance=Number(wallet?.totalBalance ?? (balance+cashbackBalance))
- const visibleOrders=orders.filter(t=>txFilter==='all'||(txFilter==='cashback'?(t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'):(t.source!=='CASHBACK'&&t.type!=='CASHBACK_EARNED'&&t.type!=='REDEMPTION_REQUEST')))
+ const isCashbackTx=t=>t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'; const visibleOrders=orders.filter(t=>(txFilter==='all'||(txFilter==='cashback'?isCashbackTx(t):!isCashbackTx(t)))&&(txStatus==='all'||(txStatus==='success'?String(t.status||'').toUpperCase()==='COMPLETED':['PENDING_PAYMENT','WITHDRAWAL_REQUESTED','RETRY_CREATED','CREATING_PAYMENT'].includes(String(t.status||'').toUpperCase())))&&(!txSearch.trim()||[t.transactionId,t.type,t.status,t.notes].some(v=>String(v||'').toLowerCase().includes(txSearch.trim().toLowerCase()))))
  return <main className="wallet-services-page wallet-single-page wallet-split-page">
  <section className="wallet-single-shell wallet-split-shell">
   <header className="wallet-single-topbar">
@@ -205,7 +205,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
     <div className="wallet-left-security"><CheckCircle2 size={16}/><span><b>Separate wallet ledgers</b><small>Money Wallet and Cashback Wallet balances are tracked independently.</small></span></div>
    </section>
    <section className="wallet-split-right">
-    <div className="wallet-history-title"><div><span className="wallet-services-eyebrow">ACCOUNT ACTIVITY</span><h1>Transaction History</h1><p>Track money additions, withdrawals and cashback.</p></div><button className="wallet-history-download" onClick={downloadAll} title="Download statement"><ArrowDownToLine size={17}/></button></div>
+    <div className="wallet-history-title"><div><h1>Transaction History</h1></div></div><div className="wallet-transaction-controls"><input className="wallet-field wallet-transaction-search" value={txSearch} onChange={e=>setTxSearch(e.target.value)} placeholder="Search transactions or ID…" aria-label="Search transactions"/><select className="wallet-field wallet-transaction-status" value={txStatus} onChange={e=>setTxStatus(e.target.value)} aria-label="Filter by status"><option value="all">All Status</option><option value="success">Success</option><option value="pending">Pending</option></select></div>
     <div className="wallet-history-filters" role="tablist" aria-label="Filter transactions">{[['all','All'],['cashback','Cashback'],['money','Money Wallet']].map(([key,label])=><button key={key} role="tab" aria-selected={txFilter===key} className={txFilter===key?'active':''} onClick={()=>setTxFilter(key)}>{label}<span>{orders.filter(t=>key==='all'||(key==='cashback'?(t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'):(t.source!=='CASHBACK'&&t.type!=='CASHBACK_EARNED'&&t.type!=='REDEMPTION_REQUEST'))).length}</span></button>)}</div>
     {notice&&<div className="wallet-notice">{notice}</div>}
     <div className="wallet-history-scroll">{busy?<div className="wallet-empty">Loading transactions…</div>:visibleOrders.length?visibleOrders.map(t=>{const isCashback=t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST';const isCredit=isCashback?t.type==='CASHBACK_EARNED':t.type==='ADD_MONEY';return <button className="wallet-transaction wallet-single-transaction wallet-split-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(isCredit?'add':'withdraw')}>{isCredit?'+':'−'}</span><span className="wallet-tx-main"><b>{isCashback?(t.type==='REDEMPTION_REQUEST'?'Cashback Redemption':'Cashback Earned'):t.type==='ADD_MONEY'?'Add Money':t.type==='WITHDRAW'?'Withdrawal':'Wallet Transaction'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')} · {isCashback?'Cashback Wallet':'Money Wallet'}</small></span><span className="wallet-tx-right"><b className={isCredit?'wallet-credit-amount':'wallet-debit-amount'}>{isCredit?'+':'−'}₹{money(Math.abs(Number(t.amount||0)))}</b><small className={'wallet-status '+statusClass(t.status)}>{String(t.status||'').replace(/_/g,' ')}</small></span><ArrowRight className="wallet-single-tx-arrow" size={16}/></button>}):<div className="wallet-empty wallet-filter-empty">{txFilter==='cashback'?'No cashback transactions found.':txFilter==='money'?'No Money Wallet transactions found.':'No wallet transactions yet.'}</div>}</div>
@@ -222,8 +222,8 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
 }
 
 function WalletModal({identity,modal,onClose,onAdd,onSelectAdd,onEditAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
- const type=modal.type,[amount,setAmount]=useState(String(modal.amount||'500')),[manual,setManual]=useState(!!modal.manualUPI),[notes,setNotes]=useState(modal.notes||'TC-Wallet'),[busy,setBusy]=useState(false),[error,setError]=useState('');
- if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-select-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><img className="wallet-modal-logo" src={LOGO_URL} alt="Trusted Circle"/><span className="wallet-services-eyebrow">ADD MONEY</span><h2>Choose an amount</h2><p>Select a quick amount or enter a custom amount to pay through UPI.</p><div className="wallet-denoms">{[500,1000,1500,2000].map(a=><button className={!manual&&Number(amount)===a?'selected':''} key={a} onClick={()=>{setAmount(String(a));setManual(false)}}>₹{money(a)}</button>)}</div><label className="wallet-custom-label">Custom amount (₹)</label><input className="wallet-field wallet-custom-amount" type="number" min="1" step="0.01" value={manual?amount:''} placeholder="Enter any amount" onChange={e=>{setAmount(e.target.value);setManual(true)}}/><div className="wallet-add-hint">{manual?'Custom amount uses UPI with your editable payment note.':'Quick amounts use an available payment link from Trusted Circle stock.'}</div>{manual&&<><label className="wallet-custom-label">UPI payment note</label><input className="wallet-field" maxLength="80" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="TC-Wallet"/></>}{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-submit add-money-primary" disabled={!Number(amount)||Number(amount)<=0||busy} onClick={()=>{if(!Number(amount)||Number(amount)<=0){setError('Enter a valid amount.');return}onSelectAdd(Number(amount),{manualUPI:manual,notes:notes.trim()||'TC-Wallet'})}}>Review Payment <ArrowRight size={17}/></button></div></div>;
+ const type=modal.type,[amount,setAmount]=useState(String(modal.amount||'500')),[manual,setManual]=useState(!!modal.manualUPI),[notes,setNotes]=useState(modal.notes||'Verified'),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-select-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><img className="wallet-modal-logo" src={LOGO_URL} alt="Trusted Circle"/><span className="wallet-services-eyebrow">ADD MONEY</span><h2>Choose an amount</h2><p>Select a quick amount or enter a custom amount to pay through UPI.</p><div className="wallet-denoms">{[500,1000,1500,2000].map(a=><button className={!manual&&Number(amount)===a?'selected':''} key={a} onClick={()=>{setAmount(String(a));setManual(false)}}>₹{money(a)}</button>)}</div><label className="wallet-custom-label">Custom amount (₹)</label><input className="wallet-field wallet-custom-amount" type="number" min="1" step="0.01" value={manual?amount:''} placeholder="Enter any amount" onChange={e=>{setAmount(e.target.value);setManual(true)}}/><div className="wallet-add-hint">{manual?'Custom amount uses UPI with your editable payment note.':'Quick amounts use an available payment link from Trusted Circle stock.'}</div>{manual&&<><label className="wallet-custom-label">UPI payment note</label><input className="wallet-field" maxLength="80" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="TC-Wallet"/></>}{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-submit add-money-primary" disabled={!Number(amount)||Number(amount)<=0||busy} onClick={()=>{if(!Number(amount)||Number(amount)<=0){setError('Enter a valid amount.');return}onSelectAdd(Number(amount),{manualUPI:manual,notes:notes.trim()||'Verified'})}}>Review Payment <ArrowRight size={17}/></button></div></div>;
  if(type==='add-summary')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-summary-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-summary-icon"><WalletCards size={28}/></div><span className="wallet-services-eyebrow">PAYMENT SUMMARY</span><h2>Confirm Add Money</h2><p>Review your wallet top-up before creating the payment request.</p><div className="wallet-add-summary-amount"><span>Amount to add</span><strong>₹{money(modal.amount)}</strong></div><div className="wallet-add-summary-row"><span>Destination</span><b>Trusted Circle Money Wallet</b></div><div className="wallet-add-summary-row"><span>Payment method</span><b>{modal.manualUPI?'UPI payment request':'Secure payment link from stock'}</b></div>{modal.manualUPI&&<div className="wallet-add-summary-row"><span>UPI note</span><b>{modal.notes||'TC-Wallet'}</b></div>}<div className="wallet-add-summary-safe"><CheckCircle2 size={17}/><span>Your balance updates only after the admin confirms receipt.</span></div><button className="wallet-submit add-money-primary" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await onAdd(Number(modal.amount),{manualUPI:!!modal.manualUPI,notes:modal.notes||'TC-Wallet'})}catch(e){setError(e.message||'Could not start payment.')}finally{setBusy(false)}}}>{busy?<><RefreshCw size={16} className="wallet-spin"/> Preparing payment…</>:<>Make Payment <ArrowRight size={17}/></>}</button>{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-secondary-btn" onClick={()=>onEditAdd(modal.amount,{manualUPI:!!modal.manualUPI,notes:modal.notes||'TC-Wallet'})}>Edit Amount</button></div></div>;
  if(type==='withdraw')return <WithdrawModal onClose={onClose} onSubmit={onWithdraw}/>;
  if(type==='orders')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-orders-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WALLET ORDERS</span><h2>All Transactions</h2><div className="wallet-order-list">{orders.map(t=><button key={t.transactionId} onClick={()=>{onClose();setSelectedTx(t)}} className="wallet-transaction"><span className="wallet-tx-main"><b>{t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{t.transactionId}</small></span><span className="wallet-tx-right"><b>₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>)}</div></div></div>;
@@ -249,7 +249,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
      }catch{}
    };
    check();
-   const timer=setInterval(check,4000);
+   const timer=setInterval(check,1000)
    return()=>{active=false;clearInterval(timer)};
  },[user,liveTx?.transactionId,expiresAt,phase]);
  useEffect(()=>{
@@ -257,6 +257,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    try{localStorage.setItem('tc_wallet_success_seen_'+result.transactionId,'1')}catch{}
   }
  },[result?.transactionId,result?.status]);
+ useEffect(()=>{if(result&&['COMPLETED','NOT_RECEIVED','REJECTED'].includes(String(result.status||'').toUpperCase()))onViewBalance()},[result?.status,result?.transactionId]);
  if(phase==='error')return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
    <div className="wallet-result-icon failed"><X size={42}/></div>
    <span className="wallet-services-eyebrow">PAYMENT SETUP FAILED</span>
