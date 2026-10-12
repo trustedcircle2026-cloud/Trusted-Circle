@@ -242,7 +242,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       )
     }
 
-    paymentPopupRef.current = popup\n\n    // Show a useful temporary state in the reserved popup instead of leaving
+    paymentPopupRef.current = popup
+
+    // Show a useful temporary state in the reserved popup instead of leaving
     // the customer with a blank about:blank window while Apps Script generates
     // the secure payment link.
     if (popup && !popup.closed) {
