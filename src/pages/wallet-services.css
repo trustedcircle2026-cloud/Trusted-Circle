@@ -1514,3 +1514,20 @@ html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wal
 .wallet-payment-link-panel a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border-radius:11px;background:#14633e;color:#fff;text-decoration:none;font-size:14px;font-weight:900}
 .wallet-payment-link-panel small{font-size:11px;line-height:1.45;color:#718078}
 @media(max-width:600px){.wallet-status-compact h2{font-size:22px}.wallet-payment-link-panel{padding:11px}}
+
+/* Wallet transaction history: five recent rows, then paginated 15-row pages */
+.wallet-transaction-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 2px 4px}
+.wallet-view-more{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 17px;border:1px solid #cfe3d6;border-radius:11px;background:#edf7f1;color:#155f42;font-size:12px;font-weight:900;cursor:pointer}
+.wallet-view-more:hover{background:#e0f1e7}
+.wallet-page-count{font-size:11px;color:#78877e}
+.wallet-page-buttons{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.wallet-page-buttons button{min-height:34px;padding:0 11px;border:1px solid #d7e4dc;border-radius:9px;background:#fff;color:#155f42;font-size:11px;font-weight:800;cursor:pointer}
+.wallet-page-buttons button:disabled{opacity:.4;cursor:not-allowed}
+.wallet-page-buttons span{font-size:11px;color:#718078;white-space:nowrap}
+@media(max-width:600px){
+ .wallet-transaction-pagination{gap:8px;padding:10px 2px 2px}
+ .wallet-view-more{min-height:38px;padding:0 14px}
+ .wallet-page-buttons{width:100%;justify-content:space-between;gap:5px}
+ .wallet-page-buttons button{padding:0 9px}
+ .wallet-page-count{width:100%}
+}
