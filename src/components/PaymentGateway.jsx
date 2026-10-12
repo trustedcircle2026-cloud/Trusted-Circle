@@ -74,6 +74,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         return true
       }
       if (orderStatus === 'CANCELLED') {
+        setRetryAttemptStartedAt(0)
         setGatewayOutcome('cancelled')
         setOrderPlacedOpen(false)
         setOutcomePopup('cancelled')
@@ -344,6 +345,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       }
     } catch (error) {
       const message = error.message || 'Could not prepare payment.'
+      if (orderId) setRetryAttemptStartedAt(0)
       // Keep the reserved window open even when link creation fails, and show
       // the customer a clear error instead of abruptly closing the window.
       if (popup && !popup.closed) {
