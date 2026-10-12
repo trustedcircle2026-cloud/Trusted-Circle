@@ -94,15 +94,24 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
   )
 }
 
-export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome, logoUrl, autoRetry = false }) {
+export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome, logoUrl, autoRetry = false, retryOrderId = '' }) {
   const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [olderOrders, setOlderOrders] = useState([]), [olderOffset, setOlderOffset] = useState(4), [olderHasMore, setOlderHasMore] = useState(true), [olderLoading, setOlderLoading] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
 
   const pending = order => !cancelled.has(order.OrderID) && ['PENDING','NOT_RECEIVED'].includes(String(order.PaymentStatus || 'PENDING').toUpperCase()) && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
   useEffect(()=>{
     if(!autoRetry||pay||!orders.length)return
-    const target=orders.find(order=>pending(order))
-    if(target)setPay({...target,items:[]})
-  },[autoRetry,orders,pay])
+    const target=orders.find(order=>String(order.OrderID)===String(retryOrderId))||orders.find(order=>pending(order))
+    if(!target)return
+    let active=true
+    api.orderDetailsSilent(localStorage.getItem('tc_session'),target.OrderID).then(detail=>{
+      if(!active)return
+      setDetails(previous=>({...previous,[target.OrderID]:detail}))
+      setPay({...target,items:detail?.items||[]})
+    }).catch(()=>{
+      if(active)setPay({...target,items:[]})
+    })
+    return()=>{active=false}
+  },[autoRetry,retryOrderId,orders,pay])
 
   const downloadInvoice = async order => {
     setInvoiceError('')
@@ -251,7 +260,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
 
     {pay && <div className="order-pay-overlay" role="dialog" aria-modal="true">
   <div onClick={event => event.stopPropagation()}>
-    <PaymentGateway mode="checkout" items={pay.items || []} total={pay.Total} cashback={pay.Discount} logoUrl={logoUrl} orderId={pay.OrderID} onBack={() => setPay(null)} onOrders={() => setPay(null)} />
+    <PaymentGateway mode="checkout" items={pay.items || []} total={pay.Total} cashback={pay.Discount} logoUrl={logoUrl} orderId={pay.OrderID} onBack={() => {setPay(null);if(autoRetry)window.location.hash='#/orders'}} onOrders={() => {setPay(null);if(autoRetry)window.location.hash='#/orders'}} />
   </div>
 </div>}
   </main>
