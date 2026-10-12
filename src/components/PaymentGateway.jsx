@@ -39,6 +39,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [outcomePopup, setOutcomePopup] = useState(null)
   const [latestOrder, setLatestOrder] = useState(null)
   const linkRequestInFlight = useRef(false)
+  const paymentPopupRef = useRef(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
   const orderRef = linkRequest?.orderId || orderId
@@ -58,6 +59,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (latest?.order) setLatestOrder(latest.order)
       const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
       if (paid) {
+        try { if (paymentPopupRef.current && !paymentPopupRef.current.closed) paymentPopupRef.current.close() } catch (_) {}
+        paymentPopupRef.current = null
         setPaymentCheck('paid')
         setPaymentCheckMessage('Payment received. Your order status has been updated.')
         setGatewayOutcome('received')
@@ -239,7 +242,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       )
     }
 
-    // Show a useful temporary state in the reserved popup instead of leaving
+    paymentPopupRef.current = popup\n\n    // Show a useful temporary state in the reserved popup instead of leaving
     // the customer with a blank about:blank window while Apps Script generates
     // the secure payment link.
     if (popup && !popup.closed) {
