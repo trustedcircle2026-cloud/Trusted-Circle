@@ -40,7 +40,8 @@ export default function App() {
   },[pendingOrderPrompt,token])
   useEffect(()=>{
     if(!token||!user)return
-    if(!previousOrdersRef.current.length){try{const cached=JSON.parse(localStorage.getItem('tc_orders_cache')||'null');if(Array.isArray(cached?.items))previousOrdersRef.current=cached.items}catch{}}\n    const timer=window.setInterval(async()=>{
+    if(!previousOrdersRef.current.length){try{const cached=JSON.parse(localStorage.getItem('tc_orders_cache')||'null');if(Array.isArray(cached?.items))previousOrdersRef.current=cached.items}catch{}}
+    const timer=window.setInterval(async()=>{
       if(document.visibilityState!=='visible')return
       try{
         const [cartData,orderData]=await Promise.all([api.cartSilent(token),api.ordersSilent(token)])
