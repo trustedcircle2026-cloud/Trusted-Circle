@@ -1459,3 +1459,58 @@
  .payment-live-card .wallet-live-summary{grid-template-columns:1fr!important}
  .payment-live-card .wallet-payment-steps{grid-template-columns:1fr!important}
 }
+
+/* Wallet Services: natural page scrolling, fixed left content and inline history tools */
+.wallet-services-lock{overflow-x:hidden!important;overflow-y:auto!important;height:auto!important;min-height:100%!important}
+html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wallet-split-page){height:auto!important;min-height:100%!important;overflow-x:hidden!important;overflow-y:auto!important}
+.wallet-single-page.wallet-split-page{height:auto!important;min-height:calc(100dvh - 100px)!important;overflow:visible!important;padding:12px 16px!important}
+.wallet-single-shell.wallet-split-shell{height:auto!important;min-height:calc(100dvh - 124px)!important;overflow:visible!important}
+.wallet-split-layout{flex:none!important;min-height:0!important;overflow:visible!important;align-items:start}
+.wallet-split-left{align-self:start;overflow:visible!important;position:relative}
+.wallet-split-right{min-height:0!important;overflow:visible!important}
+.wallet-history-scroll{flex:none!important;min-height:0!important;max-height:none!important;overflow:visible!important}
+.wallet-history-title{display:flex;align-items:center;gap:14px;width:100%;min-width:0;margin:0 0 14px}
+.wallet-history-title h1{flex:0 0 auto;white-space:nowrap;font-size:clamp(19px,1.8vw,27px)!important;line-height:1.1;margin:0!important}
+.wallet-history-title .wallet-transaction-controls{display:grid;grid-template-columns:minmax(100px,1fr) 130px;gap:8px;flex:1;min-width:0;margin:0}
+.wallet-history-title .wallet-transaction-controls .wallet-field{height:42px;min-height:42px;margin:0;padding:0 12px;font-size:13px}
+.wallet-history-filters{margin:8px 0 12px!important}
+.wallet-split-left .wallet-left-security{display:none!important}
+.wallet-balance-overview{width:100%;box-sizing:border-box}
+@media(max-width:900px){
+ .wallet-single-page.wallet-split-page{height:auto!important;min-height:calc(100dvh - 100px)!important;overflow:visible!important;padding:8px!important}
+ .wallet-single-shell.wallet-split-shell{height:auto!important;min-height:calc(100dvh - 108px)!important;overflow:visible!important}
+ .wallet-split-layout{grid-template-columns:1fr!important;overflow:visible!important}
+ .wallet-split-left{overflow:visible!important;padding:18px!important}
+ .wallet-split-right{min-height:0!important;padding:18px!important}
+ .wallet-history-scroll{overflow:visible!important;max-height:none!important}
+}
+@media(max-width:600px){
+ .wallet-single-page.wallet-split-page{padding:0!important;min-height:100dvh!important}
+ .wallet-single-shell.wallet-split-shell{min-height:100dvh!important;border-radius:0!important}
+ .wallet-split-shell>.wallet-single-topbar{position:relative;top:auto;flex-basis:58px;padding:0 14px}
+ .wallet-split-left{padding:14px!important;gap:12px!important}
+ .wallet-balance-overview{grid-template-columns:1fr!important;gap:8px!important;padding:8px!important}
+ .wallet-balance-overview .wallet-total-card{min-height:125px!important;padding:16px!important}
+ .wallet-balance-overview .wallet-total-card>strong{font-size:40px!important}
+ .wallet-balance-overview .wallet-split-balances{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .wallet-balance-overview .wallet-balance-card{min-height:98px!important;padding:11px!important}
+ .wallet-split-actions{grid-template-columns:1fr!important;gap:8px!important;margin-top:0!important}
+ .wallet-split-actions .wallet-single-action{min-height:62px!important;padding:10px 12px!important}
+ .wallet-split-right{padding:16px 12px 22px!important;min-height:0!important}
+ .wallet-history-title{gap:8px;margin-bottom:12px;align-items:center}
+ .wallet-history-title h1{font-size:17px!important;letter-spacing:-.035em;white-space:nowrap}
+ .wallet-history-title .wallet-transaction-controls{grid-template-columns:minmax(70px,1fr) 94px;gap:5px}
+ .wallet-history-title .wallet-transaction-controls .wallet-field{height:38px;min-height:38px;padding:0 7px;font-size:11px;border-radius:9px}
+ .wallet-history-title .wallet-transaction-search::placeholder{color:#7b8981}
+ .wallet-history-filters{gap:4px;margin:8px 0 10px!important;padding:4px}
+ .wallet-history-filters button{min-height:38px;font-size:10px;gap:4px}
+ .wallet-history-scroll{overflow:visible!important;max-height:none!important}
+ .wallet-split-transaction{min-height:64px;padding:10px 8px;grid-template-columns:30px minmax(0,1fr) auto;gap:7px}
+ .wallet-history-foot{padding-top:10px}
+}
+.wallet-status-compact h2{margin:9px 0 16px;font-size:25px}
+.wallet-payment-link-panel{display:grid;gap:8px;margin-top:16px;padding:14px;border:1px solid #d4e8db;border-radius:13px;background:#f3faf6;text-align:left}
+.wallet-payment-link-panel>span{font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#718078}
+.wallet-payment-link-panel a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border-radius:11px;background:#14633e;color:#fff;text-decoration:none;font-size:14px;font-weight:900}
+.wallet-payment-link-panel small{font-size:11px;line-height:1.45;color:#718078}
+@media(max-width:600px){.wallet-status-compact h2{font-size:22px}.wallet-payment-link-panel{padding:11px}}
