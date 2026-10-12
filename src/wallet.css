@@ -268,3 +268,32 @@
  .wallet-panel-actions,.wallet-handoff-footer{display:grid;grid-template-columns:1fr}.wallet-panel-actions button,.wallet-handoff-footer button{width:100%}
  .wallet-handoff-steps{grid-template-columns:1fr}.wallet-handoff-steps>div{grid-template-columns:auto 1fr;align-items:center}.wallet-handoff-steps small{grid-column:2}
 }
+
+/* Wallet statement and responsive split-screen layout */
+.wallet-desktop-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.85fr);grid-template-areas:"activity summary";gap:18px;align-items:start}
+.wallet-desktop-layout>.wallet-command-grid{grid-area:summary;display:flex;flex-direction:column;gap:14px;min-width:0}
+.wallet-desktop-layout>.wallet-command-grid .wallet-balance-card{min-height:0;padding:25px}
+.wallet-desktop-layout>.wallet-command-grid .wallet-balance-card>strong{font-size:clamp(34px,3.4vw,48px);margin-top:22px}
+.wallet-desktop-layout>.wallet-command-grid .wallet-card-breakdown{max-width:none}
+.wallet-desktop-layout>.wallet-command-grid .wallet-card-number{display:none}
+.wallet-desktop-layout>.wallet-command-grid .wallet-quick-actions{padding:17px}
+.wallet-desktop-layout>.wallet-command-grid .wallet-action-primary{background:#e4f3e9;border-color:#b8ddc5;color:#176c46;box-shadow:none}
+.wallet-desktop-layout>.wallet-command-grid .wallet-action-primary .action-icon{background:#cde9d7;color:#176c46}
+.wallet-desktop-layout>.wallet-command-grid .wallet-action-secondary{background:#fff0ee;border-color:#f0c9c5;color:#9f3d36}
+.wallet-desktop-layout>.wallet-command-grid .wallet-action-secondary .action-icon{background:#f9deda;color:#b34c43}
+.wallet-desktop-layout>.wallet-activity{grid-area:activity;margin-top:0;min-width:0}
+.wallet-activity-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.wallet-statement-download{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #b8ddc5;border-radius:11px;background:#e4f3e9;color:#176c46;font-size:11px;font-weight:800;cursor:pointer}
+.wallet-statement-download:hover{background:#d5ebdd;border-color:#8fc5a2}
+@media(max-width:820px){
+ .wallet-desktop-layout{display:flex;flex-direction:column;gap:18px}
+ .wallet-desktop-layout>.wallet-command-grid{display:grid;grid-template-columns:1fr;order:0;width:100%}
+ .wallet-desktop-layout>.wallet-activity{order:1;width:100%}
+ .wallet-desktop-layout>.wallet-command-grid .wallet-balance-card{min-height:0}
+}
+@media(min-width:821px){.wallet-desktop-layout>.wallet-command-grid.shopping-command{display:grid;grid-template-columns:1fr}}
+@media(max-width:600px){
+ .wallet-statement-download{width:36px;padding:0;min-width:36px}
+ .wallet-statement-download span{display:none}
+ .wallet-activity-tools{gap:6px}
+}
