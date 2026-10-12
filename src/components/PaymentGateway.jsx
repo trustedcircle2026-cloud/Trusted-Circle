@@ -466,13 +466,13 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           </button>
           <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
           <span className="eyebrow">ORDER CONFIRMATION</span>
-          <h2>🎉 Your order is successfully placed!</h2>
-          <p>Your order has been received. We are checking the payment status automatically.</p>
+          <h2>{orderId ? 'Your previous order is active again' : '🎉 Your order is successfully placed!'}</h2>
+          <p>{orderId ? 'Your previous order is ready for payment. We are checking its latest status automatically.' : 'Your order has been received. We are checking the payment status automatically.'}</p>
           <div className="order-placed-gateway-pill">
             <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
             <strong>{money(latestOrder?.Total || total)}</strong>
           </div>
-          {!!items.length&&<div className="gateway-order-vouchers"><span>ORDER SUMMARY</span>{items.map((item,index)=>{const title=item.product?.Title||item.ProductName||item.Title||item.VoucherName||item.BrandName||item.Brand||'Gift voucher';const amount=Number(item.Total||item.total||(Number(item.denomination||item.Denomination||item.FaceValue||0)*Number(item.Quantity||1)));return <div key={item.OrderItemID||item.CartID||index}><strong>{title}</strong><span>{money(amount)}</span></div>})}</div>}
+          {!!items.length&&<div className="gateway-order-vouchers"><span>ORDER SUMMARY</span>{items.map((item,index)=>{const title=item.product?.Title||item.ProductTitle||item.ProductName||item.Title||item.VoucherName||item.BrandName||item.Brand||'Gift voucher';const amount=Number(item.Total||item.total||(Number(item.denomination||item.Denomination||item.FaceValue||0)*Number(item.Quantity||1)));return <div key={item.OrderItemID||item.CartID||index}><strong>{title}</strong><span>{money(amount)}</span></div>})}</div>}
           <div className="tc-premium-verification order-placed-gateway-verification">
             <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
             <div className="tc-premium-verification-copy">
