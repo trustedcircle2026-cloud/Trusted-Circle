@@ -306,6 +306,15 @@ function moneyWalletRetryAdd_(data){
   return{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:stock.link,expiresAt:stock.expiresAt,adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx)}};
 }
 
+function moneyWalletCancelAdd_(data){
+ var user=walletUserFromIdentity_(data),id=cleanText_(data.transactionId,100),tx=findOne_(TC_MONEY_WALLET.TX,'TransactionID',id);
+ require_(tx&&String(tx.UserID)===String(user.UserID),'Wallet transaction was not found.');
+ require_(String(tx.Type).toUpperCase()==='ADD_MONEY','Only Add Money requests can be cancelled.');
+ require_(String(tx.Status).toUpperCase()==='PENDING_PAYMENT','Only pending payment requests can be cancelled.');
+ var now=isoNow_();updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',id,{Status:'CANCELLED',UpdatedAt:now,Notes:'Cancelled by customer'});
+ return{transaction:moneyTxPublic_(findOne_(TC_MONEY_WALLET.TX,'TransactionID',id)),wallet:moneyWalletPublic_(user.UserID)};
+}
+
 function moneyWalletWithdraw_(data){
   var user=walletUserFromIdentity_(data),amount=Math.round(Number(data.amount||0)*100)/100,upi=cleanText_(data.upiId,200);
   require_(amount>0&&isFinite(amount),'Enter a valid withdrawal amount.');
