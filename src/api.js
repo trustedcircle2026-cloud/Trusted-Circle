@@ -41,6 +41,7 @@ async function requestWithRetry(action,params={},method='GET',attempts=2){
     try{return await request(action,params,method)}
     catch(error){lastError=error;if(attempt<maxAttempts)await wait(180)}
   }
+  if(/no active session|session (?:is )?(?:invalid|expired)|please sign in again|unauthorized/i.test(String(lastError?.message||''))){try{window.dispatchEvent(new CustomEvent('tc:session-expired'))}catch{}}
   throw lastError
 }
 const fastAdmin=(action,params={},method='GET')=>request(action,params,method)
