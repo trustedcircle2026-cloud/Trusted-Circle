@@ -219,7 +219,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
  <section className="wallet-single-shell wallet-split-shell">
   <header className="wallet-single-topbar">
    <div className="wallet-single-brand"><WalletCards size={21}/><div><b>Wallet Services</b><small>Trusted Circle · Secure account</small></div></div>
-   <div className="wallet-single-tools"><button onClick={downloadAll} title="Download statement"><ArrowDownToLine size={18}/></button><button onClick={load} title="Refresh balances and transactions"><RefreshCw size={18}/></button><div className="wallet-profile-wrap"><button className="wallet-profile-btn" onClick={()=>setProfileOpen(v=>!v)} title="Profile"><UserRound size={19}/></button>{profileOpen&&<ProfileMenu user={user} onLogout={onLogout} onClose={()=>setProfileOpen(false)}/>}</div></div>
+   <div className="wallet-single-tools"><button onClick={load} title="Refresh balances and transactions" aria-label="Refresh balances and transactions"><RefreshCw size={18}/></button><button onClick={downloadAll} title="Download statement" aria-label="Download statement"><ArrowDownToLine size={18}/></button></div>
   </header>
   <div className="wallet-split-layout">
    <section className="wallet-split-left">
