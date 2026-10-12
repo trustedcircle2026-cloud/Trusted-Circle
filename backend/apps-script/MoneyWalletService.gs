@@ -249,7 +249,7 @@ function moneyWalletWithdrawalActions_(t){
 function moneyWalletAdd_(data){
   var user=walletUserFromIdentity_(data),amount=Number(data.amount);
   var manualUPI=String(data.manualUPI||'').toLowerCase()==='true'||data.manualUPI===true;
-  var note=cleanText_(data.notes||'TC-Wallet',80)||'TC-Wallet';
+  var note=cleanText_(data.notes||'Verified',80)||'Verified';
   require_(isFinite(amount)&&amount>0&&amount<=100000,'Enter a valid wallet top-up amount.');
   if(!manualUPI)require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose a preset amount or use custom amount with UPI.');
 
