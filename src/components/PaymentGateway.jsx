@@ -53,7 +53,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in again.')
-      const latest = await api.orderDetails(token, orderRef)
+      const latest = await api.orderDetailsSilent(token, orderRef)
       const status = String(latest?.payment?.Status || latest?.order?.PaymentStatus || '').toUpperCase()
       const orderStatus = String(latest?.order?.Status || '').toUpperCase()
       if (latest?.order) setLatestOrder(latest.order)
@@ -460,6 +460,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
             <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
             <strong>{money(latestOrder?.Total || total)}</strong>
           </div>
+          {!!items.length&&<div className="gateway-order-vouchers"><span>ORDER SUMMARY</span>{items.map((item,index)=>{const title=item.product?.Title||item.ProductName||item.Title||item.VoucherName||item.BrandName||item.Brand||'Gift voucher';const amount=Number(item.Total||item.total||(Number(item.denomination||item.Denomination||item.FaceValue||0)*Number(item.Quantity||1)));return <div key={item.OrderItemID||item.CartID||index}><strong>{title}</strong><span>{money(amount)}</span></div>})}</div>}
           <div className="tc-premium-verification order-placed-gateway-verification">
             <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
             <div className="tc-premium-verification-copy">
