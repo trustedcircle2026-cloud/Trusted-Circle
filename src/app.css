@@ -799,3 +799,29 @@
   .order-placed-gateway-ring.outcome-failed,
   .order-placed-gateway-ring.outcome-cancelled{animation:none}
 }
+
+/* Global wallet admin status notifications (available on every shopper route). */
+.wallet-admin-result-layer{z-index:10050;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);background:rgba(8,24,17,.56)}
+.wallet-admin-result-modal{position:relative;overflow:hidden;text-align:center;border:1px solid rgba(211,229,218,.9);box-shadow:0 30px 100px rgba(0,0,0,.3);animation:walletAdminPopupIn .32s cubic-bezier(.2,.8,.2,1) both}
+.wallet-admin-result-modal:before{content:"";position:absolute;inset:0 0 auto;height:5px;background:#13834e}
+.wallet-admin-result-modal.is-rejected:before{background:#c92a2a}
+.wallet-admin-result-modal.is-retry:before{background:#d38a12}
+.wallet-admin-result-icon{width:106px;height:106px;margin:7px auto 19px;border-radius:50%;display:grid;place-items:center;position:relative;animation:walletAdminIconIn .5s cubic-bezier(.18,.85,.25,1.35) both}
+.wallet-admin-result-icon:before,.wallet-admin-result-icon:after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid currentColor;opacity:.16;animation:walletAdminPulse 2s ease-out infinite}
+.wallet-admin-result-icon:after{inset:-17px;animation-delay:.5s}
+.is-success .wallet-admin-result-icon{background:#e5f7eb;color:#11834e}
+.is-rejected .wallet-admin-result-icon{background:#fff0f0;color:#c92a2a}
+.is-retry .wallet-admin-result-icon{background:#fff6e4;color:#b97708}
+.wallet-admin-result-modal h2{margin:8px 0 10px;font-size:clamp(24px,4vw,32px);line-height:1.15;letter-spacing:-.04em}
+.wallet-admin-result-modal>p{max-width:440px;margin:0 auto 19px;color:#65746b;line-height:1.6;font-size:14px}
+.wallet-admin-result-summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px 16px;text-align:left;margin:20px 0;padding:16px;border:1px solid #dce9e1;border-radius:15px;background:#f6faf7}
+.wallet-admin-result-summary span{font-size:10px;letter-spacing:.09em;font-weight:800;color:#75857b}
+.wallet-admin-result-summary strong{font-size:12px;max-width:235px;overflow-wrap:anywhere;text-align:right;color:#1a3829}
+.wallet-admin-result-modal .btn-primary,.wallet-admin-result-modal .btn-quiet{min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:9px}
+.wallet-admin-spin{animation:walletAdminSpin 1s linear infinite}
+@keyframes walletAdminPopupIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes walletAdminIconIn{from{opacity:0;transform:scale(.55) rotate(-18deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes walletAdminPulse{0%{transform:scale(.88);opacity:.24}100%{transform:scale(1.25);opacity:0}}
+@keyframes walletAdminSpin{to{transform:rotate(360deg)}}
+@media(max-width:600px){.wallet-admin-result-modal{width:calc(100vw - 30px);max-height:calc(100dvh - 30px);overflow-y:auto;padding:27px 20px 22px}.wallet-admin-result-icon{width:88px;height:88px;margin:5px auto 16px}.wallet-admin-result-summary{padding:13px;gap:8px 10px}.wallet-admin-result-summary strong{max-width:175px;font-size:11px}.wallet-admin-result-modal>p{font-size:13px}}
+@media(prefers-reduced-motion:reduce){.wallet-admin-result-modal,.wallet-admin-result-icon,.wallet-admin-result-icon:before,.wallet-admin-result-icon:after,.wallet-admin-spin{animation:none!important}}
