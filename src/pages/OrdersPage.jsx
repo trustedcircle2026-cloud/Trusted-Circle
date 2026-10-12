@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Download, FileText, Link2, PackageCheck, X, AlertTriangle, ShoppingBag, Home } from 'lucide-react'
 import { api } from '../api'
 import PaymentGateway from '../components/PaymentGateway'
@@ -94,10 +94,15 @@ function OrderDetails({ order, detail, detailsLoading, paymentPending, isCancell
   )
 }
 
-export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome, logoUrl }) {
+export default function OrdersPage({ orders, loading = false, onBack, onShop, onHome, logoUrl, autoRetry = false }) {
   const [open, setOpen] = useState(null), [details, setDetails] = useState({}), [detailsLoading, setDetailsLoading] = useState(''), [pay, setPay] = useState(null), [invoiceLoading, setInvoiceLoading] = useState(''), [invoiceError, setInvoiceError] = useState(''), [cancelLoading, setCancelLoading] = useState(''), [cancelTarget, setCancelTarget] = useState(null), [cancelled, setCancelled] = useState(() => new Set()), [showOlder, setShowOlder] = useState(false), [olderOrders, setOlderOrders] = useState([]), [olderOffset, setOlderOffset] = useState(4), [olderHasMore, setOlderHasMore] = useState(true), [olderLoading, setOlderLoading] = useState(false), [paymentCheckLoading, setPaymentCheckLoading] = useState(''), [paymentNotice, setPaymentNotice] = useState(null)
 
   const pending = order => !cancelled.has(order.OrderID) && ['PENDING','NOT_RECEIVED'].includes(String(order.PaymentStatus || 'PENDING').toUpperCase()) && !['PAID', 'DELIVERED', 'CANCELLED', 'REFUNDED'].includes(String(order.Status || '').toUpperCase())
+  useEffect(()=>{
+    if(!autoRetry||pay||!orders.length)return
+    const target=orders.find(order=>pending(order))
+    if(target)setPay({...target,items:[]})
+  },[autoRetry,orders,pay])
 
   const downloadInvoice = async order => {
     setInvoiceError('')
