@@ -1511,7 +1511,7 @@ html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wal
 .wallet-status-compact h2{margin:9px 0 16px;font-size:25px}
 .wallet-payment-link-panel{display:grid;gap:8px;margin-top:16px;padding:14px;border:1px solid #d4e8db;border-radius:13px;background:#f3faf6;text-align:left}
 .wallet-payment-link-panel>span{font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:900;color:#718078}
-.wallet-payment-link-panel a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border-radius:11px;background:#14633e;color:#fff;text-decoration:none;font-size:14px;font-weight:900}
+.wallet-payment-link-panel a,.wallet-payment-link-panel button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 12px;border:0;border-radius:11px;background:#14633e;color:#fff;text-decoration:none;font:inherit;font-size:14px;font-weight:900;cursor:pointer}
 .wallet-payment-link-panel small{font-size:11px;line-height:1.45;color:#718078}
 @media(max-width:600px){.wallet-status-compact h2{font-size:22px}.wallet-payment-link-panel{padding:11px}}
 
