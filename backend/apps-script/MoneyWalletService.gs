@@ -261,7 +261,7 @@ function moneyWalletAdd_(data){
   try{
     ensureMoneyWalletSheets_();
     var tid=newId_('TCMWTX');
-    stock=manualUPI?{stockId:'',link:'upi://pay?pa=paytm.s2eunub@pty&am='+encodeURIComponent(String(amount))+'&cu=INR&tn='+encodeURIComponent(note.trim().replace(/\\s+/g,'-')),label:'Manual UPI',expiresAt:new Date(Date.now()+TC_MONEY_WALLET.RESERVATION_MS).toISOString()}:moneyWalletReserveStock_(amount,tid);
+    stock=manualUPI?{stockId:'',link:'upi://pay?pa=paytm.s2eunub@pty&am='+encodeURIComponent(String(amount))+'&cu=INR&tn='+encodeURIComponent(note.trim().replace(/\s+/g,'-')),label:'Manual UPI',expiresAt:new Date(Date.now()+TC_MONEY_WALLET.RESERVATION_MS).toISOString()}:moneyWalletReserveStock_(amount,tid);
     w=moneyWalletRow_(user.UserID);
     balance=Number(w.Balance||0);
     reserved=Number(w.ReservedBalance||0);
