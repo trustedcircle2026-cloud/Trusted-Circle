@@ -1374,3 +1374,8 @@
  .wallet-add-summary-amount strong{font-size:24px}
  .wallet-split-shell>.wallet-single-footer{gap:8px;padding:8px 12px;flex-wrap:wrap;min-height:28px}
 }
+
+.wallet-brand-loading{overflow:hidden;animation:walletRingPulse 1.6s ease-in-out infinite}
+.wallet-brand-loading img{width:48px;height:48px;object-fit:contain;border-radius:50%;animation:walletResultPop .4s cubic-bezier(.2,1.4,.4,1) both}
+.wallet-wallet-success-icon{width:108px!important;height:108px!important;margin:0 auto 20px!important;box-shadow:0 0 0 10px #e4f8ec,0 12px 32px rgba(16,125,72,.18);animation:walletResultPop .55s cubic-bezier(.2,1.4,.4,1) both}
+.wallet-wallet-success-icon svg{width:66px;height:66px}
