@@ -98,6 +98,17 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
   }
  }
  useEffect(()=>{if(!initialWallet)load()},[initialWallet])
+ // Quiet background sync: refresh balances and transaction history every 15 seconds.
+ useEffect(()=>{
+  let active=true,syncing=false;
+  const syncWalletSilently=async()=>{
+   if(syncing)return;
+   syncing=true;
+   try{const latest=await walletApi.snapshot(identity);if(active&&latest){setWallet(latest);setOrders(latest.transactions||[])}}catch{}finally{syncing=false}
+  };
+  const timer=setInterval(syncWalletSilently,15000);
+  return()=>{active=false;clearInterval(timer)};
+ },[identity.email,identity.userId]);
  const pendingWalletSignature=orders.filter(t=>t.type==='ADD_MONEY'&&String(t.status||'').toUpperCase()==='PENDING_PAYMENT').map(t=>t.transactionId).join('|')
  useEffect(()=>{
   if(!pendingWalletSignature)return
@@ -159,10 +170,12 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
     if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
     const realTx=d.transaction||d.data?.transaction||draft;
 
-    // The secure payment page is opened ONLY after the link has been received.
+    // Try opening after the link exists. Mobile browsers may block async popups;
+    // the link is also exposed in the live status UI for a direct tap.
     let paymentOpened=false;
     try{
-      const paymentWindow=window.open(paymentLink,'TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
+      const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||window.matchMedia('(max-width: 767px)').matches;
+      const paymentWindow=window.open(paymentLink,'TrustedCircleWalletPayment',mobile?'_blank':'TrustedCircleWalletPayment,width=520,height=760,resizable=yes,scrollbars=yes');
       paymentOpened=!!paymentWindow;
     }catch{}
     setModal(prev=>({
@@ -212,7 +225,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
     <div className="wallet-left-security"><CheckCircle2 size={16}/><span><b>Separate wallet ledgers</b><small>Money Wallet and Cashback Wallet balances are tracked independently.</small></span></div>
    </section>
    <section className="wallet-split-right">
-    <div className="wallet-history-title"><div><h1>Transaction History</h1></div></div><div className="wallet-transaction-controls"><input className="wallet-field wallet-transaction-search" value={txSearch} onChange={e=>setTxSearch(e.target.value)} placeholder="Search transactions or ID…" aria-label="Search transactions"/><select className="wallet-field wallet-transaction-status" value={txStatus} onChange={e=>setTxStatus(e.target.value)} aria-label="Filter by status"><option value="all">All Status</option><option value="success">Success</option><option value="pending">Pending</option></select></div>
+    <div className="wallet-history-title"><h1>Transaction History</h1><div className="wallet-transaction-controls"><input className="wallet-field wallet-transaction-search" value={txSearch} onChange={e=>setTxSearch(e.target.value)} placeholder="Search transactions or ID…" aria-label="Search transactions"/><select className="wallet-field wallet-transaction-status" value={txStatus} onChange={e=>setTxStatus(e.target.value)} aria-label="Filter by status"><option value="all">All Status</option><option value="success">Success</option><option value="pending">Pending</option></select></div></div>
     <div className="wallet-history-filters" role="tablist" aria-label="Filter transactions">{[['all','All'],['cashback','Cashback'],['money','Money Wallet']].map(([key,label])=><button key={key} role="tab" aria-selected={txFilter===key} className={txFilter===key?'active':''} onClick={()=>setTxFilter(key)}>{label}<span>{orders.filter(t=>key==='all'||(key==='cashback'?(t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'):(t.source!=='CASHBACK'&&t.type!=='CASHBACK_EARNED'&&t.type!=='REDEMPTION_REQUEST'))).length}</span></button>)}</div>
     {notice&&<div className="wallet-notice">{notice}</div>}
     <div className="wallet-history-scroll">{busy?<div className="wallet-empty">Loading transactions…</div>:visibleOrders.length?visibleOrders.map(t=>{const isCashback=t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST';const isCredit=isCashback?t.type==='CASHBACK_EARNED':t.type==='ADD_MONEY';return <button className="wallet-transaction wallet-single-transaction wallet-split-transaction" key={t.transactionId} onClick={()=>setSelectedTx(t)}><span className={'wallet-tx-icon '+(isCredit?'add':'withdraw')}>{isCredit?'+':'−'}</span><span className="wallet-tx-main"><b>{isCashback?(t.type==='REDEMPTION_REQUEST'?'Cashback Redemption':'Cashback Earned'):t.type==='ADD_MONEY'?'Add Money':t.type==='WITHDRAW'?'Withdrawal':'Wallet Transaction'}</b><small>{new Date(t.createdAt).toLocaleString('en-IN')} · {isCashback?'Cashback Wallet':'Money Wallet'}</small></span><span className="wallet-tx-right"><b className={isCredit?'wallet-credit-amount':'wallet-debit-amount'}>{isCredit?'+':'−'}₹{money(Math.abs(Number(t.amount||0)))}</b><small className={'wallet-status '+statusClass(t.status)}>{String(t.status||'').replace(/_/g,' ')}</small></span><ArrowRight className="wallet-single-tx-arrow" size={16}/></button>}):<div className="wallet-empty wallet-filter-empty">{txFilter==='cashback'?'No cashback transactions found.':txFilter==='money'?'No Money Wallet transactions found.':'No wallet transactions yet.'}</div>}</div>
@@ -312,7 +325,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    </div></div>
  }
  const currentStatus=String(liveTx?.status||'PENDING_PAYMENT').replace(/_/g,' ');
-  return <div className="wallet-modal-layer"><div className="wallet-modal wallet-status-compact" role="status" aria-live="polite"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-status-horizontal"><div><small>AMOUNT</small><strong>₹{money(liveTx?.amount||amount)}</strong></div><div><small>PAYMENT STATUS</small><strong className={'live-status '+(String(liveTx?.status||'').toUpperCase()==='COMPLETED'?'success':'pending')}>{currentStatus}</strong></div></div><p>Checking payment status automatically.</p></div></div>
+  return <div className="wallet-modal-layer"><div className="wallet-modal wallet-status-compact" role="status" aria-live="polite"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">ADD MONEY · LIVE STATUS</span><h2>Checking Payment Status</h2><div className="wallet-status-horizontal"><div><small>AMOUNT</small><strong>₹{money(liveTx?.amount||amount)}</strong></div><div><small>PAYMENT STATUS</small><strong className={'live-status '+(String(liveTx?.status||'').toUpperCase()==='COMPLETED'?'success':'pending')}>{currentStatus}</strong></div></div><div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div><p>We’re checking your payment status automatically. Your wallet balance updates after confirmation.</p>{paymentLink&&<div className="wallet-payment-link-panel"><span>Payment link</span><a href={paymentLink} target="_blank" rel="noopener noreferrer"><ArrowRight size={16}/> Open Payment Link</a><small>{paymentOpened?'If the payment page did not open, tap the button above.':'Your browser may block automatic opening. Tap the button above to continue.'}</small></div>}</div></div>
 }
 function StatementModal({transactions,user,wallet,onClose}){
  const[account,setAccount]=useState('all'),[range,setRange]=useState('monthly'),[month,setMonth]=useState(String(new Date().getMonth()+1)),[year,setYear]=useState(String(new Date().getFullYear())),[fy,setFy]=useState('2025-26'),[from,setFrom]=useState(''),[to,setTo]=useState(''),[fileType,setFileType]=useState('PDF'),[status,setStatus]=useState('all'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
