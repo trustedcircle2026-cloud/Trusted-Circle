@@ -29,7 +29,7 @@ export const walletApi={
   orders:async identity=>{const d=await walletApi.snapshot(identity);return{transactions:d.transactions||[]}},
   transactionStatus:async(identity,transactionId)=>api.moneyWalletTransactionStatus(identity,transactionId),
   walletGateway:async(identity,amount)=>api.moneyAdd(identity,amount),
-  addMoney:async(identity,amount)=>api.moneyAdd(identity,amount),
+  addMoney:async(identity,amount,options={})=>api.moneyAdd(identity,amount,options),
   retryAddMoney:async(identity,transactionId)=>api.moneyRetryAdd(identity,transactionId),
   withdraw:async(identity,amount,upiId)=>api.moneyWithdraw(identity,amount,upiId),
   
