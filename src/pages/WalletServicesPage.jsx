@@ -307,29 +307,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    </div></div>
  }
  const currentStatus=String(liveTx?.status||'PENDING_PAYMENT').replace(/_/g,' ');
- return <div className="wallet-modal-layer"><div className="wallet-modal payment-waiting payment-live-card">
-   <button className="wallet-modal-x" onClick={onClose}><X size={18}/></button>
-   <div className="wallet-payment-live-head">
-     <div className="wallet-loading-ring"><Clock3 size={31}/></div>
-     <div><span className="wallet-services-eyebrow">PAYMENT VERIFICATION · LIVE</span><h2>Your payment is in progress</h2><p>Your payment page has opened. Trusted Circle is checking the latest status automatically.</p></div>
-   </div>
-   <div className="wallet-live-summary">
-     <div><span>Transaction No.</span><b>{liveTx?.transactionId||'—'}</b></div>
-     <div><span>Amount</span><b>₹{money(liveTx?.amount||amount)}</b></div>
-     <div><span>Active Status</span><b className="live-status pending">{currentStatus}</b></div>
-   </div>
-   <div className="wallet-payment-steps">
-     <div className="wallet-payment-step done"><CheckCircle2 size={17}/><span>Secure link received</span></div>
-     <div className="wallet-payment-step done"><CheckCircle2 size={17}/><span>Payment page opened</span></div>
-     <div className={'wallet-payment-step '+(adminEmailSent===false?'failed':'done')}>{adminEmailSent===false?<X size={17}/>:<CheckCircle2 size={17}/>}<span>{adminEmailSent===false?'Admin email failed':'Admin notified'}</span></div>
-     <div className="wallet-payment-step pending"><Clock3 size={17}/><span>Waiting for Admin action</span></div>
-   </div>
-   <div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div>
-   <strong>{left>0?'Waiting for Admin action · '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0'):'Waiting for Admin action'}</strong>
-   <small>When Admin selects <b>Received</b>, <b>Not Received</b>, or <b>Rejected</b>, this same popup will immediately show the final result.</small>
-   {!paymentOpened&&paymentLink&&<button className="wallet-submit" onClick={()=>window.open(paymentLink,'TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes')}>Open Payment Page <ArrowRight size={16}/></button>}
-   <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
- </div></div>
+  return <div className="wallet-modal-layer"><div className="wallet-modal wallet-status-compact" role="status" aria-live="polite"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-status-horizontal"><div><small>AMOUNT</small><strong>₹{money(liveTx?.amount||amount)}</strong></div><div><small>PAYMENT STATUS</small><strong className={'live-status '+(String(liveTx?.status||'').toUpperCase()==='COMPLETED'?'success':'pending')}>{currentStatus}</strong></div></div><p>Checking payment status automatically.</p></div></div>
 }
 function StatementModal({transactions,user,wallet,onClose}){
  const[account,setAccount]=useState('all'),[range,setRange]=useState('monthly'),[month,setMonth]=useState(String(new Date().getMonth()+1)),[year,setYear]=useState(String(new Date().getFullYear())),[fy,setFy]=useState('2025-26'),[from,setFrom]=useState(''),[to,setTo]=useState(''),[fileType,setFileType]=useState('PDF'),[status,setStatus]=useState('all'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
