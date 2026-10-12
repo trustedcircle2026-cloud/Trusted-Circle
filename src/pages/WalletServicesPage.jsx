@@ -80,7 +80,14 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
   try{
     const w=await walletApi.snapshot(identity);
     setWallet(w);
-    setOrders(w.transactions||[]);
+    const refreshedTransactions=w.transactions||[];
+    setOrders(refreshedTransactions);
+    const completedTopUp=refreshedTransactions.find(t=>t.type==='ADD_MONEY'&&String(t.status||'').toUpperCase()==='COMPLETED');
+    if(completedTopUp){
+     const seenKey='tc_wallet_success_seen_'+completedTopUp.transactionId;
+     let seen=false;try{seen=localStorage.getItem(seenKey)==='1'}catch{}
+     if(!seen){try{localStorage.setItem(seenKey,'1')}catch{}setSuccessNotice(completedTopUp)}
+    }
     setNotice('');
   }catch(e){
     setNotice(e.message);
@@ -277,7 +284,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
     if(success){try{localStorage.setItem('tc_wallet_success_seen_'+result.transactionId,'1')}catch{}}
    const notReceived=String(result.status||'').toUpperCase()==='NOT_RECEIVED';
    return <div className="wallet-modal-layer"><div className="wallet-modal payment-result payment-live-card">
-     <div className={'wallet-result-icon '+(success?'success':'failed')}>{success?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
+     <div className={'wallet-result-icon '+(success?'success wallet-wallet-success-icon':'failed')}>{success?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
      <span className="wallet-services-eyebrow">ADMIN ACTION COMPLETED</span>
      <h2>{success?'Payment Successful':notReceived?'Payment Not Received':'Payment Failed / Rejected'}</h2>
      <div className="wallet-live-summary result-summary">
