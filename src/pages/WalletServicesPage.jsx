@@ -252,6 +252,11 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    const timer=setInterval(check,4000);
    return()=>{active=false;clearInterval(timer)};
  },[user,liveTx?.transactionId,expiresAt,phase]);
+ useEffect(()=>{
+  if(String(result?.status||'').toUpperCase()==='COMPLETED'&&result?.transactionId){
+   try{localStorage.setItem('tc_wallet_success_seen_'+result.transactionId,'1')}catch{}
+  }
+ },[result?.transactionId,result?.status]);
  if(phase==='error')return <div className="wallet-modal-layer"><div className="wallet-modal payment-result">
    <div className="wallet-result-icon failed"><X size={42}/></div>
    <span className="wallet-services-eyebrow">PAYMENT SETUP FAILED</span>
@@ -282,7 +287,6 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
  </div></div>;
  if(result){
    const success=String(result.status||'').toUpperCase()==='COMPLETED';
-    if(success){try{localStorage.setItem('tc_wallet_success_seen_'+result.transactionId,'1')}catch{}}
    const notReceived=String(result.status||'').toUpperCase()==='NOT_RECEIVED';
    return <div className="wallet-modal-layer"><div className="wallet-modal payment-result payment-live-card">
      <div className={'wallet-result-icon '+(success?'success wallet-wallet-success-icon':'failed')}>{success?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
