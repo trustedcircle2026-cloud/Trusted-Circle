@@ -106,7 +106,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
    syncing=true;
    try{const latest=await walletApi.snapshot(identity);if(active&&latest){setWallet(latest);setOrders(latest.transactions||[]);try{localStorage.setItem('tc_wallet_snapshot_v1_'+(identity?.userId||identity?.email||'guest'),JSON.stringify({savedAt:Date.now(),wallet:latest}))}catch{}}}catch{}finally{syncing=false}
   };
-  const timer=setInterval(syncWalletSilently,15000);
+  const timer=setInterval(syncWalletSilently,30000);
   return()=>{active=false;clearInterval(timer)};
  },[identity.email,identity.userId]);
  const pendingWalletSignature=orders.filter(t=>t.type==='ADD_MONEY'&&String(t.status||'').toUpperCase()==='PENDING_PAYMENT').map(t=>t.transactionId).join('|')
