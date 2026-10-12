@@ -90,6 +90,35 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
   }
  }
  useEffect(()=>{if(!initialWallet)load()},[initialWallet])
+ const pendingWalletSignature=orders.filter(t=>t.type==='ADD_MONEY'&&String(t.status||'').toUpperCase()==='PENDING_PAYMENT').map(t=>t.transactionId).join('|')
+ useEffect(()=>{
+  if(!pendingWalletSignature)return
+  let active=true
+  const checkPendingWalletPayments=async()=>{
+   const ids=pendingWalletSignature.split('|').filter(Boolean)
+   for(const transactionId of ids){
+    try{
+     const result=await walletApi.transactionStatus(identity,transactionId)
+     const updated=result?.transaction
+     if(!active||!updated)continue
+     const status=String(updated.status||'').toUpperCase()
+     if(status==='COMPLETED'){
+      const seenKey='tc_wallet_success_seen_'+updated.transactionId
+      let seen=false;try{seen=localStorage.getItem(seenKey)==='1'}catch{}
+      if(!modal||modal.type!=='payment'){if(!seen){try{localStorage.setItem(seenKey,'1')}catch{}setSuccessNotice(updated)}}else{try{localStorage.setItem(seenKey,'1')}catch{}}
+      const refreshed=await walletApi.snapshot(identity)
+      if(active){setWallet(refreshed);setOrders(refreshed.transactions||[])}
+      return
+     }
+     if(['NOT_RECEIVED','REJECTED'].includes(status))setOrders(previous=>previous.map(t=>t.transactionId===updated.transactionId?updated:t))
+    }catch{}
+   }
+  }
+  const timer=setInterval(checkPendingWalletPayments,5000)
+  checkPendingWalletPayments()
+  return()=>{active=false;clearInterval(timer)}
+ },[pendingWalletSignature,identity.email,identity.userId,modal?.type])
+
  const openPaymentFlow=async(amount,retryTransaction=null,options={})=>{
   setNotice('');
   const requestedAmount=Number(amount||retryTransaction?.amount||0);
