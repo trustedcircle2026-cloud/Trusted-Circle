@@ -5,7 +5,7 @@ const cashbackRateOf=product=>{
  const values=[product?.CashbackPercent,product?.CashbackRate,product?.Cashback,product?.DiscountPercent,product?.Discount]
  for(const value of values){
   if(value===undefined||value===null||value==='')continue
-  const match=String(value).replace(/,/g,'').match(/-?\\d+(?:\\.\\d+)?/)
+  const match=String(value).replace(/,/g,'').match(/-?\d+(?:\\.\d+)?/)
   if(match)return Number(match[0])
  }
  return 0
