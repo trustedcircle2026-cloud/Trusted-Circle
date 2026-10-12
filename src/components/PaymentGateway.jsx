@@ -33,6 +33,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [paymentCheckLoading, setPaymentCheckLoading] = useState(false)
   const [verificationStartedAt, setVerificationStartedAt] = useState(0)
   const [verificationSeconds, setVerificationSeconds] = useState(0)
+  const [retryAttemptStartedAt, setRetryAttemptStartedAt] = useState(0)
   const [verified, setVerified] = useState(false)
   const [orderPlacedOpen, setOrderPlacedOpen] = useState(false)
   const [gatewayOutcome, setGatewayOutcome] = useState('pending')
@@ -69,6 +70,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         setVerified(true)
         setVerificationStartedAt(0)
         setVerificationSeconds(0)
+        setRetryAttemptStartedAt(0)
         return true
       }
       if (orderStatus === 'CANCELLED') {
@@ -80,6 +82,13 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         setVerificationStartedAt(0)
         setVerificationSeconds(0)
         setVerified(false)
+        return false
+      }
+      if (status === 'NOT_RECEIVED' && orderId && retryAttemptStartedAt && Date.now() - retryAttemptStartedAt < 120000) {
+        if (showResult) {
+          setPaymentCheck('pending')
+          setPaymentCheckMessage('Your retry payment is active. Waiting for the latest confirmation instead of reusing the previous Not Received result.')
+        }
         return false
       }
       if (status === 'NOT_RECEIVED') {
@@ -215,6 +224,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const requestPayment = async () => {
     if (overLimit || linkLoading || linkRequestInFlight.current) return
     linkRequestInFlight.current = true
+    if (orderId) setRetryAttemptStartedAt(Date.now())
 
     // IMPORTANT: reserve the popup synchronously inside the user's click.
     // Opening it only after the async Apps Script request completes can be
