@@ -113,7 +113,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
      if(status==='COMPLETED'){
       const seenKey='tc_wallet_success_seen_'+updated.transactionId
       let seen=false;try{seen=localStorage.getItem(seenKey)==='1'}catch{}
-      if(!modal||modal.type!=='payment'){if(!seen){try{localStorage.setItem(seenKey,'1')}catch{}setSuccessNotice(updated)}}else{try{localStorage.setItem(seenKey,'1')}catch{}}
+      if(!modal||modal.type!=='payment'){if(!seen){try{localStorage.setItem(seenKey,'1')}catch{}setSuccessNotice(updated)}}
       const refreshed=await walletApi.snapshot(identity)
       if(active){setWallet(refreshed);setOrders(refreshed.transactions||[])}
       return
