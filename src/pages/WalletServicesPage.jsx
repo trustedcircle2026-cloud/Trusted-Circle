@@ -190,6 +190,7 @@ function WalletHome({user,identity,onLogout,initialWallet=null}){
  const openOrders=async()=>{setNotice('');try{const o=await walletApi.orders(identity);setOrders(o.transactions||[]);setModal({type:'orders'})}catch(e){setNotice(e.message)}}
  const downloadAll=()=>setStatementOpen(true)
  const balance=Number(wallet?.balance||0),available=Number(wallet?.availableBalance||0),cashbackBalance=Number(wallet?.cashbackBalance ?? (wallet?.cashbackWallet?.balance || 0)),combinedBalance=Number(wallet?.totalBalance ?? (balance+cashbackBalance))
+ const visibleOrders=orders.filter(t=>txFilter==='all'||(txFilter==='cashback'?(t.source==='CASHBACK'||t.type==='CASHBACK_EARNED'||t.type==='REDEMPTION_REQUEST'):(t.source!=='CASHBACK'&&t.type!=='CASHBACK_EARNED'&&t.type!=='REDEMPTION_REQUEST')))
  return <main className="wallet-services-page wallet-single-page wallet-split-page">
  <section className="wallet-single-shell wallet-split-shell">
   <header className="wallet-single-topbar">
