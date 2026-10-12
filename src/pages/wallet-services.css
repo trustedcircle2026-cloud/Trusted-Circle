@@ -1398,3 +1398,9 @@
 .wallet-status-compact>p{margin:14px 0 0;color:#65756b;font-size:13px}
 .wallet-status-compact .wallet-modal-x{position:absolute;right:14px;top:14px}
 @media(max-width:600px){.wallet-transaction-controls{grid-template-columns:1fr}.wallet-status-horizontal{grid-template-columns:1fr}.wallet-status-compact{padding:24px 18px}.wallet-pending-actions>*{flex:1}.wallet-pending-item{align-items:flex-start}}
+
+.wallet-pending-row-actions{display:flex;gap:7px;align-items:center}
+.wallet-pending-row-actions .wallet-secondary-btn,.wallet-pending-row-actions .wallet-submit{width:auto;min-height:38px;padding:0 12px;font-size:12px}
+.wallet-pending-row-actions .wallet-secondary-btn{color:#a4231b;border-color:#f0d3d0}
+.wallet-pending-item{flex-wrap:wrap}
+.wallet-history-download{display:none}
