@@ -1531,3 +1531,22 @@ html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wal
  .wallet-page-buttons button{padding:0 9px}
  .wallet-page-count{width:100%}
 }
+
+
+/* Gesture-driven wallet actions: drag right to add money, left to withdraw. */
+.wallet-swipe-actions{position:relative;margin-top:auto;padding:15px 15px 11px;border:1px solid #dce9e1;border-radius:18px;background:linear-gradient(145deg,#f8fcf9,#edf6f0);box-shadow:0 12px 28px rgba(18,62,40,.08);overflow:hidden;touch-action:pan-y;}
+.wallet-swipe-direction{display:flex;align-items:center;gap:7px;position:absolute;top:18px;font-size:10px;font-weight:850;letter-spacing:.01em;pointer-events:none;transition:opacity .2s;}
+.wallet-swipe-add{left:15px;color:#14633e}.wallet-swipe-withdraw{right:15px;color:#b42318;}
+.wallet-swipe-track{height:62px;margin-top:24px;position:relative;border:1px solid #d2e2d8;border-radius:999px;background:linear-gradient(90deg,rgba(20,99,62,.09),rgba(255,255,255,.94) 48%,rgba(180,35,24,.08));display:flex;align-items:center;justify-content:center;touch-action:pan-y;}
+.wallet-swipe-fill{position:absolute;left:0;top:0;bottom:0;width:100%;border-radius:inherit;background:#16834f;opacity:.18;pointer-events:none;transition:transform .06s linear;}
+.wallet-swipe-fill.toward-withdraw{background:#b42318;}
+.wallet-swipe-thumb{position:absolute;left:calc(50% - 28px);top:5px;width:56px;height:50px;border-radius:999px;background:#fff;border:1px solid #d5e5db;box-shadow:0 5px 16px rgba(18,62,40,.18);display:flex;align-items:center;justify-content:center;gap:0;color:#14633e;cursor:grab;touch-action:none;user-select:none;z-index:1;transition:box-shadow .2s;}
+.wallet-swipe-thumb:active{cursor:grabbing;box-shadow:0 7px 22px rgba(18,62,40,.24);}
+.wallet-swipe-thumb-center{display:grid;place-items:center;}
+.wallet-swipe-thumb-left,.wallet-swipe-thumb-right{position:absolute;display:grid;place-items:center;opacity:.42;}
+.wallet-swipe-thumb-left{left:6px;transform:rotate(180deg)}.wallet-swipe-thumb-right{right:6px}
+.wallet-swipe-hint{display:block;margin-top:9px;text-align:center;color:#74857b;font-size:9px;}
+@keyframes walletSwipeNudge{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+.wallet-swipe-thumb-center{animation:walletSwipeNudge 1.5s ease-in-out infinite;}
+@media(max-width:680px){.wallet-swipe-actions{padding:14px 11px 10px;border-radius:16px}.wallet-swipe-direction{font-size:9px;top:16px}.wallet-swipe-add{left:11px}.wallet-swipe-withdraw{right:11px}.wallet-swipe-track{height:58px;margin-top:23px}.wallet-swipe-thumb{height:46px;top:5px;width:52px;left:calc(50% - 26px)}.wallet-swipe-hint{font-size:8px}}
+@media(prefers-reduced-motion:reduce){.wallet-swipe-thumb-center{animation:none}}
