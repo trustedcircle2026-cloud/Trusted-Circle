@@ -44,7 +44,7 @@ export default function App() {
     const timer=window.setInterval(async()=>{
       if(document.visibilityState!=='visible')return
       try{
-        const [cartData,orderData]=await Promise.all([api.cartSilent(token),api.ordersSilent(token)])
+        const [cartData,orderData]=await Promise.all([api.cartSilent(token),api.ordersSilent(token,100,0)])
         const nextCart=cartData?.items||[],nextOrders=orderData?.items||[]
         setCart(nextCart);setOrders(nextOrders)
         try{localStorage.setItem('tc_cart_cache',JSON.stringify({time:Date.now(),items:nextCart}));localStorage.setItem('tc_orders_cache',JSON.stringify({time:Date.now(),items:nextOrders}))}catch{}
@@ -60,7 +60,7 @@ export default function App() {
   const loadCatalog=useCallback(async(q=query,brand=brandFilter)=>{const data=await api.products(q.trim(),brand);setProducts(data?.items||[])},[query,brandFilter])
   const loadAllProducts=useCallback(async()=>{const data=await api.products('','');const items=data?.items||[];setAllProducts(items);return items},[])
   const loadCart=useCallback(async currentToken=>{if(!currentToken){setCart([]);return}const key='tc_cart_cache';try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(Array.isArray(saved?.items))setCart(saved.items)}catch{}try{const data=await api.cart(currentToken);const items=data?.items||[];setCart(items);localStorage.setItem(key,JSON.stringify({time:Date.now(),items}))}catch(error){console.warn('Trusted Circle cart refresh:',error.message)}},[])
-  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}const key='tc_orders_cache';try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(Array.isArray(saved?.items))setOrders(saved.items)}catch{}try{const data=await api.orders(currentToken);const items=data?.items||[];setOrders(items);localStorage.setItem(key,JSON.stringify({time:Date.now(),items}))}catch(error){console.warn('Trusted Circle orders refresh:',error.message)}},[])
+  const loadOrders=useCallback(async currentToken=>{if(!currentToken){setOrders([]);return}const key='tc_orders_cache';try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(Array.isArray(saved?.items))setOrders(saved.items)}catch{}try{const data=await api.orders(currentToken,100,0);const items=data?.items||[];setOrders(items);if(!previousOrdersRef.current.length)previousOrdersRef.current=items;localStorage.setItem(key,JSON.stringify({time:Date.now(),items}))}catch(error){console.warn('Trusted Circle orders refresh:',error.message)}},[])
   const pendingOrderCount=useMemo(()=>orders.filter(order=>{
     const payment=String(order.PaymentStatus||'PENDING').toUpperCase()
     const status=String(order.Status||'').toUpperCase()
