@@ -6,3 +6,21 @@
 .profile-session-status span{display:grid;gap:2px}
 .profile-session-status strong{font-size:11px}
 .profile-session-status small{font-size:9px;color:#89938f}
+
+
+/* More polished account page motion */
+.profile-enter{animation:profileEnter .45s cubic-bezier(.2,.75,.25,1) both}
+.profile-enter-delay{animation-delay:.08s}
+.profile-enter-delay-2{animation-delay:.15s}
+.profile-hero-card{transition:transform .25s ease,box-shadow .25s ease}
+.profile-hero-card:hover{transform:translateY(-2px);box-shadow:0 28px 65px rgba(18,34,27,.22)}
+.profile-hero-mark{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;color:#b7ebcd;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);animation:profileMarkFloat 4s ease-in-out infinite}
+.profile-actions-modern{align-content:start}
+.profile-action{min-height:82px}
+.profile-action.danger .action-icon{background:#fff0f0;color:#b94d4d}
+.profile-save-button{transition:transform .2s ease,box-shadow .2s ease}
+.profile-save-button:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(20,80,50,.18)}
+@keyframes profileEnter{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@keyframes profileMarkFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-5px) rotate(4deg)}}
+@media(max-width:700px){.profile-hero-mark{display:none}.profile-action{min-height:74px}}
+@media(prefers-reduced-motion:reduce){.profile-enter,.profile-hero-mark{animation:none!important}.profile-hero-card,.profile-save-button{transition:none!important}}
