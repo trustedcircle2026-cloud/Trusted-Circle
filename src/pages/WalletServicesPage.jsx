@@ -170,14 +170,16 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
     if(!paymentLink)throw new Error('Payment link was not returned from Wallet Services.');
     const realTx=d.transaction||d.data?.transaction||draft;
 
-    // Try opening after the link exists. Mobile browsers may block async popups;
-    // the link is also exposed in the live status UI for a direct tap.
+    // On mobile, do not auto-launch a browser or UPI app. Show a clear
+    // user-initiated button so one tap can invoke Android's "Open with" chooser.
     let paymentOpened=false;
-    try{
-      const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||window.matchMedia('(max-width: 767px)').matches;
-      const paymentWindow=window.open(paymentLink,'TrustedCircleWalletPayment',mobile?'_blank':'TrustedCircleWalletPayment,width=520,height=760,resizable=yes,scrollbars=yes');
-      paymentOpened=!!paymentWindow;
-    }catch{}
+    const mobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||window.matchMedia('(max-width: 767px)').matches;
+    if(!mobile){
+      try{
+        const paymentWindow=window.open(paymentLink,'TrustedCircleWalletPayment','width=520,height=760,resizable=yes,scrollbars=yes');
+        paymentOpened=!!paymentWindow;
+      }catch{}
+    }
     setModal(prev=>({
       ...(prev||{}),
       type:'payment',
@@ -339,7 +341,8 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    </div></div>
  }
  const currentStatus=String(liveTx?.status||'PENDING_PAYMENT').replace(/_/g,' ');
-  return <div className="wallet-modal-layer"><div className="wallet-modal wallet-status-compact" role="status" aria-live="polite"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">ADD MONEY · LIVE STATUS</span><h2>Checking Payment Status</h2><div className="wallet-status-horizontal"><div><small>AMOUNT</small><strong>₹{money(liveTx?.amount||amount)}</strong></div><div><small>PAYMENT STATUS</small><strong className={'live-status '+(String(liveTx?.status||'').toUpperCase()==='COMPLETED'?'success':'pending')}>{currentStatus}</strong></div></div><div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div><p>We’re checking your payment status automatically. Your wallet balance updates after confirmation.</p>{paymentLink&&<div className="wallet-payment-link-panel"><span>Payment link</span><a href={paymentLink} target="_blank" rel="noopener noreferrer"><ArrowRight size={16}/> Open Payment Link</a><small>{paymentOpened?'If the payment page did not open, tap the button above.':'Your browser may block automatic opening. Tap the button above to continue.'}</small></div>}</div></div>
+  const openPaymentLink=()=>{try{const isMobile=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||window.matchMedia('(max-width: 767px)').matches;if(/^upi:\/\//i.test(paymentLink)){window.location.href=paymentLink;return}const opened=window.open(paymentLink,'TrustedCircleWalletPayment',isMobile?'_blank':'TrustedCircleWalletPayment,width=520,height=760,resizable=yes,scrollbars=yes');if(!opened)window.location.href=paymentLink}catch{window.location.href=paymentLink}};
+  return <div className="wallet-modal-layer"><div className="wallet-modal wallet-status-compact" role="status" aria-live="polite"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">ADD MONEY · LIVE STATUS</span><h2>Checking Payment Status</h2><div className="wallet-status-horizontal"><div><small>AMOUNT</small><strong>₹{money(liveTx?.amount||amount)}</strong></div><div><small>PAYMENT STATUS</small><strong className={'live-status '+(String(liveTx?.status||'').toUpperCase()==='COMPLETED'?'success':'pending')}>{currentStatus}</strong></div></div><div className="wallet-progress"><span className="wallet-progress-indeterminate"/></div><p>We’re checking your payment status automatically. Your wallet balance updates after confirmation.</p>{paymentLink&&<div className="wallet-payment-link-panel"><span>Payment link ready</span><button type="button" onClick={openPaymentLink}><ArrowRight size={16}/> {/^upi:\/\//i.test(paymentLink)?'Choose UPI App':'Open Payment Link'}</button><small>{/^upi:\/\//i.test(paymentLink)?'Tap once to open Android’s available UPI apps.':'Tap once to open the secure payment page.'}</small></div>}</div></div>
 }
 function StatementModal({transactions,user,wallet,onClose}){
  const[account,setAccount]=useState('all'),[range,setRange]=useState('monthly'),[month,setMonth]=useState(String(new Date().getMonth()+1)),[year,setYear]=useState(String(new Date().getFullYear())),[fy,setFy]=useState('2025-26'),[from,setFrom]=useState(''),[to,setTo]=useState(''),[fileType,setFileType]=useState('PDF'),[status,setStatus]=useState('all'),[error,setError]=useState(''),[busy,setBusy]=useState(false)
