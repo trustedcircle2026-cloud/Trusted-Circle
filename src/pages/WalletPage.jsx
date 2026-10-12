@@ -1,5 +1,5 @@
 import { useEffect,useState } from 'react'
-import { ArrowLeft,ArrowRight,CheckCircle2,History,WalletCards,Plus,Minus,ShieldCheck,ExternalLink,Clock3,ChevronRight,ReceiptText,Landmark,Sparkles,LockKeyhole,RefreshCw } from 'lucide-react'
+import { ArrowLeft,ArrowRight,CheckCircle2,History,WalletCards,Plus,Minus,ShieldCheck,ExternalLink,Clock3,ChevronRight,ReceiptText,Landmark,Sparkles,LockKeyhole,RefreshCw,Download } from 'lucide-react'
 import { api } from '../api'
 import { walletApi } from '../wallet-services-api'
 import '../wallet.css'
@@ -80,6 +80,15 @@ export default function WalletPage({token,onBack}){
  const txAmount=tx=>Number(tx.amount??tx.Amount??0)
  const txStatus=tx=>String(tx.status||'').replace(/_/g,' ').toLowerCase()
  const total=active?data.wallet.totalBalance:shopping.cashback
+ const downloadStatement=()=>{
+  const rows=[['Date','Transaction','Wallet','Amount (INR)','Status','Reference']]
+  txs.forEach(tx=>rows.push([date(tx.createdAt||tx.CreatedAt),txLabel(tx),active?'Wallet Services':'Shopping Cashback',String(txAmount(tx)),String(tx.status||tx.Status||'').replace(/_/g,' '),String(tx.transactionId||tx.TransactionID||tx.id||tx.ID||'')]))
+  const csv=rows.map(row=>row.map(value=>'"'+String(value??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n')
+  const url=URL.createObjectURL(new Blob(['\\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}))
+  const link=document.createElement('a');link.href=url
+  link.download=(active?'trusted-circle-wallet':'trusted-circle-shopping-wallet')+'-statement.csv'
+  document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url)
+ }
 
  return <main className="page-shell wallet-page wallet-modern">
   <header className="wallet-topbar">
@@ -149,7 +158,7 @@ export default function WalletPage({token,onBack}){
   <section className="wallet-activity">
    <div className="wallet-activity-head">
     <div><span className="eyebrow">{active?'WALLET SERVICES':'SHOPPING'}</span><h2>{txTitle}</h2></div>
-    <span className="wallet-activity-count">{txs.length} {txs.length===1?'entry':'entries'}</span>
+    <div className="wallet-activity-tools"><span className="wallet-activity-count">{txs.length} {txs.length===1?'entry':'entries'}</span><button type="button" className="wallet-statement-download" onClick={downloadStatement} title="Download statement" aria-label="Download statement"><Download size={17}/><span>Statement</span></button></div>
    </div>
    {txs.length?
     <div className="wallet-timeline">
@@ -166,6 +175,7 @@ export default function WalletPage({token,onBack}){
     <div className="wallet-empty-modern"><div><ReceiptText size={22}/></div><h3>No activity yet</h3><p>Your {active?'Wallet Services':'Shopping'} transactions will appear here.</p></div>
    }
   </section>
+  </div>
 
   {message&&<div className="wallet-toast"><CheckCircle2 size={16}/><span>{message}</span></div>}
 
