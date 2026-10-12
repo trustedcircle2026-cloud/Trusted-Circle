@@ -214,6 +214,7 @@ function moneyWalletAdminActions_(t){
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
     '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">'+walletMailEscape_(t.PaymentLinkStockID?'Shopping Payment Link Stock':'Manual UPI')+'</td></tr></table>'+
     '<div style="margin-top:22px">'+
+    walletMailButton_('↗ Open Payment Link',String(t.PaymentLink||''),'#175cd3')+
     walletMailButton_('✓ Received',walletMailActionUrl_(received,'RECEIVED'),'#0f5132')+
     walletMailButton_('! Not Received',walletMailActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
     walletMailButton_('✕ Rejected',walletMailActionUrl_(rejected,'REJECTED'),'#b42318')+
