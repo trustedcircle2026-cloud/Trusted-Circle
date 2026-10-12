@@ -274,16 +274,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     setLinkValidSeconds(0)
     setLinkRequest(null)
 
-    // The network request continues in the background after 10 seconds.
-    // Only the blocking preparation UI is removed.
-    let uiTimedOut = false
-    const uiTimer = window.setTimeout(() => {
-      uiTimedOut = true
-      setLinkLoading(false)
-      setLinkWaitSeconds(0)
-      if (popup && !popup.closed) popup.close()
-    }, 10000)
-
+    // Keep the reserved payment window open for as long as the payment-link
+    // request is pending. A slow Apps Script response must never close it.
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) throw new Error('Please sign in first.')
@@ -325,16 +317,6 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         if (!orderId && typeof onCreateOrder === 'function') {
           onCreateOrder(result)
         }
-      } else if (uiTimedOut) {
-        // The original popup was intentionally closed after 10 seconds.
-        // Keep the returned link on the normal checkout screen so the user
-        // can open it manually without restarting the backend request.
-        setLinkRequest({
-          link,
-          expiresAt,
-          orderId: result?.order?.order?.OrderID || result?.order?.OrderID || orderId,
-          orderNumber: result?.order?.order?.OrderNumber || result?.order?.OrderNumber || ''
-        })
       } else {
         setLinkRequest({
           link,
@@ -346,12 +328,36 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         })
       }
     } catch (error) {
-      if (popup && !popup.closed) popup.close()
-      setLinkRequest({ error: error.message || 'Could not prepare payment.' })
+      const message = error.message || 'Could not prepare payment.'
+      // Keep the reserved window open even when link creation fails, and show
+      // the customer a clear error instead of abruptly closing the window.
+      if (popup && !popup.closed) {
+        try {
+          popup.document.body.innerHTML = ''
+          popup.document.body.style.cssText = 'margin:0;min-height:100vh;background:#f7faf8;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#17352a;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;'
+          const panel = popup.document.createElement('div')
+          panel.style.cssText = 'max-width:360px;text-align:center;line-height:1.6;'
+          const heading = popup.document.createElement('h2')
+          heading.textContent = 'Payment link unavailable'
+          heading.style.cssText = 'font-size:20px;margin:0 0 12px;'
+          const detail = popup.document.createElement('p')
+          detail.textContent = message
+          detail.style.cssText = 'font-size:14px;color:#5c6d65;margin:0;overflow-wrap:anywhere;'
+          const instruction = popup.document.createElement('p')
+          instruction.textContent = 'Return to Trusted Circle and try again.'
+          instruction.style.cssText = 'font-size:13px;color:#819088;margin-top:18px;'
+          panel.append(heading, detail, instruction)
+          popup.document.body.appendChild(panel)
+          popup.focus()
+        } catch (_) {
+          // The popup may have navigated or become inaccessible; do not try
+          // to close it from the checkout page.
+        }
+      }
+      setLinkRequest({ error: message })
       setLinkWaitSeconds(0)
       setLinkValidSeconds(0)
     } finally {
-      window.clearTimeout(uiTimer)
       setLinkLoading(false)
       linkRequestInFlight.current = false
     }
