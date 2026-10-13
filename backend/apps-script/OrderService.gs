@@ -152,6 +152,7 @@ function verifyAndApplyPaytmStatusForOrder_(orderId,source){
   var freshPayment=freshPayments.length?freshPayments[freshPayments.length-1]:null;
   if(!freshPayment)return{status:'UNKNOWN',message:'Payment record is missing; order was not updated.'};
   if(String(freshPayment.Status||'').toUpperCase()==='PAYTM_STATUS_REJECTED')return{status:'PENDING',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Automatic Paytm status was rejected by admin; manual review is required.'};
+  if(String(freshPayment.Status||'').toUpperCase()==='PAYTM_PAID_DETECTED')return{status:'PAID',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Paytm link is detected as paid; waiting for admin confirmation.'};
   if(Math.abs(Number(freshPayment.Amount||0)-Number(fresh.Total||0))>=0.01)return{status:'UNKNOWN',message:'Payment amount does not match the order; order was not updated.'};
   var now=isoNow_();
   if(String(freshPayment.Status||'').toUpperCase()!=='PAYTM_PAID_DETECTED'){
