@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102c20">
+<title>Trusted Circle | Verify Payment</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f8f5;color:#173b2a;font-family:Inter,Arial,sans-serif;min-height:100vh}.wrap{max-width:760px;margin:0 auto;padding:28px 16px 56px}.top{display:flex;align-items:center;gap:13px;margin-bottom:22px}.top img{width:48px;height:48px;object-fit:contain;border-radius:13px;background:white;border:1px solid #dfe9e3}.top strong{display:block;font-size:18px}.top small{color:#74817a;font-size:11px}.back{margin-left:auto;text-decoration:none;color:#315443;font-weight:800;font-size:12px;background:#fff;border:1px solid #dfe9e3;padding:10px 12px;border-radius:10px}.hero{margin-bottom:20px}.eyebrow{font-size:10px;letter-spacing:.15em;font-weight:900;color:#16834f}.hero h1{font-size:clamp(30px,6vw,44px);letter-spacing:-.045em;margin:8px 0}.hero p{color:#718078;font-size:13px;line-height:1.65;margin:0}.card{background:#fff;border:1px solid #dfe9e3;border-radius:20px;padding:22px;box-shadow:0 12px 35px #1436280d;margin-bottom:14px}label{display:block;font-size:12px;font-weight:900;margin-bottom:8px}input{width:100%;border:1px solid #ccd9d2;border-radius:12px;padding:14px;font:inherit;font-size:14px;outline:none}input:focus{border-color:#16834f;box-shadow:0 0 0 3px #16834f1a}.hint{font-size:11px;line-height:1.5;color:#7b8780;margin-top:8px}.actions{display:flex;gap:9px;margin-top:16px}button{border:0;border-radius:12px;padding:13px 18px;background:#12613b;color:white;font-weight:900;font-size:13px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.secondary{background:#edf5f0;color:#234b37}.result{display:none;border-radius:15px;padding:16px;margin-top:18px}.result.show{display:block}.result h2{margin:0 0 5px;font-size:19px}.result p{margin:0;font-size:12px;line-height:1.6}.paid{background:#eaf8f0;border:1px solid #bce6ce;color:#12613b}.pending{background:#fff7e6;border:1px solid #f2d9a3;color:#875900}.unknown{background:#f3f5f4;border:1px solid #dce4df;color:#52625a}.error{background:#fff0ee;border:1px solid #f2c4bd;color:#a52217}.foot{font-size:11px;color:#7a8780;line-height:1.6;margin-top:16px}@media(max-width:520px){.wrap{padding:20px 13px 36px}.card{padding:17px}.actions button{flex:1}.back{font-size:11px;padding:9px}}
+</style>
+</head>
+<body><main class="wrap">
+<header class="top"><img src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"><div><strong>Trusted Circle</strong><small>Payment verification tool</small></div><a class="back" href="/apps/">← All Apps</a></header>
+<section class="hero"><span class="eyebrow">PAYMENT TOOLS</span><h1>Verify Payment</h1><p>Paste a Paytm Business payment link to check its current status. This tool checks the page response for Paytm's successful-payment indicator.</p></section>
+<section class="card">
+<label for="paymentLink">Paytm Payment Link</label>
+<input id="paymentLink" type="url" autocomplete="url" placeholder="https://p.ppsl.io/PYTMPS/..." aria-describedby="hint">
+<div id="hint" class="hint">Use the complete payment link. No payment will be initiated by this tool.</div>
+<div class="actions"><button id="checkBtn" type="button">Get Status</button><button id="clearBtn" class="secondary" type="button">Clear</button></div>
+<div id="result" class="result" role="status" aria-live="polite"><h2 id="resultTitle"></h2><p id="resultText"></p></div>
+</section>
+<p class="foot">Status detection depends on the Paytm page response. If Paytm changes its page or blocks automated access, this tool will show “Unable to verify” rather than assume the payment is unpaid. Always use Paytm Business records as the final source for financial decisions.</p>
+</main>
+<script>
+const API='https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec';
+const $=id=>document.getElementById(id);
+function show(type,title,text){const el=$('result');el.className='result show '+type;$('resultTitle').textContent=title;$('resultText').textContent=text}
+function validPaytmLink(raw){try{const u=new URL(raw);return u.protocol==='https:'&&(['p.ppsl.io','paytm.business','www.paytm.business'].includes(u.hostname))}catch(e){return false}}
+$('checkBtn').addEventListener('click',async()=>{const link=$('paymentLink').value.trim();if(!validPaytmLink(link)){show('error','Invalid link','Paste a valid HTTPS Paytm payment link (p.ppsl.io or paytm.business).');return}const btn=$('checkBtn');btn.disabled=true;btn.textContent='Checking…';show('unknown','Checking payment status','Fetching the Paytm page and checking its response…');try{const response=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'verifyPaytmLinkStatus',paymentLink:link})});const json=await response.json();if(!json.ok)throw new Error(json.error||'Verification request failed.');const d=json.data||{};if(d.status==='PAID')show('paid','Payment link is PAID',d.message||'Paytm success indicator detected.');else if(d.status==='PENDING')show('pending','Payment link is UNPAID / PENDING',d.message||'The Paytm checkout page was detected and the success indicator was not found.');else show('unknown','Unable to verify',d.message||'Paytm did not return a response that can be safely classified.')}catch(e){show('error','Verification unavailable',String(e.message||'Could not contact the verification service.'))}finally{btn.disabled=false;btn.textContent='Get Status'}});
+$('clearBtn').addEventListener('click',()=>{$('paymentLink').value='';$('result').className='result';$('resultTitle').textContent='';$('resultText').textContent='';$('paymentLink').focus()});
+$('paymentLink').addEventListener('keydown',e=>{if(e.key==='Enter')$('checkBtn').click()});
+</script></body></html>
