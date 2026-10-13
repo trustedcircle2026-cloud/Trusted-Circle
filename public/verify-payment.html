@@ -22,7 +22,7 @@
 <p class="foot">Status detection depends on the Paytm page response. If Paytm changes its page or blocks automated access, this tool will show “Unable to verify” rather than assume the payment is unpaid. Always use Paytm Business records as the final source for financial decisions.</p>
 </main>
 <script>
-const API='https://script.google.com/macros/s/AKfycbwQ11gxZCWCwT0_MGmBErUKmqdNVBUToVMo7IZ2nt2wtzUK2tyT4iHNf4Q2L8ZcLXwC/exec';
+const API='https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec';
 const $=id=>document.getElementById(id);
 function show(type,title,text){const el=$('result');el.className='result show '+type;$('resultTitle').textContent=title;$('resultText').textContent=text}
 function validPaytmLink(raw){try{const u=new URL(raw);return u.protocol==='https:'&&(['p.ppsl.io','paytm.business','www.paytm.business'].includes(u.hostname))}catch(e){return false}}
