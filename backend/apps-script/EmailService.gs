@@ -105,10 +105,23 @@ function sendAdminOrderActionEmail_(order,user,link,label){
   return sendTransactionalEmail_(getAdminEmail_(),'[Action Required] Payment confirmation · '+order.OrderNumber,html,text);
  }catch(e){console.error('Admin order action email failed: '+String(e&&e.message||e));return false;}
 }
+function sendAdminPaytmStatusChangedEmailOnce_(order,link,label,amount){
+ ensureAdminEmailActionSheet_();
+ var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){
+  return String(r.OrderID)===String(order.OrderID)&&['CONFIRM_PAID','REJECT_PAID'].indexOf(String(r.Action||'').toUpperCase())>=0&&String(r.Status||'').toUpperCase()==='ACTIVE'&&new Date(r.ExpiresAt||0).getTime()>Date.now();
+ });
+ if(existing)return false;
+ var confirm=createAdminEmailActionToken_(order.OrderID,'CONFIRM_PAID');
+ var reject=createAdminEmailActionToken_(order.OrderID,'REJECT_PAID');
+ var safeOrder=emailEscape_(order.OrderNumber||order.OrderID),total=emailMoney_(amount),safeLink=emailEscape_(link);
+ var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Paytm Status Changed</div><div style="margin-top:5px;opacity:.85">Admin confirmation required</div></div><div style="padding:24px"><p style="font-size:17px">Automatic verification detected that the assigned Paytm payment link appears to be <b>PAID</b>.</p><p><b>Order:</b> '+safeOrder+'<br><b>Amount:</b> '+emailEscape_(total)+'<br><b>Link label:</b> '+emailEscape_(label||'Pay securely')+'</p><p style="color:#5f6b64">The order has not been marked paid yet. Open the Paytm link and confirm the payment before approving it.</p><p><a href="'+safeLink+'">Open Paytm payment link</a></p><div style="margin-top:22px">'+adminEmailButton_(adminActionUrl_(confirm.token,'CONFIRM_PAID'),'Confirm','#137547')+adminEmailButton_(adminActionUrl_(reject.token,'REJECT_PAID'),'Reject','#b42318')+'</div><p style="font-size:12px;color:#7a847e;margin-top:14px">Confirm rechecks the Paytm link before marking the order paid. Reject records the automatic detection as rejected and leaves the order pending for manual review.</p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
+ var text='Paytm payment link status changed to PAID (automatic detection).\nOrder: '+String(order.OrderNumber||order.OrderID)+'\nAmount: '+String(total)+'\nConfirm: '+adminActionUrl_(confirm.token,'CONFIRM_PAID')+'\nReject: '+adminActionUrl_(reject.token,'REJECT_PAID')+'\nThe order remains pending until Confirm is selected.';
+ return sendTransactionalEmail_(getAdminEmail_(),'[Action Required] Paytm link detected as PAID · '+String(order.OrderNumber||order.OrderID),html,text);
+}
 function adminEmailActionResponse_(e){
  try{
   var token=String(e.parameter.emailAction||''),action=String(e.parameter.action||'').toUpperCase();
-  require_(token&&['RECEIVED','NOT_RECEIVED','CANCEL'].indexOf(action)>=0,'Invalid action link.');
+  require_(token&&['RECEIVED','NOT_RECEIVED','CANCEL','CONFIRM_PAID','REJECT_PAID'].indexOf(action)>=0,'Invalid action link.');
   ensureAdminEmailActionSheet_();
   var tokenHash=hash_(token),rows=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS),row=null;
   for(var i=rows.length-1;i>=0;i--){if(String(rows[i].TokenHash)===tokenHash){row=rows[i];break;}}
@@ -119,7 +132,26 @@ function adminEmailActionResponse_(e){
   var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',row.OrderID);require_(order,'Order not found.');
   var current=String(order.Status||'').toUpperCase();
   var now=isoNow_();
-  if(action==='RECEIVED'){
+  if(action==='CONFIRM_PAID'){
+   require_(current==='PENDING_PAYMENT','Only a pending-payment order can be confirmed.');
+   var confirmLinks=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(l){return String(l.OrderID)===String(order.OrderID)&&['ACTIVE','USED'].indexOf(String(l.Status||'').toUpperCase())>=0;});
+   var confirmLink=confirmLinks.length?confirmLinks[confirmLinks.length-1]:null;require_(confirmLink&&confirmLink.Link,'Assigned payment link not found.');
+   var freshPaytmStatus=verifyPaytmLinkStatus_({paymentLink:confirmLink.Link});
+   require_(String(freshPaytmStatus&&freshPaytmStatus.status||'').toUpperCase()==='PAID','Paytm does not currently show this link as paid. Order was not confirmed.');
+   var confirmPayments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(order.OrderID);});
+   var confirmPayment=confirmPayments.length?confirmPayments[confirmPayments.length-1]:null;require_(confirmPayment,'Payment record not found.');
+   require_(Math.abs(Number(confirmPayment.Amount||0)-Number(order.Total||0))<0.01,'Payment amount does not match the order.');
+   updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',confirmPayment.PaymentID,{Status:'VERIFIED',VerifiedAt:now,Provider:'PAYTM_LINK_ADMIN_CONFIRMED',ProviderPaymentID:confirmLink.ProviderLinkID||confirmLink.PaymentLinkID||'',UpdatedAt:now});
+   updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',order.OrderID,{Status:'PAID',UpdatedAt:now});
+   if(typeof creditCashbackForOrder_==='function')creditCashbackForOrder_(findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',order.OrderID));
+   if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(order.OrderID,now);
+  }else if(action==='REJECT_PAID'){
+   require_(current==='PENDING_PAYMENT','Only a pending-payment order can have its detected status rejected.');
+   var rejectPayments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(order.OrderID);});
+   var rejectPayment=rejectPayments.length?rejectPayments[rejectPayments.length-1]:null;require_(rejectPayment,'Payment record not found.');
+   updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',rejectPayment.PaymentID,{Status:'PAYTM_STATUS_REJECTED',Provider:'ADMIN_REJECTED_PAYTM_AUTO_STATUS',VerifiedAt:'',UpdatedAt:now});
+   appendAudit_('', 'PAYTM_AUTO_STATUS_REJECTED', 'Orders', order.OrderID, {orderNumber:order.OrderNumber,amount:Number(order.Total||0)});
+  }else if(action==='RECEIVED'){
    require_(['PENDING_PAYMENT','PAYMENT_PROCESSING','PROCESSING'].indexOf(current)>=0,'This order is no longer awaiting payment.');
    var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(order.OrderID);});
    var payment=payments.length?payments[payments.length-1]:null;require_(payment,'Payment record not found.');
@@ -148,8 +180,8 @@ function adminEmailActionResponse_(e){
   }
   getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).filter(function(a){return String(a.OrderID)===String(order.OrderID)&&String(a.Status||'').toUpperCase()==='ACTIVE';}).forEach(function(a){updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'ActionTokenID',a.ActionTokenID,{Status:'USED',UsedAt:now});});
   appendAudit_('', 'ADMIN_EMAIL_'+action, 'Orders', order.OrderID, {orderNumber:order.OrderNumber});
-  var title=action==='RECEIVED'?'Payment marked as received':action==='NOT_RECEIVED'?'Payment marked as not received':'Order cancelled';
-  var body=action==='RECEIVED'?'The order is now marked PAID. Cashback has been processed.':action==='NOT_RECEIVED'?'The payment was not received. The previous payment link has been returned to available stock and can be reused when the customer retries.':'The order has been cancelled and its payment link stock released. The customer must create a new order.';
+  var title=action==='CONFIRM_PAID'?'Paytm payment confirmed':action==='REJECT_PAID'?'Automatic paid status rejected':action==='RECEIVED'?'Payment marked as received':action==='NOT_RECEIVED'?'Payment marked as not received':'Order cancelled';
+  var body=action==='CONFIRM_PAID'?'Paytm was rechecked and confirmed as paid. The order is now PAID and cashback processing has been triggered.':action==='REJECT_PAID'?'The automatic Paytm paid detection was rejected. The order remains pending for manual review; its payment link has not been released to stock.':action==='RECEIVED'?'The order is now marked PAID. Cashback has been processed.':action==='NOT_RECEIVED'?'The payment was not received. The previous payment link has been returned to available stock and can be reused when the customer retries.':'The order has been cancelled and its payment link stock released. The customer must create a new order.';
   return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f8f6;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px;box-sizing:border-box"><main style="max-width:520px;background:#fff;border:1px solid #dce9e0;border-radius:18px;padding:30px;box-shadow:0 14px 40px rgba(0,0,0,.08);text-align:center"><h1 style="color:#173c2a;margin:0 0 10px">'+emailEscape_(title)+'</h1><p style="color:#5f6b64;line-height:1.6">'+emailEscape_(body)+'</p><p style="font-size:12px;color:#7a847e">Order '+emailEscape_(order.OrderNumber)+'</p></main></body></html>');
  }catch(err){return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f7f7f7;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;padding:20px;box-sizing:border-box"><main style="max-width:520px;background:#fff;border:1px solid #ead4d4;border-radius:18px;padding:30px;text-align:center"><h1 style="margin:0 0 10px;color:#b42318">Action not completed</h1><p style="color:#5f6b64;line-height:1.6">'+emailEscape_(String(err&&err.message||err))+'</p></main></body></html>');}
 }
