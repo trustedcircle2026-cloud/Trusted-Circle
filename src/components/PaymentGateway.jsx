@@ -88,12 +88,14 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (latest?.order) setLatestOrder(latest.order)
       const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
       if (paid) {
+        // Only the backend-confirmed order/payment status reaches this branch.
+        // A Paytm success icon alone must not show the customer a success popup.
         registerPaytmPaid()
         setPaymentCheck('paid')
         setPaymentCheckMessage('Payment is confirmed and your order status has been updated.')
         setGatewayOutcome('received')
-        setOrderPlacedOpen(false)
         setOutcomePopup(null)
+        setOrderPlacedOpen(true)
         setVerified(true)
         setVerificationStartedAt(0)
         setVerificationSeconds(0)
@@ -536,8 +538,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           </button>
           <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
           <span className="eyebrow">ORDER CONFIRMATION</span>
-          <h2>{orderId ? 'Your previous order is active again' : '🎉 Your order is successfully placed!'}</h2>
-          <p>{paytmLinkStatus === 'PAID' ? `Paytm shows this payment link as PAID. This payment tab will close in ${popupCloseSeconds}s.` : orderId ? 'Your previous order is ready for payment. We are checking its latest status automatically.' : 'Your order has been received. We are checking the payment status automatically.'}</p>
+          <h2>{verified ? '🎉 Payment confirmed successfully!' : orderId ? 'Your previous order is active again' : '🎉 Your order is successfully placed!'}</h2>
+          <p>{verified ? 'Admin has confirmed your payment. Your order is now PAID successfully.' : paytmLinkStatus === 'PAID' ? `Paytm reports this link as PAID. Waiting for admin confirmation. This payment tab will close in ${popupCloseSeconds}s.` : orderId ? 'Your previous order is ready for payment. We are checking its latest status automatically.' : 'Your order has been received. We are checking the payment status automatically.'}</p>
           <div className="order-placed-gateway-pill">
             <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
             <strong>{money(latestOrder?.Total || total)}</strong>
