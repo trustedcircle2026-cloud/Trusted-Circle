@@ -152,7 +152,7 @@ function verifyAndApplyPaytmStatusForOrder_(orderId,source){
   updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId,{Status:'PAID',UpdatedAt:now});
   creditCashbackForOrder_(findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId));
   if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(orderId,now);
-  if(typeof appendAudit_==='function')appendAudit_(source==='SCHEDULED_PAYTM_STATUS'?'SYSTEM':'SHOPPER','PAYMENT_VERIFIED_BY_PAYTM_LINK_STATUS','Order',orderId,{source:source||'AUTO',amount:Number(fresh.Total||0)});
+  if(typeof appendAudit_==='function')appendAudit_(source==='SCHEDULED_PAYTM_STATUS'?'SYSTEM':fresh.UserID,'PAYMENT_VERIFIED_BY_PAYTM_LINK_STATUS','Order',orderId,{source:source||'AUTO',amount:Number(fresh.Total||0)});
   return{status:'PAID',orderStatus:'PAID',orderNumber:fresh.OrderNumber,message:'Paytm reports the payment link is paid; the order and payment records were updated.'};
  }finally{lock.releaseLock();}
 }
