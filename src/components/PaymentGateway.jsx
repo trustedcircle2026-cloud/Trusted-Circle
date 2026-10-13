@@ -230,28 +230,11 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     // IMPORTANT: reserve the popup synchronously inside the user's click.
     // Opening it only after the async Apps Script request completes can be
     // treated as an unsolicited popup and blocked by the browser.
+    // Always reserve a normal full-size browser tab. Do not request popup
+    // dimensions: payment providers (including Paytm) need the full viewport
+    // on desktop and mobile, whether this is checkout or an order retry.
     const isMobileViewport = window.matchMedia('(max-width: 760px)').matches
-    // Mobile browsers often ignore popup dimensions and render the temporary
-    // about:blank document in a tiny desktop viewport. Use the current tab on
-    // phones so the payment provider opens in the full mobile viewport.
-    let popup = null
-    if (isMobileViewport) {
-      // IMPORTANT: reserve a real browser tab synchronously from the user's
-      // tap. The payment URL is only assigned after Apps Script has returned
-      // a valid link, so the original Trusted Circle tab keeps its session and
-      // the customer can return to the order-confirmation popup.
-      popup = window.open('about:blank', '_blank')
-    } else {
-      const popupWidth = 500
-      const popupHeight = 620
-      const left = Math.max(0, Math.round((window.screen.availWidth - popupWidth) / 2))
-      const top = Math.max(0, Math.round((window.screen.availHeight - popupHeight) / 2))
-      popup = window.open(
-        'about:blank',
-        'TrustedCirclePayment',
-        `popup=yes,width=${popupWidth},height=${popupHeight},left=${left},top=${top},resizable=yes,scrollbars=yes`
-      )
-    }
+    const popup = window.open('about:blank', '_blank')
 
     paymentPopupRef.current = popup
 
