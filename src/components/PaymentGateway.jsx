@@ -214,7 +214,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
         return
       }
       setPaytmLinkStatus(status)
-      if (Date.now() - startedAt < 10 * 60 * 1000 && linkValidSeconds > 0) {
+      if (Date.now() - startedAt < 10 * 60 * 1000) {
         timer = window.setTimeout(poll, PAYTM_STATUS_POLL_MS)
       }
     }
@@ -223,7 +223,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       active = false
       if (timer) window.clearTimeout(timer)
     }
-  }, [linkRequest?.link, paytmLinkStatus, linkValidSeconds])
+  }, [linkRequest?.link, paytmLinkStatus])
 
   // Keep the provider tab visible for ten seconds after the success indicator is detected.
   useEffect(() => {
