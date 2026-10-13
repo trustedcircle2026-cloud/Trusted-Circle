@@ -111,6 +111,14 @@ function sendAdminPaytmStatusChangedEmailOnce_(order,link,label,amount){
   return String(r.OrderID)===String(order.OrderID)&&['CONFIRM_PAID','REJECT_PAID'].indexOf(String(r.Action||'').toUpperCase())>=0&&String(r.Status||'').toUpperCase()==='ACTIVE'&&new Date(r.ExpiresAt||0).getTime()>Date.now();
  });
  if(existing)return false;
+ // The status-changed email supersedes the earlier order-action email.
+ // Invalidate all older active actions so an old Received/Not Received/Cancel
+ // link cannot override the newer Confirm/Reject decision.
+ getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).filter(function(a){
+  return String(a.OrderID)===String(order.OrderID)&&String(a.Status||'').toUpperCase()==='ACTIVE';
+ }).forEach(function(a){
+  updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'ActionTokenID',a.ActionTokenID,{Status:'USED',UsedAt:isoNow_()});
+ });
  var confirm=createAdminEmailActionToken_(order.OrderID,'CONFIRM_PAID');
  var reject=createAdminEmailActionToken_(order.OrderID,'REJECT_PAID');
  var safeOrder=emailEscape_(order.OrderNumber||order.OrderID),total=emailMoney_(amount),safeLink=emailEscape_(link);
