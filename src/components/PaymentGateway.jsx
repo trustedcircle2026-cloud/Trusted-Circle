@@ -5,7 +5,6 @@ import './PaymentGateway.css'
 
 const LINK_WAIT_SECONDS = 50
 const LINK_VALIDITY_SECONDS = 3 * 60 * 60
-const PAYTM_STATUS_API = 'https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec'
 const PAYTM_STATUS_POLL_MS = 5000
 const PAID_POPUP_CLOSE_DELAY_MS = 10000
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -51,16 +50,14 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
   const orderRef = linkRequest?.orderId || orderId
   const verifyPaytmLink = async link => {
-    if (!link) return 'UNKNOWN'
+    if (!link || !orderRef) return 'UNKNOWN'
     try {
-      const response = await fetch(PAYTM_STATUS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'verifyPaytmLinkStatus', paymentLink: link })
-      })
-      const result = await response.json()
-      if (!response.ok || result?.ok === false) return 'UNKNOWN'
-      const status = String(result?.data?.status || result?.status || '').toUpperCase()
+      const token = localStorage.getItem('tc_session')
+      if (!token) return 'UNKNOWN'
+      // The shopping backend verifies the assigned link and, when paid,
+      // updates Payment + Order records and credits cashback atomically.
+      const result = await api.verifyOrderPaymentLink(token, orderRef)
+      const status = String(result?.status || '').toUpperCase()
       return ['PAID', 'PENDING'].includes(status) ? status : 'UNKNOWN'
     } catch (_) {
       return 'UNKNOWN'
