@@ -5,6 +5,9 @@ import './PaymentGateway.css'
 
 const LINK_WAIT_SECONDS = 50
 const LINK_VALIDITY_SECONDS = 3 * 60 * 60
+const PAYTM_STATUS_API = 'https://script.google.com/macros/s/AKfycbx4jcs_F9miW2R1RMKY8N8cbFB7GA52rfQacdPhCY8xtlf9lQvagNXSUD3036qmvi04/exec'
+const PAYTM_STATUS_POLL_MS = 5000
+const PAID_POPUP_CLOSE_DELAY_MS = 10000
 const money = value => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 const formatDuration = seconds => {
   const value = Math.max(0, Number(seconds || 0))
@@ -39,11 +42,39 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const [gatewayOutcome, setGatewayOutcome] = useState('pending')
   const [outcomePopup, setOutcomePopup] = useState(null)
   const [latestOrder, setLatestOrder] = useState(null)
+  const [paytmLinkStatus, setPaytmLinkStatus] = useState('idle')
+  const [paytmPaidDetectedAt, setPaytmPaidDetectedAt] = useState(0)
+  const [popupCloseSeconds, setPopupCloseSeconds] = useState(0)
   const linkRequestInFlight = useRef(false)
   const paymentPopupRef = useRef(null)
   const overLimit = Number(total) > 2000
   const activeLink = Boolean(linkRequest?.link && linkValidSeconds > 0)
   const orderRef = linkRequest?.orderId || orderId
+  const verifyPaytmLink = async link => {
+    if (!link) return 'UNKNOWN'
+    try {
+      const response = await fetch(PAYTM_STATUS_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'verifyPaytmLinkStatus', paymentLink: link })
+      })
+      const result = await response.json()
+      if (!response.ok || result?.ok === false) return 'UNKNOWN'
+      const status = String(result?.data?.status || result?.status || '').toUpperCase()
+      return ['PAID', 'PENDING'].includes(status) ? status : 'UNKNOWN'
+    } catch (_) {
+      return 'UNKNOWN'
+    }
+  }
+
+  const registerPaytmPaid = () => {
+    setPaytmLinkStatus('PAID')
+    setPaytmPaidDetectedAt(current => current || Date.now())
+    setPopupCloseSeconds(current => current || 10)
+    setPaymentCheck('checking')
+    setPaymentCheckMessage('Paytm confirms the payment link is paid. Trusted Circle is updating the order; this payment tab will close in 10 seconds.')
+  }
+
   const readPaymentStatus = async ({showResult=true}={}) => {
     if (!orderRef || paymentCheckLoading) return false
     setPaymentCheckLoading(true)
@@ -60,8 +91,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (latest?.order) setLatestOrder(latest.order)
       const paid = ['PAID','VERIFIED','SUCCESS','CAPTURED'].includes(status) || ['PAID','DELIVERED','COMPLETED'].includes(orderStatus)
       if (paid) {
-        try { if (paymentPopupRef.current && !paymentPopupRef.current.closed) paymentPopupRef.current.close() } catch (_) {}
-        paymentPopupRef.current = null
+        registerPaytmPaid()
         setPaymentCheck('paid')
         setPaymentCheckMessage('Payment received. Your order status has been updated.')
         setGatewayOutcome('received')
@@ -167,6 +197,52 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     else window.location.href = 'mailto:' + encodeURIComponent(user?.email || '') + '?subject=' + encodeURIComponent('Trusted Circle payment link') + '&body=' + encodeURIComponent(text)
   }
 
+  // Check the assigned Paytm link using the same server-side method as the Verify Payment app.
+  // Cross-origin page contents are not readable from this window, so the status is fetched server-side.
+  useEffect(() => {
+    const link = String(linkRequest?.link || '').trim()
+    if (!link || paytmLinkStatus === 'PAID') return undefined
+    let active = true
+    let timer = null
+    const startedAt = Date.now()
+    const poll = async () => {
+      if (!active) return
+      const status = await verifyPaytmLink(link)
+      if (!active) return
+      if (status === 'PAID') {
+        registerPaytmPaid()
+        return
+      }
+      setPaytmLinkStatus(status)
+      if (Date.now() - startedAt < 10 * 60 * 1000 && linkValidSeconds > 0) {
+        timer = window.setTimeout(poll, PAYTM_STATUS_POLL_MS)
+      }
+    }
+    poll()
+    return () => {
+      active = false
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [linkRequest?.link, paytmLinkStatus, linkValidSeconds])
+
+  // Keep the provider tab visible for ten seconds after the success indicator is detected.
+  useEffect(() => {
+    if (!paytmPaidDetectedAt) return undefined
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((paytmPaidDetectedAt + PAID_POPUP_CLOSE_DELAY_MS - Date.now()) / 1000))
+      setPopupCloseSeconds(remaining)
+      if (remaining <= 0) {
+        try {
+          if (paymentPopupRef.current && !paymentPopupRef.current.closed) paymentPopupRef.current.close()
+        } catch (_) {}
+        paymentPopupRef.current = null
+      }
+    }
+    update()
+    const timer = window.setInterval(update, 250)
+    return () => window.clearInterval(timer)
+  }, [paytmPaidDetectedAt])
+
   useEffect(() => {
     if (!verificationStartedAt || !orderRef || verified) return undefined
     const tick = () => {
@@ -216,7 +292,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   const openResolvedPayment = () => {
     const link = String(linkRequest?.link || '').trim()
     if (!link) return
-    window.open(link, '_blank', 'noopener,noreferrer')
+    const popup = window.open(link, '_blank')
+    if (popup) paymentPopupRef.current = popup
     const token = localStorage.getItem('tc_session')
     const id = linkRequest?.orderId || orderId
     if (token && id) api.paymentLinkOpened(token, id).catch(()=>{})
@@ -272,6 +349,9 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     setLinkWaitSeconds(LINK_WAIT_SECONDS)
     setLinkValidSeconds(0)
     setLinkRequest(null)
+    setPaytmLinkStatus('idle')
+    setPaytmPaidDetectedAt(0)
+    setPopupCloseSeconds(0)
 
     // Keep the reserved payment window open for as long as the payment-link
     // request is pending. A slow Apps Script response must never close it.
@@ -292,6 +372,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       const validSeconds = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)) : LINK_VALIDITY_SECONDS
       const resolvedOrderId = result?.order?.order?.OrderID || result?.order?.OrderID || orderId
       setLinkRequest({ link, expiresAt, orderId: resolvedOrderId, orderNumber: result?.order?.order?.OrderNumber || result?.order?.OrderNumber || '' })
+      setPaytmLinkStatus('checking')
       setLinkValidSeconds(validSeconds || LINK_VALIDITY_SECONDS)
       setLinkWaitSeconds(0)
       if (resolvedOrderId) {
@@ -364,6 +445,12 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   }
 
   const refreshPaymentStatus = async () => {
+    const link = String(linkRequest?.link || '').trim()
+    if (link) {
+      const status = await verifyPaytmLink(link)
+      setPaytmLinkStatus(status)
+      if (status === 'PAID') registerPaytmPaid()
+    }
     await readPaymentStatus({showResult:true})
   }
 
@@ -450,7 +537,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           <div className="order-placed-gateway-ring"><div><CheckCircle2 size={70}/></div></div>
           <span className="eyebrow">ORDER CONFIRMATION</span>
           <h2>{orderId ? 'Your previous order is active again' : '🎉 Your order is successfully placed!'}</h2>
-          <p>{orderId ? 'Your previous order is ready for payment. We are checking its latest status automatically.' : 'Your order has been received. We are checking the payment status automatically.'}</p>
+          <p>{paytmLinkStatus === 'PAID' ? `Paytm shows this payment link as PAID. This payment tab will close in ${popupCloseSeconds}s.` : orderId ? 'Your previous order is ready for payment. We are checking its latest status automatically.' : 'Your order has been received. We are checking the payment status automatically.'}</p>
           <div className="order-placed-gateway-pill">
             <span>{linkRequest?.orderNumber || latestOrder?.OrderNumber || orderRef}</span>
             <strong>{money(latestOrder?.Total || total)}</strong>
