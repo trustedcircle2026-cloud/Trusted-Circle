@@ -113,6 +113,67 @@ function getOrder_(userId,orderId){
  try{links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){var status=String(r.Status||'ACTIVE').toUpperCase();return String(r.OrderID)===String(orderId)&&['DISABLED','EXPIRED','RELEASED','CANCELLED'].indexOf(status)<0;});}catch(ignore){}
  return{order:order,items:items,payment:payments.length?payments[payments.length-1]:null,paymentLink:links.length?links[links.length-1]:null};
 }
+
+/**
+ * Verifies the Paytm link assigned to an authenticated shopper's order and,
+ * only on a positive Paytm success marker, runs the existing paid-order updates.
+ */
+function verifyOrderPaymentLink_(data){
+ var user=authenticate_(data.token),orderId=cleanText_(data.orderId,100);
+ var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);
+ require_(order&&String(order.UserID)===String(user.UserID),'Order not found.');
+ return verifyAndApplyPaytmStatusForOrder_(orderId,'SHOPPER_STATUS_CHECK');
+}
+function verifyAndApplyPaytmStatusForOrder_(orderId,source){
+ var order=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);
+ if(!order)return{status:'UNKNOWN',message:'Order not found.'};
+ var current=String(order.Status||'').toUpperCase();
+ if(['PAID','PROCESSING','DELIVERED'].indexOf(current)>=0)return{status:'PAID',orderStatus:current,orderNumber:order.OrderNumber,message:'Order is already marked paid.'};
+ if(current!=='PENDING_PAYMENT')return{status:'PENDING',orderStatus:current,orderNumber:order.OrderNumber,message:'Order is not awaiting payment.'};
+ var links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){return String(r.OrderID)===String(orderId)&&['ACTIVE','USED'].indexOf(String(r.Status||'').toUpperCase())>=0;});
+ var link=links.length?links[links.length-1]:null;
+ if(!link||!link.Link)return{status:'UNKNOWN',message:'No active Paytm payment link is assigned to this order.'};
+ var result=verifyPaytmLinkStatus_({paymentLink:link.Link});
+ var linkStatus=String(result&&result.status||'UNKNOWN').toUpperCase();
+ if(linkStatus!=='PAID')return{status:linkStatus==='PENDING'?'PENDING':'UNKNOWN',orderStatus:current,orderNumber:order.OrderNumber,message:result&&result.message||'Paytm status could not be confirmed.'};
+ var lock=LockService.getScriptLock();lock.waitLock(10000);
+ try{
+  var fresh=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId);
+  if(!fresh)return{status:'UNKNOWN',message:'Order not found.'};
+  var freshStatus=String(fresh.Status||'').toUpperCase();
+  if(['PAID','PROCESSING','DELIVERED'].indexOf(freshStatus)>=0)return{status:'PAID',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Order is already marked paid.'};
+  if(freshStatus!=='PENDING_PAYMENT')return{status:'PENDING',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Order is no longer awaiting payment.'};
+  var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(orderId);});
+  var payment=payments.length?payments[payments.length-1]:null;
+  if(!payment)return{status:'UNKNOWN',message:'Payment record is missing; order was not updated.'};
+  if(Math.abs(Number(payment.Amount||0)-Number(fresh.Total||0))>=0.01)return{status:'UNKNOWN',message:'Payment amount does not match the order; order was not updated.'};
+  var now=isoNow_();
+  updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',payment.PaymentID,{Provider:'PAYTM_LINK_STATUS',ProviderPaymentID:link.ProviderLinkID||link.PaymentLinkID||'',Status:'VERIFIED',VerifiedAt:now,UpdatedAt:now});
+  updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId,{Status:'PAID',UpdatedAt:now});
+  creditCashbackForOrder_(findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId));
+  if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(orderId,now);
+  if(typeof appendAudit_==='function')appendAudit_(source==='SCHEDULED_PAYTM_STATUS'?'SYSTEM':'SHOPPER','PAYMENT_VERIFIED_BY_PAYTM_LINK_STATUS','Order',orderId,{source:source||'AUTO',amount:Number(fresh.Total||0)});
+  return{status:'PAID',orderStatus:'PAID',orderNumber:fresh.OrderNumber,message:'Paytm reports the payment link is paid; the order and payment records were updated.'};
+ }finally{lock.releaseLock();}
+}
+/** Runs every minute while admin payment-action emails are in use. */
+function ensurePaytmPaymentStatusTrigger_(){
+ var triggers=ScriptApp.getProjectTriggers();
+ var exists=triggers.some(function(t){return t.getHandlerFunction()==='processPendingPaytmPaymentStatuses_';});
+ if(!exists)ScriptApp.newTrigger('processPendingPaytmPaymentStatuses_').timeBased().everyMinutes(1).create();
+}
+function processPendingPaytmPaymentStatuses_(){
+ var lock=LockService.getScriptLock();if(!lock.tryLock(1000))return;
+ try{
+  var orders=getRows_(TC_CONFIG.SHEETS.ORDERS).filter(function(o){return String(o.Status||'').toUpperCase()==='PENDING_PAYMENT';});
+  orders.sort(function(a,b){return new Date(a.CreatedAt||0).getTime()-new Date(b.CreatedAt||0).getTime();});
+  orders.slice(0,20).forEach(function(order){
+   try{verifyAndApplyPaytmStatusForOrder_(order.OrderID,'SCHEDULED_PAYTM_STATUS');}
+   catch(err){console.error('Paytm status check failed for '+order.OrderID+': '+String(err&&err.message||err));}
+  });
+ }finally{lock.releaseLock();}
+}
+
 function requestPaymentLink_(data){
  var user=authenticate_(data.token),orderId=cleanText_(data.orderId,100),lock=LockService.getScriptLock();
  lock.waitLock(10000);
