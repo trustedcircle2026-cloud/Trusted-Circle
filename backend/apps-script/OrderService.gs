@@ -163,15 +163,14 @@ function ensurePaytmPaymentStatusTrigger_(){
  if(!exists)ScriptApp.newTrigger('processPendingPaytmPaymentStatuses_').timeBased().everyMinutes(1).create();
 }
 function processPendingPaytmPaymentStatuses_(){
- var lock=LockService.getScriptLock();if(!lock.tryLock(1000))return;
- try{
-  var orders=getRows_(TC_CONFIG.SHEETS.ORDERS).filter(function(o){return String(o.Status||'').toUpperCase()==='PENDING_PAYMENT';});
-  orders.sort(function(a,b){return new Date(a.CreatedAt||0).getTime()-new Date(b.CreatedAt||0).getTime();});
-  orders.slice(0,20).forEach(function(order){
-   try{verifyAndApplyPaytmStatusForOrder_(order.OrderID,'SCHEDULED_PAYTM_STATUS');}
-   catch(err){console.error('Paytm status check failed for '+order.OrderID+': '+String(err&&err.message||err));}
-  });
- }finally{lock.releaseLock();}
+ // Do not hold the script lock around UrlFetchApp calls; each successful
+ // payment update obtains its own lock inside verifyAndApplyPaytmStatusForOrder_.
+ var orders=getRows_(TC_CONFIG.SHEETS.ORDERS).filter(function(o){return String(o.Status||'').toUpperCase()==='PENDING_PAYMENT';});
+ orders.sort(function(a,b){return new Date(a.CreatedAt||0).getTime()-new Date(b.CreatedAt||0).getTime();});
+ orders.slice(0,10).forEach(function(order){
+  try{verifyAndApplyPaytmStatusForOrder_(order.OrderID,'SCHEDULED_PAYTM_STATUS');}
+  catch(err){console.error('Paytm status check failed for '+order.OrderID+': '+String(err&&err.message||err));}
+ });
 }
 
 function requestPaymentLink_(data){
