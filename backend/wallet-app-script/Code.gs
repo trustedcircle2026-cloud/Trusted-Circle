@@ -95,6 +95,7 @@ function iframeResponse_(result,requestId){
 function route_(d){
   const a=String(d.action||'health');
   if(a==='health')return{ok:true,service:'Trusted Circle Wallet Services',version:'2.2.0',status:'ok'};
+  if(a==='verifyPaytmLinkStatus')return verifyPaytmLinkStatus_(d);
   if(a==='requestOtp')return requestOtp_(d);
   if(a==='verifyOtp')return verifyOtp_(d);
   if(a==='requestLoginChallenge')return requestLoginChallenge_(d);
@@ -882,3 +883,47 @@ function esc_(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function btn_(label,url,bg){return'<a href="'+esc_(url)+'" style="display:inline-block;margin:6px;padding:13px 20px;background:'+bg+';color:#fff;text-decoration:none;border-radius:9px;font-weight:bold">'+esc_(label)+'</a>';}
 function shell_(title,body){return'<div style="font-family:Arial;max-width:650px;margin:auto;padding:25px;background:#f4f7f5"><div style="background:#fff;padding:28px;border-radius:16px"><h2 style="color:#0f5132">'+esc_(title)+'</h2>'+body+'<p style="font-size:12px;color:#777">Trusted Circle Wallet Services · Admin links expire after 24 hours.</p></div></div>';}
 function html_(title,msg,success){return HtmlService.createHtmlOutput('<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#f4f7f5"><div style="max-width:520px;margin:15vh auto;padding:40px;background:#fff;border-radius:18px;text-align:center"><div style="font-size:50px;color:'+(success?'#0f5132':'#b42318')+'">'+(success?'✓':'!')+'</div><h2>'+esc_(title)+'</h2><p>'+esc_(msg)+'</p><a href="https://trustedcircle.shop/#/wallet-services" style="display:inline-block;padding:12px 20px;background:#0f5132;color:#fff;text-decoration:none;border-radius:9px">Open Wallet Services</a></div></body></html>').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);}
+
+
+/**
+ * Checks a Paytm Business payment-link page without initiating payment.
+ * This checks for the success icon observed in the live checkout page.
+ * If Paytm blocks the fetch or returns an unexpected response, return UNKNOWN.
+ */
+function verifyPaytmLinkStatus_(d){
+  const raw=String(d&&d.paymentLink||'').trim();
+  if(!raw||raw.length>2048)throw new Error('Paste a valid Paytm payment link.');
+  const match=raw.match(/^https:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
+  if(!match)throw new Error('Only absolute HTTPS payment links are allowed.');
+  const authority=String(match[1]||'').toLowerCase();
+  if(authority.indexOf('@')>=0)throw new Error('Payment link URL must not contain credentials.');
+  const host=authority.split(':')[0];
+  if(['p.ppsl.io','paytm.business','www.paytm.business'].indexOf(host)<0){
+    throw new Error('Use a Paytm Business link from p.ppsl.io or paytm.business.');
+  }
+  let response;
+  try{
+    response=UrlFetchApp.fetch(raw,{
+      method:'get',
+      followRedirects:true,
+      muteHttpExceptions:true,
+      headers:{'User-Agent':'Mozilla/5.0 (compatible; TrustedCirclePaymentVerifier/1.0)'}
+    });
+  }catch(err){
+    return{ok:true,data:{status:'UNKNOWN',message:'Paytm could not be reached from the verification service. Try again or verify in Paytm Business.'}};
+  }
+  const code=response.getResponseCode();
+  const headers=response.getHeaders()||{};
+  const contentType=String(headers['Content-Type']||headers['content-type']||'').toLowerCase();
+  const body=String(response.getContentText()||'');
+  if(code<200||code>=300){
+    return{ok:true,data:{status:'UNKNOWN',message:'Paytm returned HTTP '+code+'. The status could not be determined.'}};
+  }
+  if(contentType.indexOf('text/html')<0&&!/<html[\s>]/i.test(body)){
+    return{ok:true,data:{status:'UNKNOWN',message:'Paytm returned a non-HTML response. The status could not be determined.'}};
+  }
+  if(body.indexOf('ic-success.png')>=0){
+    return{ok:true,data:{status:'PAID',message:'Paytm success indicator found in the payment page response.'}};
+  }
+  return{ok:true,data:{status:'PENDING',message:'The page loaded but the success indicator was not found. Treat as pending/unpaid and confirm in Paytm Business if the page has changed.'}};
+}
