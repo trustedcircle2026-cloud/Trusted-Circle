@@ -46,12 +46,12 @@ function paymentLinkOpened_(data){
 function verifyPaytmLinkStatus_(input){
   var raw=String(input&&input.paymentLink||'').trim();
   require_(raw.length>0&&raw.length<=2048,'Paste a valid Paytm payment link.');
-  var parsed;
-  try{parsed= new URL(raw);}catch(e){throw new Error('The payment link URL is invalid.');}
-  require_(parsed.protocol==='https:','Only HTTPS payment links are allowed.');
-  var host=String(parsed.hostname||'').toLowerCase();
+  var match=raw.match(/^https:\/\/([^\/?#]+)(?:[\/?#]|$)/i);
+  require_(!!match,'Only absolute HTTPS payment links are allowed.');
+  var authority=String(match[1]||'').toLowerCase();
+  require_(authority.indexOf('@')<0,'Payment link URL must not contain credentials.');
+  var host=authority.split(':')[0];
   require_(['p.ppsl.io','paytm.business','www.paytm.business'].indexOf(host)>=0,'Use a Paytm Business payment link from p.ppsl.io or paytm.business.');
-  require_(!parsed.username&&!parsed.password,'Payment link URL must not contain credentials.');
   var response;
   try{
     response=UrlFetchApp.fetch(raw,{method:'get',followRedirects:true,muteHttpExceptions:true,headers:{'User-Agent':'Mozilla/5.0 (compatible; TrustedCirclePaymentVerifier/1.0)'}});
@@ -68,7 +68,7 @@ function verifyPaytmLinkStatus_(input){
   if(contentType.indexOf('text/html')<0 && !/<html[\s>]/i.test(body)){
     return {status:'UNKNOWN',message:'Paytm returned a non-HTML response. The payment status could not be determined.'};
   }
-  if(/(?:https?:\\/\\/staticgw\\.paytm\\.in)?\\/linkpayments\\/[^"'\\s<>]*\\/images\\/ic-success\\.png|ic-success\\.png/i.test(body)){
+  if(body.indexOf('ic-success.png')>=0){
     return {status:'PAID',message:'Paytm success indicator found in the payment page response.'};
   }
   return {status:'PENDING',message:'The Paytm page loaded successfully and the success indicator was not found. Treat this as pending/unpaid and confirm in Paytm Business if the page has changed.'};
