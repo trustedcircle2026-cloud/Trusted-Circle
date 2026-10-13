@@ -198,7 +198,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
   // Cross-origin page contents are not readable from this window, so the status is fetched server-side.
   useEffect(() => {
     const link = String(linkRequest?.link || '').trim()
-    if (!link || paytmLinkStatus === 'PAID') return undefined
+    if (!link || !orderRef) return undefined
     let active = true
     let timer = null
     const startedAt = Date.now()
@@ -208,10 +208,13 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (!active) return
       if (status === 'PAID') {
         registerPaytmPaid()
-        return
+        // Link status can be PAID before the admin confirms the order.
+        // Keep checking the real order record so the UI updates after Confirm.
+        await readPaymentStatus({showResult:false})
+      } else {
+        setPaytmLinkStatus(status)
       }
-      setPaytmLinkStatus(status)
-      if (Date.now() - startedAt < 10 * 60 * 1000) {
+      if (active && Date.now() - startedAt < 10 * 60 * 1000) {
         timer = window.setTimeout(poll, PAYTM_STATUS_POLL_MS)
       }
     }
@@ -220,7 +223,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       active = false
       if (timer) window.clearTimeout(timer)
     }
-  }, [linkRequest?.link, paytmLinkStatus])
+  }, [linkRequest?.link, orderRef])
 
   // Keep the provider tab visible for ten seconds after the success indicator is detected.
   useEffect(() => {
@@ -543,8 +546,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
           <div className="tc-premium-verification order-placed-gateway-verification">
             <div className="tc-premium-verification-icon"><ShieldCheck size={20}/></div>
             <div className="tc-premium-verification-copy">
-              <strong>Checking payment status</strong>
-              <p>{verificationSeconds > 0 ? 'LIVE · Checking automatically for 2 minutes. ' + Math.floor(verificationSeconds/60) + ':' + String(verificationSeconds%60).padStart(2,'0') + ' remaining.' : 'The 2-minute automatic checking window has ended. Use refresh to check again.'}</p>
+              <strong>{paytmLinkStatus === 'PAID' && !verified ? 'Awaiting admin confirmation' : 'Checking payment status'}</strong>
+              <p>{paytmLinkStatus === 'PAID' && !verified ? 'Paytm link detected as PAID. Admin has been notified; this order will update automatically after confirmation.' : verificationSeconds > 0 ? 'LIVE · Checking automatically for 2 minutes. ' + Math.floor(verificationSeconds/60) + ':' + String(verificationSeconds%60).padStart(2,'0') + ' remaining.' : 'The 2-minute automatic checking window has ended. Use refresh to check again.'}</p>
               <div className="tc-premium-progress"><span style={{width:`${Math.max(0,Math.min(100,((120-verificationSeconds)/120)*100))}%`}}/></div>
             </div>
             <div className="tc-premium-live"><i/> LIVE</div>
