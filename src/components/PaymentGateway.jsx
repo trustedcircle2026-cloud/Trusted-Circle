@@ -54,8 +54,8 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     try {
       const token = localStorage.getItem('tc_session')
       if (!token) return 'UNKNOWN'
-      // The shopping backend verifies the assigned link and, when paid,
-      // updates Payment + Order records and credits cashback atomically.
+      // The shopping backend checks the assigned link and notifies admin when
+      // Paytm reports paid. The order is finalized only after admin confirms.
       const result = await api.verifyOrderPaymentLink(token, orderRef)
       const status = String(result?.status || '').toUpperCase()
       return ['PAID', 'PENDING'].includes(status) ? status : 'UNKNOWN'
@@ -69,7 +69,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
     setPaytmPaidDetectedAt(current => current || Date.now())
     setPopupCloseSeconds(current => current || 10)
     setPaymentCheck('checking')
-    setPaymentCheckMessage('Paytm confirms the payment link is paid. Trusted Circle is updating the order; this payment tab will close in 10 seconds.')
+    setPaymentCheckMessage('Paytm reports this link as PAID. Admin has been asked to confirm it; this payment tab will close in 10 seconds.')
   }
 
   const readPaymentStatus = async ({showResult=true}={}) => {
@@ -90,7 +90,7 @@ export default function PaymentGateway({ mode = 'checkout', user, items = [], to
       if (paid) {
         registerPaytmPaid()
         setPaymentCheck('paid')
-        setPaymentCheckMessage('Payment received. Your order status has been updated.')
+        setPaymentCheckMessage('Payment is confirmed and your order status has been updated.')
         setGatewayOutcome('received')
         setOrderPlacedOpen(false)
         setOutcomePopup(null)
