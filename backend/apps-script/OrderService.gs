@@ -132,9 +132,7 @@ function verifyAndApplyPaytmStatusForOrder_(orderId,source){
  if(current!=='PENDING_PAYMENT')return{status:'PENDING',orderStatus:current,orderNumber:order.OrderNumber,message:'Order is not awaiting payment.'};
  var payments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(orderId);});
  var payment=payments.length?payments[payments.length-1]:null;
- if(payment&&String(payment.Status||'').toUpperCase()==='PAYTM_STATUS_REJECTED'){
-  return{status:'PENDING',orderStatus:current,orderNumber:order.OrderNumber,message:'Automatic Paytm status was rejected by admin; manual review is required.'};
- }
+ if(!payment)return{status:'UNKNOWN',message:'Payment record is missing; order was not updated.'};
  var links=getRows_(TC_CONFIG.SHEETS.PAYMENT_LINKS).filter(function(r){return String(r.OrderID)===String(orderId)&&['ACTIVE','USED'].indexOf(String(r.Status||'').toUpperCase())>=0;});
  var link=links.length?links[links.length-1]:null;
  if(!link||!link.Link)return{status:'UNKNOWN',message:'No active Paytm payment link is assigned to this order.'};
@@ -151,19 +149,19 @@ function verifyAndApplyPaytmStatusForOrder_(orderId,source){
   var freshPayments=getRows_(TC_CONFIG.SHEETS.PAYMENTS).filter(function(p){return String(p.OrderID)===String(orderId);});
   var freshPayment=freshPayments.length?freshPayments[freshPayments.length-1]:null;
   if(!freshPayment)return{status:'UNKNOWN',message:'Payment record is missing; order was not updated.'};
-  if(String(freshPayment.Status||'').toUpperCase()==='PAYTM_STATUS_REJECTED')return{status:'PENDING',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Automatic Paytm status was rejected by admin; manual review is required.'};
-  if(String(freshPayment.Status||'').toUpperCase()==='PAYTM_PAID_DETECTED')return{status:'PAID',orderStatus:freshStatus,orderNumber:fresh.OrderNumber,message:'Paytm link is detected as paid; waiting for admin confirmation.'};
   if(Math.abs(Number(freshPayment.Amount||0)-Number(fresh.Total||0))>=0.01)return{status:'UNKNOWN',message:'Payment amount does not match the order; order was not updated.'};
   var now=isoNow_();
-  if(String(freshPayment.Status||'').toUpperCase()!=='PAYTM_PAID_DETECTED'){
-   updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',freshPayment.PaymentID,{Provider:'PAYTM_LINK_STATUS',ProviderPaymentID:link.ProviderLinkID||link.PaymentLinkID||'',Status:'PAYTM_PAID_DETECTED',VerifiedAt:'',UpdatedAt:now});
-  }
+  updateRowById_(TC_CONFIG.SHEETS.PAYMENTS,'PaymentID',freshPayment.PaymentID,{Provider:'PAYTM_LINK_STATUS_AUTO',ProviderPaymentID:link.ProviderLinkID||link.PaymentLinkID||'',Status:'VERIFIED',VerifiedAt:now,UpdatedAt:now});
+  updateRowById_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId,{Status:'PAID',UpdatedAt:now});
+  var paidOrder=findOne_(TC_CONFIG.SHEETS.ORDERS,'OrderID',orderId)||fresh;
+  if(typeof creditCashbackForOrder_==='function')creditCashbackForOrder_(paidOrder);
+  if(typeof markPaymentLinkStockUsedForOrder_==='function')markPaymentLinkStockUsedForOrder_(orderId,now);
   if(typeof sendAdminPaytmStatusChangedEmailOnce_==='function'){
-   try{sendAdminPaytmStatusChangedEmailOnce_(fresh,link.Link,link.Label||'Pay securely',Number(fresh.Total||0));}
-   catch(emailError){console.error('Could not send Paytm status-change action email: '+String(emailError&&emailError.message||emailError));}
+   try{sendAdminPaytmStatusChangedEmailOnce_(paidOrder,link.Link,link.Label||'Pay securely',Number(fresh.Total||0));}
+   catch(emailError){console.error('Could not send Paytm paid information email: '+String(emailError&&emailError.message||emailError));}
   }
-  if(typeof appendAudit_==='function')appendAudit_(source==='SCHEDULED_PAYTM_STATUS'?'SYSTEM':fresh.UserID,'PAYTM_LINK_PAID_DETECTED_AWAITING_ADMIN','Order',orderId,{source:source||'AUTO',amount:Number(fresh.Total||0)});
-  return{status:'PAID',orderStatus:'PENDING_PAYMENT',orderNumber:fresh.OrderNumber,message:'Paytm link appears paid. An admin confirmation email has been sent; the order will be marked paid after Confirm is selected.'};
+  if(typeof appendAudit_==='function')appendAudit_(source==='SCHEDULED_PAYTM_STATUS'?'SYSTEM':fresh.UserID,'PAYTM_LINK_AUTO_MARKED_PAID','Order',orderId,{source:source||'AUTO',amount:Number(fresh.Total||0)});
+  return{status:'PAID',orderStatus:'PAID',orderNumber:paidOrder.OrderNumber,message:'Paytm link is paid. The order was automatically marked PAID and the admin was notified.'};
  }finally{lock.releaseLock();}
 }
 /** Runs every minute while admin payment-action emails are in use. */
