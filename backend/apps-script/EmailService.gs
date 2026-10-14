@@ -108,19 +108,10 @@ function sendAdminOrderActionEmail_(order,user,link,label){
 function sendAdminPaytmStatusChangedEmailOnce_(order,link,label,amount){
  // Informational notification only. Payment/order have already been marked PAID
  // by the server-side Paytm status verifier; no admin action is requested here.
- ensureAdminEmailActionSheet_();
- var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){
-  return String(r.OrderID)===String(order.OrderID)&&String(r.Action||'').toUpperCase()==='PAYTM_PAID_INFO_SENT';
- });
- if(existing)return false;
  var safeOrder=emailEscape_(order.OrderNumber||order.OrderID),total=emailMoney_(amount),safeLink=emailEscape_(link);
  var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Payment Marked Paid</div><div style="margin-top:5px;opacity:.85">Automatic Paytm status update</div></div><div style="padding:24px"><p style="font-size:17px">The system detected Paytm\'s successful-payment indicator and automatically marked this order as <b>PAID</b>.</p><p><b>Order:</b> '+safeOrder+'<br><b>Amount:</b> '+emailEscape_(total)+'<br><b>Link label:</b> '+emailEscape_(label||'Pay securely')+'<br><b>Payment status:</b> PAID<br><b>Order status:</b> PAID</p><p>Please verify the payment manually in Paytm Business records when convenient. No action is required from this email.</p><p><a href="'+safeLink+'">Open Paytm payment link</a></p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
  var plain='Payment marked PAID automatically by Trusted Circle after Paytm success-indicator detection.\nOrder: '+String(order.OrderNumber||order.OrderID)+'\nAmount: '+String(total)+'\nPayment status: PAID\nOrder status: PAID\nPlease verify manually in Paytm Business records. No action is required.';
- var sent=sendTransactionalEmail_(getAdminEmail_(),'[Information] Payment marked PAID automatically · '+String(order.OrderNumber||order.OrderID),html,plain);
- if(sent){
-  try{createAdminEmailActionToken_(order.OrderID,'PAYTM_PAID_INFO_SENT');}catch(ignoreToken){}
- }
- return sent;
+ return sendTransactionalEmail_(getAdminEmail_(),'[Information] Payment marked PAID automatically · '+String(order.OrderNumber||order.OrderID),html,plain);
 }
 function adminEmailActionResponse_(e){
  try{
