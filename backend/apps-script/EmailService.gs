@@ -106,25 +106,21 @@ function sendAdminOrderActionEmail_(order,user,link,label){
  }catch(e){console.error('Admin order action email failed: '+String(e&&e.message||e));return false;}
 }
 function sendAdminPaytmStatusChangedEmailOnce_(order,link,label,amount){
+ // Informational notification only. Payment/order have already been marked PAID
+ // by the server-side Paytm status verifier; no admin action is requested here.
  ensureAdminEmailActionSheet_();
  var existing=getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).some(function(r){
-  return String(r.OrderID)===String(order.OrderID)&&['CONFIRM_PAID','REJECT_PAID'].indexOf(String(r.Action||'').toUpperCase())>=0&&String(r.Status||'').toUpperCase()==='ACTIVE'&&new Date(r.ExpiresAt||0).getTime()>Date.now();
+  return String(r.OrderID)===String(order.OrderID)&&String(r.Action||'').toUpperCase()==='PAYTM_PAID_INFO_SENT';
  });
  if(existing)return false;
- // The status-changed email supersedes the earlier order-action email.
- // Invalidate all older active actions so an old Received/Not Received/Cancel
- // link cannot override the newer Confirm/Reject decision.
- getRows_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS).filter(function(a){
-  return String(a.OrderID)===String(order.OrderID)&&String(a.Status||'').toUpperCase()==='ACTIVE';
- }).forEach(function(a){
-  updateRowById_(TC_CONFIG.SHEETS.ADMIN_EMAIL_ACTIONS,'ActionTokenID',a.ActionTokenID,{Status:'USED',UsedAt:isoNow_()});
- });
- var confirm=createAdminEmailActionToken_(order.OrderID,'CONFIRM_PAID');
- var reject=createAdminEmailActionToken_(order.OrderID,'REJECT_PAID');
  var safeOrder=emailEscape_(order.OrderNumber||order.OrderID),total=emailMoney_(amount),safeLink=emailEscape_(link);
- var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Paytm Status Changed</div><div style="margin-top:5px;opacity:.85">Admin confirmation required</div></div><div style="padding:24px"><p style="font-size:17px">Automatic verification detected that the assigned Paytm payment link appears to be <b>PAID</b>.</p><p><b>Order:</b> '+safeOrder+'<br><b>Amount:</b> '+emailEscape_(total)+'<br><b>Link label:</b> '+emailEscape_(label||'Pay securely')+'</p><p style="color:#5f6b64">The order has not been marked paid yet. Open the Paytm link and confirm the payment before approving it.</p><p><a href="'+safeLink+'">Open Paytm payment link</a></p><div style="margin-top:22px">'+adminEmailButton_(adminActionUrl_(confirm.token,'CONFIRM_PAID'),'Confirm','#137547')+adminEmailButton_(adminActionUrl_(reject.token,'REJECT_PAID'),'Reject','#b42318')+'</div><p style="font-size:12px;color:#7a847e;margin-top:14px">Confirm rechecks the Paytm link before marking the order paid. Reject records the automatic detection as rejected and leaves the order pending for manual review.</p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
- var text='Paytm payment link status changed to PAID (automatic detection).\nOrder: '+String(order.OrderNumber||order.OrderID)+'\nAmount: '+String(total)+'\nConfirm: '+adminActionUrl_(confirm.token,'CONFIRM_PAID')+'\nReject: '+adminActionUrl_(reject.token,'REJECT_PAID')+'\nThe order remains pending until Confirm is selected.';
- return sendTransactionalEmail_(getAdminEmail_(),'[Action Required] Paytm link detected as PAID · '+String(order.OrderNumber||order.OrderID),html,text);
+ var html='<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#18241e"><div style="padding:24px;border-radius:16px;background:#173c2a;color:#fff"><div style="font-size:22px;font-weight:800">Trusted Circle · Payment Marked Paid</div><div style="margin-top:5px;opacity:.85">Automatic Paytm status update</div></div><div style="padding:24px"><p style="font-size:17px">The system detected Paytm\'s successful-payment indicator and automatically marked this order as <b>PAID</b>.</p><p><b>Order:</b> '+safeOrder+'<br><b>Amount:</b> '+emailEscape_(total)+'<br><b>Link label:</b> '+emailEscape_(label||'Pay securely')+'<br><b>Payment status:</b> PAID<br><b>Order status:</b> PAID</p><p>Please verify the payment manually in Paytm Business records when convenient. No action is required from this email.</p><p><a href="'+safeLink+'">Open Paytm payment link</a></p></div><div style="padding:18px 24px;background:#f5f8f6;color:#68736d;font-size:12px">Trusted Circle · info@trustedcircle.in</div></div>';
+ var plain='Payment marked PAID automatically by Trusted Circle after Paytm success-indicator detection.\nOrder: '+String(order.OrderNumber||order.OrderID)+'\nAmount: '+String(total)+'\nPayment status: PAID\nOrder status: PAID\nPlease verify manually in Paytm Business records. No action is required.';
+ var sent=sendTransactionalEmail_(getAdminEmail_(),'[Information] Payment marked PAID automatically · '+String(order.OrderNumber||order.OrderID),html,plain);
+ if(sent){
+  try{createAdminEmailActionToken_(order.OrderID,'PAYTM_PAID_INFO_SENT');}catch(ignoreToken){}
+ }
+ return sent;
 }
 function adminEmailActionResponse_(e){
  try{
