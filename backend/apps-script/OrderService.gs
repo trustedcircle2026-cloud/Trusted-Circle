@@ -179,6 +179,7 @@ function processPendingPaytmPaymentStatuses_(){
   try{verifyAndApplyPaytmStatusForOrder_(order.OrderID,'SCHEDULED_PAYTM_STATUS');}
   catch(err){console.error('Paytm status check failed for '+order.OrderID+': '+String(err&&err.message||err));}
  });
+  try{if(typeof processPendingMoneyWalletPaytmStatuses_==='function')processPendingMoneyWalletPaytmStatuses_();}catch(walletErr){console.error('Wallet Paytm status sweep failed: '+String(walletErr&&walletErr.message||walletErr));}
 }
 
 function requestPaymentLink_(data){
