@@ -121,6 +121,48 @@ function moneyWalletData_(data){
   return{wallet:moneyWalletPublic_(user.UserID),transactions:rows.slice(0,100).map(moneyTxPublic_)};
 }
 function moneyWalletOrders_(data){return moneyWalletData_(data);}
+function processPendingMoneyWalletPaytmStatuses_(){
+  // Only assigned Paytm stock links can be verified automatically. Manual UPI
+  // requests have no Paytm payment-link page and remain pending for manual review.
+  var pending=getRows_(TC_MONEY_WALLET.TX).filter(function(t){
+    return String(t.Type||'').toUpperCase()==='ADD_MONEY'&&
+      String(t.Status||'').toUpperCase()==='PENDING_PAYMENT'&&
+      String(t.PaymentLinkStockID||'').trim()!==''&&
+      /^https?:\/\//i.test(String(t.PaymentLink||''));
+  });
+  pending.sort(function(a,b){return new Date(a.CreatedAt||0).getTime()-new Date(b.CreatedAt||0).getTime();});
+  pending.slice(0,20).forEach(function(tx){
+    try{
+      var result=verifyPaytmLinkStatus_({paymentLink:String(tx.PaymentLink)});
+      if(String(result&&result.status||'').toUpperCase()!=='PAID')return;
+      var lock=LockService.getScriptLock();lock.waitLock(15000);
+      var completed=null;
+      try{
+        var fresh=findOne_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID);
+        if(!fresh||String(fresh.Type||'').toUpperCase()!=='ADD_MONEY'||String(fresh.Status||'').toUpperCase()!=='PENDING_PAYMENT')return;
+        if(!fresh.PaymentLinkStockID||!/^https?:\/\//i.test(String(fresh.PaymentLink||'')))return;
+        var amount=Number(fresh.Amount||0);
+        if(!isFinite(amount)||amount<=0)return;
+        var wallet=moneyWalletRow_(fresh.UserID),balance=Number(wallet.Balance||0),now=isoNow_();
+        moneyWalletConsumeStock_(fresh);
+        var after=balance+amount;
+        updateRowById_(TC_MONEY_WALLET.WALLET,'UserID',fresh.UserID,{Balance:after,TotalAdded:Number(wallet.TotalAdded||0)+amount,UpdatedAt:now});
+        updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',fresh.TransactionID,{
+          Status:'COMPLETED',BalanceBefore:balance,BalanceAfter:after,UpdatedAt:now,CompletedAt:now,
+          Notes:'Payment automatically verified from Paytm success indicator'
+        });
+        completed=findOne_(TC_MONEY_WALLET.TX,'TransactionID',fresh.TransactionID)||fresh;
+        if(typeof appendAudit_==='function')appendAudit_('SYSTEM','MONEY_WALLET_PAYTM_AUTO_MARKED_PAID','MoneyWallet',fresh.TransactionID,{amount:amount,source:'SCHEDULED_PAYTM_STATUS'});
+      }finally{lock.releaseLock();}
+      if(completed){
+        try{notifyWalletTransaction_(completed.UserID,'Money Wallet','Add Money',Number(completed.Amount||0),'COMPLETED','Payment automatically verified',completed.TransactionID,'');}
+        catch(notifyError){console.error('Wallet customer notification failed: '+String(notifyError&&notifyError.message||notifyError));}
+        try{moneyWalletPaytmPaidInfoEmail_(completed);}
+        catch(mailError){console.error('Wallet paid information email failed: '+String(mailError&&mailError.message||mailError));}
+      }
+    }catch(err){console.error('Wallet Paytm status check failed for '+String(tx.TransactionID)+': '+String(err&&err.message||err));}
+  });
+}
 function moneyWalletTransactionStatus_(data){
   var user=walletUserFromIdentity_(data),id=cleanText_(data.transactionId,100),row=findOne_(TC_MONEY_WALLET.TX,'TransactionID',id);
   require_(row&&String(row.UserID)===String(user.UserID),'Transaction not found.');
