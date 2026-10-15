@@ -200,29 +200,39 @@ function walletMailSend_(subject,html,text){
   return false;
 }
 function moneyWalletAdminActions_(t){
-  var received=moneyWalletActionToken_(t.TransactionID,'RECEIVED');
-  var notReceived=moneyWalletActionToken_(t.TransactionID,'NOT_RECEIVED');
-  var rejected=moneyWalletActionToken_(t.TransactionID,'REJECTED');
-  var customer='';
-  var u=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
+  // Informational email only when a wallet top-up payment link is created.
+  // Payment status is checked automatically; no email action buttons are required.
+  var customer='',u=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
   if(u&&u.Email)customer=String(u.Email);
-  var amount=Number(t.Amount||0);
-  var body='<p>A <b>Money Wallet Add Money</b> request requires your action.</p>'+
+  var amount=Number(t.Amount||0),link=String(t.PaymentLink||'');
+  var body='<p>A <b>Money Wallet Add Money</b> payment request has been created.</p>'+
     '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:18px 0">'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
-    '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">'+walletMailEscape_(t.PaymentLinkStockID?'Shopping Payment Link Stock':'Manual UPI')+'</td></tr></table>'+
-    '<div style="margin-top:22px">'+
-    walletMailButton_('↗ Open Payment Link',String(t.PaymentLink||''),'#175cd3')+
-    walletMailButton_('✓ Received',walletMailActionUrl_(received,'RECEIVED'),'#0f5132')+
-    walletMailButton_('! Not Received',walletMailActionUrl_(notReceived,'NOT_RECEIVED'),'#a66a00')+
-    walletMailButton_('✕ Rejected',walletMailActionUrl_(rejected,'REJECTED'),'#b42318')+
-    '</div><p style="font-size:12px;color:#68736d;margin-top:18px">Use one button to update this transaction.</p>';
-  var html=walletMailShell_('Money Wallet · Add Money',body);
-  var text='Trusted Circle Money Wallet Add Money\n\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\n\nOpen Payment Link: '+String(t.PaymentLink||'')+'\n\nReceived: '+walletMailActionUrl_(received,'RECEIVED')+'\nNot Received: '+walletMailActionUrl_(notReceived,'NOT_RECEIVED')+'\nRejected: '+walletMailActionUrl_(rejected,'REJECTED');
-  if(!walletMailSend_('Trusted Circle — Action Required · Money Wallet Add Money '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Add Money email failed.');
+    '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">'+walletMailEscape_(t.PaymentLinkStockID?'Paytm Payment Link':'Manual UPI (not automatically verifiable)')+'</td></tr></table>'+
+    '<p>Trusted Circle will automatically check supported Paytm payment links. If Paytm reports the link as paid, the wallet will be credited and a separate informational email will be sent.</p>'+
+    (link&&!/^upi:\/\//i.test(link)?'<p><a href="'+walletMailEscape_(link)+'">Open Paytm payment link</a></p>':'');
+  var html=walletMailShell_('Money Wallet · Add Money Request Created',body);
+  var text='Trusted Circle Money Wallet Add Money request created.\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\nSource: '+(t.PaymentLinkStockID?'Paytm Payment Link':'Manual UPI (not automatically verifiable)')+'\nNo action is required. Supported Paytm links are checked automatically.\nPayment link: '+link;
+  if(!walletMailSend_('Trusted Circle — Money Wallet Payment Request Created '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Add Money information email failed.');
   return true;
+}
+function moneyWalletPaytmPaidInfoEmail_(t){
+  var customer='',u=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',t.UserID);
+  if(u&&u.Email)customer=String(u.Email);
+  var amount=Number(t.Amount||0),link=String(t.PaymentLink||'');
+  var body='<p>The system detected Paytm\'s successful-payment indicator and automatically marked this wallet top-up as <b>PAID</b>.</p>'+
+    '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:18px 0">'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
+    '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
+    '<tr><td style="padding:9px">Wallet Status</td><td style="padding:9px"><b>COMPLETED — Money Wallet credited</b></td></tr></table>'+
+    '<p>Please verify the transaction manually in Paytm Business records when convenient. No action is required from this email.</p>'+
+    (link&&!/^upi:\/\//i.test(link)?'<p><a href="'+walletMailEscape_(link)+'">Open Paytm payment link</a></p>':'');
+  var html=walletMailShell_('Money Wallet · Automatically Marked Paid',body);
+  var text='Money Wallet payment marked PAID automatically after Paytm success-indicator detection.\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\nWallet Status: COMPLETED — Money Wallet credited\nPlease verify manually in Paytm Business records. No action is required.\nPayment link: '+link;
+  return walletMailSend_('Trusted Circle — Wallet Payment Marked PAID Automatically '+walletMailMoney_(amount),html,text);
 }
 function moneyWalletWithdrawalActions_(t){
   var approve=moneyWalletActionToken_(t.TransactionID,'WITHDRAW_APPROVE');
