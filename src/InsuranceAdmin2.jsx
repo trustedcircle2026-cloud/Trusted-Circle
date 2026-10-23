@@ -1,5 +1,4 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import ReactDOM from 'react-dom/client';
 import {Activity,ArrowUpRight,BarChart3,BriefcaseBusiness,CheckCircle2,ChevronDown,ChevronRight,CircleDollarSign,CircleUserRound,ClipboardList,CreditCard,ExternalLink,FileText,Filter,LayoutDashboard,Link2,LogOut,Menu,Plus,Receipt,RefreshCw,Search,ShieldCheck,Users,WalletCards,X} from 'lucide-react';
 import {agentBusinessApi} from './agentBusinessApi';
 import jsQR from 'jsqr';
@@ -97,4 +96,4 @@ function ReportsModal({rows,busy,onClose,onDecision}){return <Modal onClose={onC
 function Modal({children,title,eyebrow,onClose}){return <div className="ia2-modal-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section className="ia2-modal"><button className="ia2-modal-x" onClick={onClose}><X size={18}/></button><span className="ia2-eyebrow">{eyebrow}</span><h2>{title}</h2>{children}</section></div>}
 function Empty({icon:Icon,title,text,spin}){return <div className="ia2-empty"><span className={spin?'ia2-spin':''}><Icon size={24}/></span><b>{title}</b><p>{text}</p></div>}
 function formatCell(v){if(v===null||v===undefined||v==='')return '—';if(typeof v==='object')return '[file / object]';const s=String(v);return s.length>110?s.slice(0,107)+'…':s}
-ReactDOM.createRoot(document.getElementById('root')).render(<React.StrictMode><InsuranceAdmin2/></React.StrictMode>);
+export default InsuranceAdmin2;
