@@ -13,6 +13,7 @@ export default defineConfig({
         admin: 'admin.html',
         agentPortal: 'agent-portal/index.html',
         adminInsurance: 'admin-portal/index.html',
+        insuranceAdmin2: 'insuranceadmin2.html',
         apps: 'apps/index.html'
       }
     }
