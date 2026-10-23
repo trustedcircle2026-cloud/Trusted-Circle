@@ -19,7 +19,7 @@ var AGENT_BUSINESS = {
   SHEET_ID_PROPERTY: 'AGENT_BUSINESS_SHEET_ID',
   ADMIN_PASSWORD_PROPERTY: 'AGENT_BUSINESS_ADMIN_PASSWORD',
   DISCOUNT_RATE: 0.02,
-  SETUP_VERSION: '1.8.0',
+  SETUP_VERSION: '1.9.0',
   SESSION_TTL_SECONDS: 21600,
   READ_CACHE_TTL_SECONDS: 30,
   SHEETS: {
@@ -44,6 +44,7 @@ var AGENT_BUSINESS = {
     AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt','PaidAmount','OutstandingAmount','PaymentStatus','UpdatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
+    GiftCardPurchaseOrders:['PurchaseOrderID','ProductUrl','Status','ClaimCode','FaceValue','ActualCost','PurchaseDate','OrderReference','CreatedAt','UpdatedAt','CancelledAt','RedeemedAt','Notes'],
     Settings:['Key','Value','Description','UpdatedAt']
   }
 };
