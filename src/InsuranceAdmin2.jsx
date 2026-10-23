@@ -11,15 +11,16 @@ const dateText=v=>{if(!v)return '—';const d=new Date(v);return Number.isNaN(d.
 const localDate=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)};
 function InsuranceAdmin2(){
  const [token,setToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||''),[password,setPassword]=useState('');
- const [dashboard,setDashboard]=useState(null),[section,setSection]=useState('Dashboard'),[module,setModule]=useState('Agents');
- const [rows,setRows]=useState([]),[schema,setSchema]=useState([]),[query,setQuery]=useState(''),[statusFilter,setStatusFilter]=useState('All statuses');
+ const [dashboard,setDashboard]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_ia2_dashboard')||'null')}catch{return null}}),[section,setSection]=useState(()=>localStorage.getItem('tc_ia2_section')||'Dashboard'),[module,setModule]=useState(()=>localStorage.getItem('tc_ia2_module')||'Agents');
+ const [rows,setRows]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_ia2_rows')||'[]')}catch{return []}}),[schema,setSchema]=useState(()=>{try{return JSON.parse(localStorage.getItem('tc_ia2_schema')||'[]')}catch{return []}}),[query,setQuery]=useState(()=>localStorage.getItem('tc_ia2_query')||''),[statusFilter,setStatusFilter]=useState(()=>localStorage.getItem('tc_ia2_status')||'All statuses');
  const [loading,setLoading]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [formOpen,setFormOpen]=useState(false),[editing,setEditing]=useState(false),[form,setForm]=useState({});
  const [payment,setPayment]=useState(null),[cards,setCards]=useState([]),[payForm,setPayForm]=useState({amount:'',paymentDate:localDate(),paymentMode:'Credit Card',cardId:'',receiptFile:null});
  const [invoiceModal,setInvoiceModal]=useState(false),[invoiceAgents,setInvoiceAgents]=useState([]),[invoiceAgent,setInvoiceAgent]=useState(''),[invoiceSelected,setInvoiceSelected]=useState([]),[invoiceDate,setInvoiceDate]=useState(localDate()),[receivables,setReceivables]=useState([]);
  const [receivableOpen,setReceivableOpen]=useState(false),[reports,setReports]=useState([]),[reportsOpen,setReportsOpen]=useState(false),[profileOpen,setProfileOpen]=useState(false),[mobileNav,setMobileNav]=useState(false),[qrInvoice,setQrInvoice]=useState(null),[qrLink,setQrLink]=useState('');
  const loggedIn=Boolean(token);
- const handleError=e=>{const msg=e?.message||'Unexpected error';setError(msg);if(/session expired|session is required|invalid admin password/i.test(msg)){localStorage.removeItem('tc_agent_admin_session');setToken('')}};
+ const handleError=e=>{const msg=e?.message||'Unexpected error';setError(msg);if(/admin session expired|invalid admin password/i.test(msg)){localStorage.removeItem('tc_agent_admin_session');setToken('')}};
+ useEffect(()=>{try{localStorage.setItem('tc_ia2_dashboard',JSON.stringify(dashboard));localStorage.setItem('tc_ia2_rows',JSON.stringify(rows));localStorage.setItem('tc_ia2_schema',JSON.stringify(schema));localStorage.setItem('tc_ia2_section',section);localStorage.setItem('tc_ia2_module',module);localStorage.setItem('tc_ia2_query',query);localStorage.setItem('tc_ia2_status',statusFilter)}catch(e){console.warn('Unable to cache Insurance Admin 2 workspace locally',e)}},[dashboard,rows,schema,section,module,query,statusFilter]);
  const loadDashboard=async(t=token)=>{if(!t)return;setLoading(true);setError('');try{setDashboard(await agentBusinessApi.dashboard(t))}catch(e){handleError(e)}finally{setLoading(false)}};
  const loadModule=async(m=module,t=token,q=query,historySection=section)=>{if(!t)return;setLoading(true);setError('');try{
    if(m==='PaymentRequests'){
@@ -42,7 +43,7 @@ function InsuranceAdmin2(){
  const navigate=(label,key)=>{setSection(label);setMobileNav(false);setError('');setNotice('');setQuery('');setStatusFilter('All statuses');if(key){setModule(key);loadModule(key,token,'',label)}else if(label==='Dashboard')loadDashboard();else if(label==='History'){setModule('Payments');loadModule('Payments',token,'','History')}else if(label==='Invoice history'){setModule('Invoices');loadModule('Invoices',token,'',label)}else if(label==='Payment requests'){setModule('PaymentRequests');loadModule('PaymentRequests',token,'',label)}};
  useEffect(()=>{if(token){loadDashboard();if(section!=='Dashboard')loadModule(module,token,'',section)}},[token]);
  const login=async()=>{setBusy(true);setError('');try{const r=await agentBusinessApi.adminLogin(password);localStorage.setItem('tc_agent_admin_session',r.token);setToken(r.token);setPassword('')}catch(e){handleError(e)}finally{setBusy(false)}};
- const logout=async()=>{try{if(token)await agentBusinessApi.adminLogout(token)}catch{}localStorage.removeItem('tc_agent_admin_session');setToken('');setDashboard(null);setRows([]);setSection('Dashboard')};
+ const logout=async()=>{try{if(token)await agentBusinessApi.adminLogout(token)}catch{}['tc_agent_admin_session','tc_ia2_dashboard','tc_ia2_rows','tc_ia2_schema','tc_ia2_section','tc_ia2_module','tc_ia2_query','tc_ia2_status'].forEach(k=>localStorage.removeItem(k));setToken('');setDashboard(null);setRows([]);setSchema([]);setSection('Dashboard');setModule('Agents')};
  const refresh=()=>section==='Dashboard'?loadDashboard():loadModule(module,token,query,section);
  const goModule=m=>{setModule(m[0]);setSection(m[1]);setQuery('');setStatusFilter('All statuses');setMobileNav(false);setError('');loadModule(m[0],token,'',m[1])};
  const openAdd=()=>{setForm({});setEditing(false);setFormOpen(true)};
