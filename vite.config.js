@@ -14,6 +14,7 @@ export default defineConfig({
         agentPortal: 'agent-portal/index.html',
         adminInsurance: 'admin-portal/index.html',
         insuranceAdmin2: 'insuranceadmin2.html',
+        workflowSpace: 'workflowspace.html',
         apps: 'apps/index.html'
       }
     }
