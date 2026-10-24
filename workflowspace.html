@@ -183,19 +183,37 @@ async function saveGiftCardCode(e){e.preventDefault();if(!activeGiftOrderId)retu
 async function launchAmazonClaim(){const order=purchaseOrders().find(x=>String(x.PurchaseOrderID)===String(activeGiftOrderId));if(!order||!order.ClaimCode){toast('No claim code saved for this order');return}const tab=window.open(AMAZON_CLAIM_URL,'_blank');if(tab)tab.opener=null;if(!tab){toast('Allow pop-ups for Trusted Circle, then click Add to Apay again.');return}try{await navigator.clipboard.writeText(order.ClaimCode);toast('Claim code copied. Paste it on Amazon’s claim page.')}catch(e){toast('Clipboard unavailable. Retrieve the code from the secure backend purchase record and paste it manually.')}closePurchaseModal('purchaseRedeemBack');openPurchaseModal('purchaseAddedBack')}
 async function confirmGiftCardAdded(added){closePurchaseModal('purchaseAddedBack');if(!activeGiftOrderId)return;try{await updatePurchaseOrder(activeGiftOrderId,{Status:added?'ADDED_TO_AMAZON_PAY':'NOT_ADDED',RedeemedAt:added?new Date().toISOString():''});toast(added?'Marked as added to Amazon Pay in backend':'Marked as not added in backend');activeGiftOrderId=null}catch(e){toast('Could not update redemption status: '+e.message)}}
 function renderPurchaseOrders(){const host=document.getElementById('purchaseOrdersList');if(!host)return;const rows=purchaseOrders();host.innerHTML=rows.map(o=>{const state=String(o.Status||'').replace(/_/g,' ');const details=[o.FaceValue!==''&&o.FaceValue!=null?'Face value '+money(o.FaceValue):'',o.ActualCost!==''&&o.ActualCost!=null?'Paid '+money(o.ActualCost):'',o.OrderReference?'Order '+o.OrderReference:'',o.PurchaseDate||''].filter(Boolean).join(' · ');const code=o.ClaimCode?'<div class="muted" style="margin-top:5px">Claim code stored securely in backend · ending '+esc(String(o.ClaimCode).slice(-4))+'</div>':'';let action='';if(['CODE_RECEIVED_PENDING_REDEMPTION','NOT_ADDED'].includes(o.Status))action='<button class="btn small primary" data-redeem-order="'+esc(o.PurchaseOrderID)+'">Add to Apay</button>';if(o.Status==='SUCCESSFUL_PURCHASE')action='<button class="btn small primary" data-enter-code="'+esc(o.PurchaseOrderID)+'">Enter code</button>';return '<div class="item"><div class="itemicon">◉</div><div class="itemmain"><b>'+esc(o.PurchaseOrderID)+' · '+esc(state)+'</b><small>'+esc(details||'Purchase order')+'</small>'+code+'</div><div class="itemright" style="display:flex;gap:5px;flex-wrap:wrap">'+action+'</div></div>'}).join('')||'<div class="empty">No backend purchase orders yet. Click Purchase Code to begin.</div>';host.querySelectorAll('[data-redeem-order]').forEach(b=>b.onclick=()=>{activeGiftOrderId=b.dataset.redeemOrder;openPurchaseModal('purchaseRedeemBack')});host.querySelectorAll('[data-enter-code]').forEach(b=>b.onclick=()=>{activeGiftOrderId=b.dataset.enterCode;document.getElementById('purchaseClaimCode').value='';document.getElementById('purchaseFaceValue').value='';document.getElementById('purchaseCost').value='';document.getElementById('purchaseDate').value=new Date().toISOString().slice(0,10);openPurchaseModal('purchaseCodeBack')})}
-document.getElementById('purchaseCodeBtn').onclick=startGiftCardPurchase;
-document.getElementById('purchaseYesBtn').onclick=()=>confirmGiftPurchase(true);
-document.getElementById('purchaseNoBtn').onclick=()=>confirmGiftPurchase(false);
-document.getElementById('purchaseCodeForm').onsubmit=saveGiftCardCode;
-document.getElementById('purchaseCodeCancelBtn').onclick=()=>closePurchaseModal('purchaseCodeBack');
-document.getElementById('purchaseYetReceiveBtn').onclick=async()=>{if(activeGiftOrderId){try{await updatePurchaseOrder(activeGiftOrderId,{Status:'YET_TO_RECEIVE'});toast('Purchase status saved to backend as yet to receive')}catch(e){toast('Backend update failed: '+e.message);return}}closePurchaseModal('purchaseRedeemBack');activeGiftOrderId=null};
-document.getElementById('purchaseAddApayBtn').onclick=launchAmazonClaim;
-document.getElementById('purchaseAddedBtn').onclick=()=>confirmGiftCardAdded(true);
-document.getElementById('purchaseNotAddedBtn').onclick=()=>confirmGiftCardAdded(false);
-document.getElementById('refreshPurchaseOrdersBtn').onclick=loadPurchaseOrders;
-['purchaseConfirmBack','purchaseCodeBack','purchaseRedeemBack','purchaseAddedBack'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{if(e.target.id===id)closePurchaseModal(id)}));
-
-document.getElementById('loginForm').onsubmit=login;document.getElementById('loadRecordsBtn').onclick=loadRecords;document.getElementById('newRecordBtn').onclick=()=>openRecordPopup(-1,false);document.getElementById('recordForm').onsubmit=saveGenericRecord;document.getElementById('recordCancel').onclick=()=>document.getElementById('recordModalBack').classList.remove('show');document.getElementById('recordModalBack').onclick=e=>{if(e.target.id==='recordModalBack')document.getElementById('recordModalBack').classList.remove('show')};document.getElementById('recordSearch').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadRecords()}});document.getElementById('closeActionModal').onclick=closeActionPopup;document.getElementById('actionModalBack').onclick=e=>{if(e.target.id==='actionModalBack')closeActionPopup()};document.getElementById('saveRequestBtn').onclick=savePopupRequest;document.getElementById('copyDetailsBtn').onclick=copySelectedDetails;document.getElementById('logoutBtn').onclick=logout;document.getElementById('refreshBtn').onclick=refresh;document.getElementById('today').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});if(token){refresh()}else showLogin();timer=setInterval(()=>{if(token)refresh()},60000);
+// Safe event wiring: some legacy record-management panels were removed from this page.
+function setOn(id, prop, fn){const el=document.getElementById(id);if(el)el[prop]=fn}
+function setListener(id,event,fn){const el=document.getElementById(id);if(el)el.addEventListener(event,fn)}
+setOn('purchaseCodeBtn','onclick',startGiftCardPurchase);
+setOn('purchaseYesBtn','onclick',()=>confirmGiftPurchase(true));
+setOn('purchaseNoBtn','onclick',()=>confirmGiftPurchase(false));
+setOn('purchaseCodeForm','onsubmit',saveGiftCardCode);
+setOn('purchaseCodeCancelBtn','onclick',()=>closePurchaseModal('purchaseCodeBack'));
+setOn('purchaseYetReceiveBtn','onclick',async()=>{if(activeGiftOrderId){try{await updatePurchaseOrder(activeGiftOrderId,{Status:'YET_TO_RECEIVE'});toast('Purchase status saved to backend as yet to receive')}catch(e){toast('Backend update failed: '+e.message);return}}closePurchaseModal('purchaseRedeemBack');activeGiftOrderId=null});
+setOn('purchaseAddApayBtn','onclick',launchAmazonClaim);
+setOn('purchaseAddedBtn','onclick',()=>confirmGiftCardAdded(true));
+setOn('purchaseNotAddedBtn','onclick',()=>confirmGiftCardAdded(false));
+setOn('refreshPurchaseOrdersBtn','onclick',loadPurchaseOrders);
+['purchaseConfirmBack','purchaseCodeBack','purchaseRedeemBack','purchaseAddedBack'].forEach(id=>setListener(id,'click',e=>{if(e.target.id===id)closePurchaseModal(id)}));
+setOn('loginForm','onsubmit',login);
+setOn('loadRecordsBtn','onclick',loadRecords);
+setOn('newRecordBtn','onclick',()=>openRecordPopup(-1,false));
+setOn('recordForm','onsubmit',saveGenericRecord);
+setOn('recordCancel','onclick',()=>document.getElementById('recordModalBack')?.classList.remove('show'));
+setOn('recordModalBack','onclick',e=>{if(e.target.id==='recordModalBack')e.currentTarget.classList.remove('show')});
+setListener('recordSearch','keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadRecords()}});
+setOn('closeActionModal','onclick',closeActionPopup);
+setOn('actionModalBack','onclick',e=>{if(e.target.id==='actionModalBack')closeActionPopup()});
+setOn('saveRequestBtn','onclick',savePopupRequest);
+setOn('copyDetailsBtn','onclick',copySelectedDetails);
+setOn('logoutBtn','onclick',logout);
+setOn('refreshBtn','onclick',refresh);
+const todayEl=document.getElementById('today');if(todayEl)todayEl.textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+// Always initialize the visible sign-in state before attempting network access.
+if(!token)showLogin();else{hideLogin();refresh()}
+timer=setInterval(()=>{if(token)refresh()},60000);
 
 /* Small interaction polish for dynamically rendered workflow cards. */
 document.addEventListener('click',function(e){
