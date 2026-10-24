@@ -51,6 +51,28 @@ aside{background:linear-gradient(165deg,#082f24 0%,#0d4935 58%,#082c22 100%);pad
 @media(max-width:720px){.app{display:block}.top{height:68px;padding:0 12px}.content{padding:18px 12px 30px}.hero h2{font-size:31px}.stats{gap:9px}.stat{border-radius:15px;padding:13px}.statnum{font-size:24px}.card{padding:16px;border-radius:17px}.workflow-launcher{padding:17px;border-radius:18px}.launcher-head{flex-direction:column}.launcher-grid{grid-template-columns:1fr}.launch-action{padding:13px}.launcher-badge{align-self:flex-start}.flow{padding:6px 0 12px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 
+
+/* RESET: neutral black-and-white base for rebuilding the workflow page one section at a time */
+:root{--g:#111111;--g2:#222222;--mint:#eeeeee;--bg:#ffffff;--ink:#111111;--muted:#686868;--line:#e5e5e5;--shadow:0 8px 28px #00000008}
+html,body{background:#fff!important;color:#111!important}
+body{font-family:Arial,Helvetica,sans-serif!important;font-size:14px}
+.app{display:block!important;min-height:100vh;background:#fff!important}
+aside,.sidebar{display:none!important}
+.top{height:72px!important;position:sticky;top:0;z-index:30;padding:0 28px!important;background:#fff!important;border-bottom:1px solid #e5e5e5!important;box-shadow:none!important}
+.top h1,.top *{color:#111!important}
+.top .btn,.top button{background:#fff!important;color:#111!important;border:1px solid #d8d8d8!important;box-shadow:none!important;border-radius:5px!important}
+.content{max-width:none!important;padding:30px!important;background:#fff!important}
+.view{display:none!important}
+.view.active{display:block!important;animation:none!important}
+.view.active>*{display:none!important}
+.view.active:before{content:"WORKFLOW SPACE";display:block;color:#777;font-size:11px;font-weight:700;letter-spacing:.16em;margin:8px 0 14px}
+.view.active:after{content:"Workflow workspace\A\AThe previous dashboard and navigation have been cleared from the interface. We will rebuild each workflow section one at a time.";white-space:pre-line;display:block;max-width:760px;padding:28px;background:#fff;border:1px solid #e5e5e5;border-radius:8px;color:#111;font-size:15px;line-height:1.8}
+.hero,.stats,.workflow-launcher,.card,.lower,.flow,.stage,.stat,.request,.task,.item{box-shadow:none!important}
+.btn,button,.nav,.card,.stat,.stageicon,.modal,.toast,.field input,.field select,.field textarea{border-radius:5px!important;box-shadow:none!important;animation:none!important;transition:none!important}
+button:hover,.btn:hover{transform:none!important;box-shadow:none!important}
+body:before,body:after{content:none!important}
+@media(max-width:720px){.top{height:auto!important;min-height:64px;padding:12px!important}.content{padding:18px 12px!important}}
+
 </style></head><body>
 <div class="app" id="appShell" style="display:none"><aside id="sidebar">
 <div class="brand"><img src="https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg" alt="Trusted Circle"><div><b>TRUSTED CIRCLE</b><small>INSURANCE OPERATIONS</small></div></div>
