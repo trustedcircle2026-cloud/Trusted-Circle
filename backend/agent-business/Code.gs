@@ -1269,7 +1269,7 @@ function sendExistingInvoiceEmail_(p){
   if(!email)throw new Error('Agent email address is missing.');
   if(MailApp.getRemainingDailyQuota()<=0)throw new Error('Apps Script daily email quota is exhausted.');
   var payable=Number(invoice.NetPayable||invoice.TotalAmount||0),invoiceNo=String(invoice.InvoiceNumber||invoiceId);
-  var subject='₹'+payable.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' Payable - TC Inv '+invoiceNo;
+  var subject='₹'+payable.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' Payable';
   if(format==='2'){
     var encoded=String(p.invoiceImageBase64||'').trim();
     if(!encoded)throw new Error('Invoice image is missing. Please try sending again.');
@@ -1288,7 +1288,7 @@ function sendExistingInvoiceEmail_(p){
 function sendInvoicePdfToAgent_(agent,invoice,pdf){
   var email=String(agent.Email||invoice.AgentEmail||'').trim();
   if(!email||MailApp.getRemainingDailyQuota()<=0)return false;
-  MailApp.sendEmail({to:email,subject:'Trusted Circle Invoice '+String(invoice.InvoiceNumber||''),body:'Dear '+String(agent.AgentName||'Agent')+',\n\nPlease find attached the Trusted Circle premium payment receivable invoice '+String(invoice.InvoiceNumber||'')+'.\n\nTotal payable: '+formatMoney_(invoice.NetPayable)+'\n\nRegards,\nTrusted Circle',htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the Trusted Circle premium payment receivable invoice <b>'+escapeHtml_(invoice.InvoiceNumber||'')+'</b>.</p><p><b>Total payable: '+formatMoney_(invoice.NetPayable)+'</b></p><p>Regards,<br>Trusted Circle</p>',attachments:[pdf],name:'Trusted Circle'});
+  MailApp.sendEmail({to:email,subject:'₹'+Number(invoice.NetPayable||invoice.TotalAmount||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' Payable',body:'Dear '+String(agent.AgentName||'Agent')+',\n\nPlease find attached the Trusted Circle premium payment receivable invoice '+String(invoice.InvoiceNumber||'')+'.\n\nTotal payable: '+formatMoney_(invoice.NetPayable)+'\n\nRegards,\nTrusted Circle',htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the Trusted Circle premium payment receivable invoice <b>'+escapeHtml_(invoice.InvoiceNumber||'')+'</b>.</p><p><b>Total payable: '+formatMoney_(invoice.NetPayable)+'</b></p><p>Regards,<br>Trusted Circle</p>',attachments:[pdf],name:'Trusted Circle'});
   return true;
 }
 
