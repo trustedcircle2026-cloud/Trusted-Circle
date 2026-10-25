@@ -8,8 +8,8 @@ const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Truste
 const money=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(n||0))
 const displayDate=value=>{const raw=String(value||'').trim();if(!raw)return '—';const dm=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(dm)return dm[1]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(dm[2])-1]+'-'+dm[3];const iso=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);if(iso)return iso[3]+'-'+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(iso[2])-1]+'-'+iso[1];const d=new Date(raw);if(Number.isNaN(d.getTime()))return raw;return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}).replace(/ /g,'-')}
 const emptyPolicy={ClientName:'',PolicyNumber:'',DateOfBirth:''}
-const inputDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:raw.slice(0,10)}
-const savedDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'/'+m[2]+'/'+m[1]:raw}
+const inputDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[3]+'/'+m[2]+'/'+m[1];const d=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return d?d[1]+'/'+d[2]+'/'+d[3]:raw}
+const savedDob=value=>{const raw=String(value||'').trim();const m=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?m[1]+'/'+m[2]+'/'+m[3]:raw}
 const loadingMessages=['Securing your agent session…','Loading your policy workspace……','Syncing your latest requests…','Preparing your workspace…']
 
 export default function AgentPortalPage(){
@@ -138,7 +138,9 @@ export default function AgentPortalPage(){
  }
  const openAddPolicy=()=>{setError('');setNotice('');setEditingPolicyId('');setPolicyForm(emptyPolicy);setShowForm(true)}
  const openEditPolicy=r=>{setError('');setNotice('');setEditingPolicyId(r.PolicyID);setPolicyForm({ClientName:r.ClientName||'',PolicyNumber:r.PolicyNumber||'',DateOfBirth:inputDob(r.DateOfBirth)});setShowForm(true)}
+ const validDob=value=>{const m=String(value||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!m)return false;const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));return d.getFullYear()===Number(m[3])&&d.getMonth()===Number(m[2])-1&&d.getDate()===Number(m[1])&&Number(m[3])>=1900&&d<=new Date()}
  const addPolicy=async()=>{
+  if(!validDob(policyForm.DateOfBirth)){setError('Enter a valid date of birth in DD/MM/YYYY format.');return}
   setLoading(true);setError('');setNotice('');setLoadingText('Adding policy to your workspace…')
   try{
    const data=await agentBusinessApi.agentAddPolicy(session,{...policyForm,DateOfBirth:savedDob(policyForm.DateOfBirth)})
@@ -148,6 +150,7 @@ export default function AgentPortalPage(){
   }catch(e){setError(e.message)}finally{setLoading(false)}
  }
  const editPolicy=async()=>{
+  if(!validDob(policyForm.DateOfBirth)){setError('Enter a valid date of birth in DD/MM/YYYY format.');return}
   setLoading(true);setError('');setNotice('');setLoadingText('Updating client and policy details…')
   try{
    await agentBusinessApi.agentEditPolicy(session,{...policyForm,DateOfBirth:savedDob(policyForm.DateOfBirth),PolicyID:editingPolicyId})
@@ -333,7 +336,7 @@ export default function AgentPortalPage(){
    <div className="ap-form-grid ap-three-fields">
     <label>Client Full Name<input value={policyForm.ClientName} onChange={e=>setPolicyForm({...policyForm,ClientName:e.target.value})} placeholder="Enter client's full name" autoComplete="name"/></label>
     <label>LIC Policy Number<input value={policyForm.PolicyNumber} onChange={e=>setPolicyForm({...policyForm,PolicyNumber:e.target.value.toUpperCase()})} placeholder="Enter policy number" autoComplete="off"/></label>
-    <label>Client Date of Birth<input type="date" value={policyForm.DateOfBirth} onChange={e=>setPolicyForm({...policyForm,DateOfBirth:e.target.value})}/></label>
+    <label>Client Date of Birth (DD/MM/YYYY)<input type="text" inputMode="numeric" autoComplete="off" placeholder="DD/MM/YYYY" maxLength={10} pattern="\\d{2}/\\d{2}/\\d{4}" value={policyForm.DateOfBirth} onChange={e=>setPolicyForm({...policyForm,DateOfBirth:e.target.value.replace(/[^0-9/]/g,'').slice(0,10)})}/></label>
    </div>
    <div className="ap-info-note"><ShieldCheck size={15}/><div><strong>Client profile only</strong><span>No premium amount or payment details are required here. Add the client once; every premium payment request and payment history will be recorded separately.</span></div></div>
    <div className="ap-wizard-actions"><button className="ap-secondary" onClick={()=>setShowForm(false)} disabled={loading}>Cancel</button><button className="ap-primary ap-send" disabled={loading||!policyForm.ClientName||!policyForm.PolicyNumber||!policyForm.DateOfBirth} onClick={editingPolicyId?editPolicy:addPolicy}>{loading?<RefreshCw className="spin"/>:editingPolicyId?<CheckCircle2 size={15}/>:<Plus size={15}/>} {editingPolicyId?'Save Changes':'Add Policy'}<ArrowRight size={15}/></button></div>
