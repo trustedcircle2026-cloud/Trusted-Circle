@@ -139,7 +139,9 @@ function openMetricDetail(kind,agentFilter='ALL'){
   const sums={};paid.forEach(r=>{const k=String(r.AgentID||'');sums[k]=(sums[k]||0)+Number(r.PremiumAmount||r.premium||r.payment?.Amount||0)});
   rows=Object.keys(sums).map(k=>({title:agentName(k),sub:'Premium paid from recorded paid requests',amount:money(sums[k]),children:paid.filter(r=>String(r.AgentID||'')===k)}));
  }else if(kind==='pending'){
-  rows=selected.filter(r=>!isPaid(r)&&!['CANCELLED','REJECTED'].includes(reqStatus(r))).map(r=>({title:r.client+' · '+(r.policy||r.RequestID),sub:'Agent: '+r.agent+' · Status: '+badge(r)+' · '+r.RequestID,amount:money(r.PremiumAmount||r.premium||0)}));
+  const pendingRows=selected.filter(r=>!r.invoiceRecord?.InvoiceID&&!isPaid(r)&&!['CANCELLED','REJECTED'].includes(reqStatus(r)));
+  const grouped={};pendingRows.forEach(r=>{const k=String(r.AgentID||'');if(!grouped[k])grouped[k]=[];grouped[k].push(r)});
+  rows=Object.keys(grouped).map(k=>({title:agentName(k),sub:grouped[k].length+' pending/actionable request(s) assigned to this agent',amount:money(grouped[k].reduce((sum,r)=>sum+Number(r.PremiumAmount||r.premium||0),0)),children:grouped[k]}));
  }else if(kind==='receivables'){
   const items=db.receivables.filter(x=>!['PAID','SETTLED','RECEIVED'].includes(String(x.Status||'').toUpperCase())&&(agentFilter==='ALL'||String(x.AgentID)===String(agentFilter)));
   const sums={};items.forEach(x=>{const k=String(x.AgentID||'');sums[k]=(sums[k]||0)+Number(x.ReceivableAmount||x.OutstandingAmount||0)});
