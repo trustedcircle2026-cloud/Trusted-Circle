@@ -1050,16 +1050,17 @@ function createInvoice_(p){
   var agentId=String(p.agentId||'').trim();
   var itemIds=Array.isArray(p.receivableIds)?p.receivableIds.map(String):[];
   var invoiceDate=String(p.invoiceDate||'').trim();
+  if(!invoiceDate)invoiceDate=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyy-MM-dd');
   if(!agentId)throw new Error('Agent is required.');
   if(!itemIds.length)throw new Error('Select at least one receivable item.');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate))throw new Error('Enter a valid invoice date.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate))throw new Error('Invalid automatic invoice date.');
 
   var ss=agentBusinessSpreadsheet_();
   ensureBusinessSheet_(ss,'Invoices');
   var agents=sheetRows_(ss.getSheetByName('Agents')),agent=agents.find(function(x){return String(x.AgentID)===agentId;});
   if(!agent)throw new Error('Agent not found.');
   var receivables=sheetRows_(ensureBusinessSheet_(ss,'AgentReceivables'));
-  var selected=receivables.filter(function(x){return itemIds.indexOf(String(x.ReceivableID))>=0&&String(x.AgentID)===agentId&&String(x.Status||'').toUpperCase()==='RECEIVABLE'&& !String(x.InvoiceID||'').trim();});
+  var selected=receivables.filter(function(x){var status=String(x.Status||'').trim().toUpperCase().replace(/[ _-]+/g,' ');var unbilled=['RECEIVABLE','UNBILLED','UNINVOICED','PENDING INVOICE','AVAILABLE TO INVOICE'].indexOf(status)>=0;return itemIds.indexOf(String(x.ReceivableID))>=0&&String(x.AgentID)===agentId&&unbilled&&!String(x.InvoiceID||'').trim();});
   if(!selected.length)throw new Error('No un-invoiced receivables were selected.');
   var grossTotal=selected.reduce(function(sum,x){return sum+Number(x.GrossAmount||x.ReceivableAmount||0);},0);
   var invoiceDiscount=Math.round(grossTotal*AGENT_BUSINESS.DISCOUNT_RATE*100)/100;
