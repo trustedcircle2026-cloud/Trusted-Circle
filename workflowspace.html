@@ -191,7 +191,7 @@ function openReport(kind){
   const totalIncome=incomeItems.reduce((n,x)=>n+x[1],0),totalExpenses=expenseItems.reduce((n,x)=>n+x[1],0),count=Math.max(expenseItems.length,incomeItems.length),rows=[];
   for(let i=0;i<count;i++)rows.push([expenseItems[i]?.[0]||'',expenseItems[i]?money(expenseItems[i][1]):'',incomeItems[i]?.[0]||'',incomeItems[i]?money(incomeItems[i][1]):'']);
   rows.push(['Total expenses',money(totalExpenses),'Total income',money(totalIncome)]);
-  rows.push(['Profit / (Loss)',money(totalIncome-totalExpenses),'','']);
+  rows.push(['','', 'Profit / (Loss)',money(totalIncome-totalExpenses)]);
   printStatement('Profit & Loss Account',period.label,['Particulars','Amount','Particulars','Amount'],rows);return;
  }
  if(kind==='bs'){
