@@ -1258,21 +1258,32 @@ function adminInvoicePdf_(p){
 }
 function sendExistingInvoiceEmail_(p){
   requireAdmin_(p);
-  var invoiceId=String(p.invoiceId||'').trim();
+  var invoiceId=String(p.invoiceId||'').trim(),format=String(p.format||'1');
   if(!invoiceId)throw new Error('Invoice ID is required.');
-  var ss=agentBusinessSpreadsheet_();
-  var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(format!=='1'&&format!=='2')throw new Error('Choose email format 1 or 2.');
+  var ss=agentBusinessSpreadsheet_(),invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
   if(!invoice)throw new Error('Invoice not found.');
   var agent=sheetRows_(ensureBusinessSheet_(ss,'Agents')).find(function(x){return String(x.AgentID)===String(invoice.AgentID);});
   if(!agent)throw new Error('Agent record not found.');
-  var fileId=String(invoice.PdfFileId||'').trim();
-  if(!fileId){var m=String(invoice.PdfUrl||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||String(invoice.PdfUrl||'').match(/[?&]id=([a-zA-Z0-9_-]+)/);fileId=m?m[1]:'';}
-  if(!fileId)throw new Error('Invoice PDF is not available. Preview or regenerate the invoice PDF first.');
-  var pdf=DriveApp.getFileById(fileId).getBlob().setName(String(invoice.InvoiceNumber||'Invoice')+'.pdf');
-  var sent=sendInvoicePdfToAgent_(agent,invoice,pdf);
-  if(!sent)throw new Error('Invoice email was not sent. Check agent email address and Apps Script daily email quota.');
+  var email=String(agent.Email||invoice.AgentEmail||'').trim();
+  if(!email)throw new Error('Agent email address is missing.');
+  if(MailApp.getRemainingDailyQuota()<=0)throw new Error('Apps Script daily email quota is exhausted.');
+  var payable=Number(invoice.NetPayable||invoice.TotalAmount||0),invoiceNo=String(invoice.InvoiceNumber||invoiceId);
+  var subject='₹'+payable.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})+' Payable - TC Inv '+invoiceNo;
+  if(format==='2'){
+    var encoded=String(p.invoiceImageBase64||'').trim();
+    if(!encoded)throw new Error('Invoice image is missing. Please try sending again.');
+    var imageBlob=Utilities.newBlob(Utilities.base64Decode(encoded),'image/png','Trusted-Circle-Invoice.png');
+    MailApp.sendEmail({to:email,subject:subject,body:'Trusted Circle invoice '+invoiceNo+'. If the invoice image is not visible, open this email in an HTML-capable mail client.',htmlBody:'<div style="margin:0;padding:0;text-align:center;background:#f4f8f5"><img src="cid:invoiceImage" alt="Trusted Circle invoice '+escapeHtml_(invoiceNo)+'" style="display:block;width:100%;max-width:760px;height:auto;margin:0 auto;border:0"></div>',inlineImages:{invoiceImage:imageBlob},name:'Trusted Circle'});
+  }else{
+    var fileId=String(invoice.PdfFileId||'').trim();
+    if(!fileId){var m=String(invoice.PdfUrl||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||String(invoice.PdfUrl||'').match(/[?&]id=([a-zA-Z0-9_-]+)/);fileId=m?m[1]:'';}
+    if(!fileId)throw new Error('Invoice PDF is not available. Preview or regenerate the invoice PDF first.');
+    var pdf=DriveApp.getFileById(fileId).getBlob().setName(invoiceNo+'.pdf');
+    MailApp.sendEmail({to:email,subject:subject,body:'Dear '+String(agent.AgentName||'Agent')+',\n\nPlease find attached the Trusted Circle premium payment receivable invoice '+invoiceNo+'.\n\nTotal payable: '+formatMoney_(payable)+'\n\nRegards,\nTrusted Circle',htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the Trusted Circle premium payment receivable invoice <b>'+escapeHtml_(invoiceNo)+'</b>.</p><p><b>Total payable: '+formatMoney_(payable)+'</b></p><p>Regards,<br>Trusted Circle</p>',attachments:[pdf],name:'Trusted Circle'});
+  }
   invoice.Status='SENT';invoice.UpdatedAt=new Date().toISOString();saveRow_(ss,'Invoices',invoice);
-  return {sent:true,invoiceId:invoiceId,email:String(agent.Email||invoice.AgentEmail||'')};
+  return {sent:true,invoiceId:invoiceId,email:email,format:format,subject:subject};
 }
 function sendInvoicePdfToAgent_(agent,invoice,pdf){
   var email=String(agent.Email||invoice.AgentEmail||'').trim();
