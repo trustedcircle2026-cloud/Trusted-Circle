@@ -351,11 +351,26 @@ function agentAddClient_(p){
 }
 function normalizeDob_(value){
   var raw=String(value||'').trim();
-  var m=raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(m)return m[3]+'/'+m[2]+'/'+m[1];
-  m=raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if(m)return m[1]+'/'+m[2]+'/'+m[3];
-  return '';
+  if(!raw)return '';
+  var y,m,d,match;
+  match=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
+  if(match){y=Number(match[1]);m=Number(match[2]);d=Number(match[3]);}
+  else {
+    match=raw.match(/^(\d{1,2})[-\/]([A-Za-z]{3})[-\/]?(\d{4})$/);
+    if(match){d=Number(match[1]);m=({jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12})[match[2].toLowerCase()];y=Number(match[3]);}
+    else {
+      match=raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if(match){d=Number(match[1]);m=Number(match[2]);y=Number(match[3]);}
+      else {
+        match=raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if(match){m=Number(match[1]);d=Number(match[2]);y=Number(match[3]);}
+      }
+    }
+  }
+  if(!y||!m||!d||m<1||m>12||d<1||d>31)return '';
+  var check=new Date(Date.UTC(y,m-1,d));
+  if(check.getUTCFullYear()!==y||check.getUTCMonth()!==m-1||check.getUTCDate()!==d)return '';
+  return Utilities.formatString('%02d-%s-%04d',d,['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m-1],y);
 }
 function agentAddPolicy_(p){
   var s=agentSession_(p.token),data=p.data||{};
@@ -1481,11 +1496,25 @@ function cachePutJson_(key,value,ttl){try{var raw=JSON.stringify(value);if(raw.l
 function cachedSheetRows_(sheet,name){var key='AGENT_SHEET_'+name,hit=cacheGetJson_(key);if(hit)return hit;var rows=sheetRows_(sheet);cachePutJson_(key,rows,AGENT_BUSINESS.READ_CACHE_TTL_SECONDS);return rows;}
 function invalidateSheetCache_(name){try{CacheService.getScriptCache().remove('AGENT_SHEET_'+name);}catch(e){}}
 function cacheRemoveAgent_(agentId){try{CacheService.getScriptCache().remove('AGENT_BOOT_'+String(agentId));}catch(e){}}
+function formatDobForApi_(value){
+  if(value===null||value===undefined||value==='')return '';
+  if(value instanceof Date&&!isNaN(value.getTime()))return Utilities.formatDate(value,Session.getScriptTimeZone(),'dd-MMM-yyyy');
+  var raw=String(value).trim(),m;
+  if(!raw)return '';
+  m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})T/);
+  if(m){var timed=new Date(raw);if(!isNaN(timed.getTime()))return Utilities.formatDate(timed,Session.getScriptTimeZone(),'dd-MMM-yyyy');}
+  m=raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(m){var month=+m[1],day=+m[2],year=+m[3];if(month>=1&&month<=12&&day>=1&&day<=31)return normalizeDob_(String(day).padStart(2,'0')+'/'+String(month).padStart(2,'0')+'/'+year);}
+  return normalizeDob_(raw)||raw;
+}
 function sheetRows_(sheet){
   if(!sheet||sheet.getLastRow()<2)return [];
   var headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
   return sheet.getRange(2,1,sheet.getLastRow()-1,headers.length).getValues().map(function(row){
-    var o={};headers.forEach(function(h,i){o[h]=row[i] instanceof Date?row[i].toISOString():row[i];});return o;
+    var o={};headers.forEach(function(h,i){
+      if(String(h).toLowerCase()==='dateofbirth')o[h]=formatDobForApi_(row[i]);
+      else o[h]=row[i] instanceof Date?Utilities.formatDate(row[i],Session.getScriptTimeZone(),'yyyy-MM-dd'):row[i];
+    });return o;
   });
 }
 function newId_(field){
