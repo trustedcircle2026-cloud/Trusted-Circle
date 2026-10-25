@@ -218,7 +218,9 @@ function agentBusinessRoute_(p){
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
-  if(action==='createInvoice') return createInvoice_(p);\n  if(action==='createInvoiceDraft') return createInvoice_(Object.assign({},p,{sendEmail:false}));\n  if(action==='sendInvoiceEmail') return sendExistingInvoiceEmail_(p);
+  if(action==='createInvoice') return createInvoice_(p);
+  if(action==='createInvoiceDraft') return createInvoice_(Object.assign({},p,{sendEmail:false}));
+  if(action==='sendInvoiceEmail') return sendExistingInvoiceEmail_(p);
   if(action==='adminInvoicePdf') return adminInvoicePdf_(p);
   if(action==='resendAgentInvoice') return resendAgentInvoice_(p);
   if(action==='regenerateAgentInvoice') return regenerateAgentInvoice_(p);
