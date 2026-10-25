@@ -219,6 +219,7 @@ function agentBusinessRoute_(p){
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
   if(action==='createInvoice') return createInvoice_(p);\n  if(action==='createInvoiceDraft') return createInvoice_(Object.assign({},p,{sendEmail:false}));\n  if(action==='sendInvoiceEmail') return sendExistingInvoiceEmail_(p);
+  if(action==='adminInvoicePdf') return adminInvoicePdf_(p);
   if(action==='resendAgentInvoice') return resendAgentInvoice_(p);
   if(action==='regenerateAgentInvoice') return regenerateAgentInvoice_(p);
   if(action==='receivables') return listReceivables_(ss,p);
@@ -1152,6 +1153,16 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
   return {pdfBase64:Utilities.base64Encode(pdf.getBytes()),fileName:invoice.InvoiceNumber+'.pdf',sent:sent,pdfUrl:file.getUrl(),pdfFileId:file.getId()};
 }
 
+function adminInvoicePdf_(p){
+  requireAdmin_(p);
+  var invoiceId=String(p.invoiceId||'').trim();if(!invoiceId)throw new Error('Invoice ID is required.');
+  var ss=agentBusinessSpreadsheet_(),invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  var fileId=String(invoice.PdfFileId||'').trim();if(!fileId){var m=String(invoice.PdfUrl||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||String(invoice.PdfUrl||'').match(/[?&]id=([a-zA-Z0-9_-]+)/);fileId=m?m[1]:'';}
+  if(!fileId)throw new Error('Invoice PDF is not available yet.');
+  var blob=DriveApp.getFileById(fileId).getBlob();
+  return {fileName:String(invoice.InvoiceNumber||'Invoice')+'.pdf',pdfBase64:Utilities.base64Encode(blob.getBytes()),pdfUrl:String(invoice.PdfUrl||'')};
+}
 function sendExistingInvoiceEmail_(p){
   requireAdmin_(p);
   var invoiceId=String(p.invoiceId||'').trim();
