@@ -240,24 +240,39 @@ async function createSelectedInvoice(){const agentId=$('invoiceAgentSelect').val
 async function openSavedInvoicePdf(invoiceId,download){try{let data;if(lastCreatedInvoicePdf&&String(lastCreatedInvoicePdf.invoiceId)===String(invoiceId))data=lastCreatedInvoicePdf;else data=await api('adminInvoicePdf',{invoiceId,adminToken:token});openInvoicePdfBytes(data.pdfBase64,data.fileName,download)}catch(e){toast('Could not load invoice PDF: '+e.message)}}
 function invoiceSvgEscape(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function buildInvoiceEmailImage(invoiceId){
- const inv=(db.invoices||[]).find(x=>String(x.InvoiceID)===String(invoiceId));if(!inv)throw new Error('Invoice record not found.');
- const agent=(db.agents||[]).find(x=>String(x.AgentID)===String(inv.AgentID))||{},items=(db.invoiceItems||[]).filter(x=>String(x.InvoiceID)===String(invoiceId));
- if(!items.length)throw new Error('No client line items are linked to this invoice.');
- const esc=invoiceSvgEscape,fmt=n=>'₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}),width=1000,rowH=48,top=350,height=top+items.length*rowH+210;
- const text=(x,y,s,size=18,weight=400,fill='#19372A',anchor='start')=>'<text x="'+x+'" y="'+y+'" text-anchor="'+anchor+'" font-family="Arial,sans-serif" font-size="'+size+'" font-weight="'+weight+'" fill="'+fill+'">'+esc(s)+'</text>';
- let svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+'" viewBox="0 0 '+width+' '+height+'"><rect width="100%" height="100%" fill="#fff"/><rect width="'+width+'" height="150" fill="#103B2B"/>';
- svg+=text(42,62,'TRUSTED CIRCLE',34,700,'#fff')+text(42,98,'INSURANCE PREMIUM & AGENT RECEIVABLE INVOICE',16,600,'#d9eee2');
- svg+=text(42,196,'INVOICE NUMBER',14,700,'#176847')+text(42,228,inv.InvoiceNumber||inv.InvoiceID,23,700)+text(650,196,'ISSUED ON',14,700,'#176847')+text(650,228,date(inv.InvoiceDate),20,600);
- svg+=text(42,278,'BILL TO',14,700,'#176847')+text(42,311,agent.AgentName||agent.AgencyName||'Agent',20,700)+text(500,278,'EMAIL',14,700,'#176847')+text(500,311,agent.Email||inv.AgentEmail||'—',18,600);
- const cols=[42,90,365,590,765],headers=['S.NO','CLIENT NAME','POLICY NO.','DATE OF BIRTH','PREMIUM'];svg+='<rect x="32" y="'+(top-26)+'" width="936" height="42" rx="5" fill="#176847"/>';
- headers.forEach((h,i)=>svg+=text(cols[i]+8,top,h,13,700,'#fff'));
- items.forEach((it,i)=>{const y=top+16+i*rowH;svg+='<rect x="32" y="'+y+'" width="936" height="'+rowH+'" fill="'+(i%2?'#fff':'#f1f7f3')+'" stroke="#c9dcd0"/>';const vals=[String(i+1),it.ClientName||it.Name||'—',it.PolicyNumber||it.PolicyNo||'—',formatDobDisplay(it.DateOfBirth)||'—',fmt(it.Amount||it.GrossAmount||0)];vals.forEach((v,j)=>svg+=text(j===4?950:cols[j]+8,y+29,v,j===1?15:14,j===4?700:400,'#19372A',j===4?'end':'start'));});
- const y=top+16+items.length*rowH+35;svg+=text(42,y,'GROSS PREMIUM PAID',16,600)+text(950,y,fmt(inv.TotalAmount),17,700,'#19372A','end')+text(42,y+42,'TRUSTED CIRCLE DISCOUNT',16,600)+text(950,y+42,'− '+fmt(inv.DiscountAmount),17,600,'#19372A','end');
- svg+='<rect x="32" y="'+(y+62)+'" width="936" height="58" rx="4" fill="#103B2B"/>'+text(52,y+98,'TOTAL AMOUNT PAYABLE',18,700,'#fff')+text(950,y+98,fmt(inv.NetPayable),22,700,'#fff','end');
- svg+='<rect x="32" y="'+(y+137)+'" width="936" height="94" rx="4" fill="#f1f7f3" stroke="#c9dcd0"/>'+text(48,y+163,'PAYMENT DETAILS',13,700,'#176847')+text(48,y+188,'Kotak Mahindra Bank · A/c: 8949622673 · IFSC: KKBK0008698',13,600,'#19372A')+text(48,y+211,'Branch: Trichy - Thillai Nagar · UPI: 6369175709@kotak811',13,600,'#19372A');svg+=text(42,y+253,'Please quote the invoice number when making payment.',13,400,'#607368')+text(42,y+280,'Trusted Circle · info@trustedcircle.in · www.trustedcircle.shop',13,600,'#176847')+'</svg>';
- const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));try{const img=new Image();img.src=url;await new Promise((ok,no)=>{img.onload=ok;img.onerror=no});const c=document.createElement('canvas');c.width=width*2;c.height=height*2;const ctx=c.getContext('2d');ctx.scale(2,2);ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.drawImage(img,0,0,width,height);return c.toDataURL('image/png').split(',')[1]}finally{URL.revokeObjectURL(url)}
+ // Render the actual saved invoice PDF page into a PNG so the email image preserves the exact PDF layout, logo, QR, seal and styling.
+ let pdfData;
+ if(lastCreatedInvoicePdf&&String(lastCreatedInvoicePdf.invoiceId)===String(invoiceId)&&lastCreatedInvoicePdf.pdfBase64){
+  pdfData=lastCreatedInvoicePdf;
+ }else{
+  pdfData=await api('adminInvoicePdf',{invoiceId,adminToken:token});
+ }
+ if(!pdfData||!pdfData.pdfBase64)throw new Error('Could not load the saved invoice PDF.');
+ if(!window.pdfjsLib){
+  await new Promise((resolve,reject)=>{
+   const existing=document.querySelector('script[data-invoice-pdfjs]');
+   if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}
+   const script=document.createElement('script');script.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';script.async=true;script.dataset.invoicePdfjs='1';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load the PDF renderer. Check your internet connection and try again.'));document.head.appendChild(script);
+  });
+ }
+ if(!window.pdfjsLib)throw new Error('PDF renderer did not initialise.');
+ window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const raw=atob(pdfData.pdfBase64),bytes=new Uint8Array(raw.length);
+ for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ const pdf=await window.pdfjsLib.getDocument({data:bytes}).promise;
+ if(!pdf.numPages)throw new Error('The invoice PDF has no pages.');
+ const page=await pdf.getPage(1);
+ const base=page.getViewport({scale:1});
+ const scale=Math.min(2.2,2600/base.height);
+ const viewport=page.getViewport({scale:Math.max(1.5,scale)});
+ const canvas=document.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+ const ctx=canvas.getContext('2d',{alpha:false});ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+ await page.render({canvasContext:ctx,viewport}).promise;
+ const dataUrl=canvas.toDataURL('image/png');
+ if(!dataUrl||dataUrl.length<1000)throw new Error('Could not convert the invoice PDF to an image.');
+ return dataUrl.split(',')[1];
 }
-async function sendInvoiceEmail(invoiceId,button){const choice=prompt('Choose invoice email format:\n1 = Old text body + PDF attachment\n2 = Invoice image only in email body\n\nEnter 1 or 2','1');if(choice===null)return;const format=String(choice).trim();if(!['1','2'].includes(format)){toast('Choose format 1 or 2.');return}button.disabled=true;const oldText=button.textContent;button.textContent='Sending…';try{const payload={invoiceId,format,adminToken:token};if(format==='2'){button.textContent='Preparing image…';payload.invoiceImageBase64=await buildInvoiceEmailImage(invoiceId)}const result=await api('sendInvoiceEmail',payload);toast('Invoice email sent to '+(result.email||'agent')+' · Format '+format);await refresh();renderInvoiceHistory()}catch(e){toast('Email was not sent: '+e.message)}finally{button.disabled=false;button.textContent=oldText}}
+async function sendInvoiceEmail(invoiceId,button){const choice=prompt('Choose invoice email format:\\n1 = Old text body + PDF attachment\\n2 = Full invoice PDF rendered as an image in the email body (no attachment)\\n\\nEnter 1 or 2','1');if(choice===null)return;const format=String(choice).trim();if(!['1','2'].includes(format)){toast('Choose format 1 or 2.');return}button.disabled=true;const oldText=button.textContent;button.textContent='Sending…';try{const payload={invoiceId,format,adminToken:token};if(format==='2'){button.textContent='Rendering full invoice…';payload.invoiceImageBase64=await buildInvoiceEmailImage(invoiceId)}const result=await api('sendInvoiceEmail',payload);toast('Invoice email sent to '+(result.email||'agent')+' · Format '+format);await refresh();renderInvoiceHistory()}catch(e){toast('Email was not sent: '+e.message)}finally{button.disabled=false;button.textContent=oldText}}
 function renderInvoiceManagement(){
  const agentFilter=$('imAgentFilter'),host=$('invoiceManagementRows');if(!agentFilter||!host)return;
  const previous=agentFilter.value;
