@@ -218,7 +218,7 @@ function agentBusinessRoute_(p){
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
-  if(action==='createInvoice') return createInvoice_(p);
+  if(action==='createInvoice') return createInvoice_(p);\n  if(action==='createInvoiceDraft') return createInvoice_(Object.assign({},p,{sendEmail:false}));\n  if(action==='sendInvoiceEmail') return sendExistingInvoiceEmail_(p);
   if(action==='resendAgentInvoice') return resendAgentInvoice_(p);
   if(action==='regenerateAgentInvoice') return regenerateAgentInvoice_(p);
   if(action==='receivables') return listReceivables_(ss,p);
@@ -1081,7 +1081,7 @@ function createInvoice_(p){
     saveRow_(ss,'AgentReceivables',x);
   });
 
-  var pdfResult=buildInvoicePdfAndSend_(agent,invoice.item,items);
+  var pdfResult=buildInvoicePdfAndSend_(agent,invoice.item,items,p.sendEmail!==false);
   invoice.item.PdfUrl=pdfResult.pdfUrl||'';
   invoice.item.PdfFileId=pdfResult.pdfFileId||'';
   invoice.item.Status=pdfResult.sent?'SENT':'GENERATED';
@@ -1089,7 +1089,7 @@ function createInvoice_(p){
   invalidateSheetCache_('Invoices');invalidateSheetCache_('InvoiceItems');invalidateSheetCache_('AgentReceivables');
   return {invoice:invoice.item,items:items,agent:{AgentName:agent.AgentName||'',Email:agent.Email||''},pdfBase64:pdfResult.pdfBase64,fileName:pdfResult.fileName,sent:pdfResult.sent,pdfUrl:pdfResult.pdfUrl||''};
 }
-function buildInvoicePdfAndSend_(agent,invoice,items){
+function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
   // Never create or email a PDF whose premium detail table would be blank/incomplete.
   if(!Array.isArray(items)||!items.length)throw new Error('Invoice PDF blocked: no premium client rows were resolved. Regenerate after restoring the invoice items and linked payment/bill records.');
   var incompleteItems=items.filter(function(x){return !String(x.ClientName||x.Name||x.InsuredPerson||'').trim()||!String(x.PolicyNumber||x.PolicyNo||'').trim();});
@@ -1147,11 +1147,29 @@ function buildInvoicePdfAndSend_(agent,invoice,items){
   doc.saveAndClose();Utilities.sleep(200);
   var pdf=doc.getAs(MimeType.PDF).setName(invoice.InvoiceNumber+'.pdf');
   var invoiceFolder=DriveApp.getFolderById(TRUSTED_CIRCLE_INVOICE_FOLDER_ID);var file=invoiceFolder.createFile(pdf);file.setName(invoice.InvoiceNumber+'.pdf');
-  var sent=sendInvoicePdfToAgent_(agent,invoice,pdf);
+  var sent=sendEmail===false?false:sendInvoicePdfToAgent_(agent,invoice,pdf);
   try{DriveApp.getFileById(doc.getId()).setTrashed(true);}catch(e){}
   return {pdfBase64:Utilities.base64Encode(pdf.getBytes()),fileName:invoice.InvoiceNumber+'.pdf',sent:sent,pdfUrl:file.getUrl(),pdfFileId:file.getId()};
 }
 
+function sendExistingInvoiceEmail_(p){
+  requireAdmin_(p);
+  var invoiceId=String(p.invoiceId||'').trim();
+  if(!invoiceId)throw new Error('Invoice ID is required.');
+  var ss=agentBusinessSpreadsheet_();
+  var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  var agent=sheetRows_(ensureBusinessSheet_(ss,'Agents')).find(function(x){return String(x.AgentID)===String(invoice.AgentID);});
+  if(!agent)throw new Error('Agent record not found.');
+  var fileId=String(invoice.PdfFileId||'').trim();
+  if(!fileId){var m=String(invoice.PdfUrl||'').match(/\/d\/([a-zA-Z0-9_-]+)/)||String(invoice.PdfUrl||'').match(/[?&]id=([a-zA-Z0-9_-]+)/);fileId=m?m[1]:'';}
+  if(!fileId)throw new Error('Invoice PDF is not available. Preview or regenerate the invoice PDF first.');
+  var pdf=DriveApp.getFileById(fileId).getBlob().setName(String(invoice.InvoiceNumber||'Invoice')+'.pdf');
+  var sent=sendInvoicePdfToAgent_(agent,invoice,pdf);
+  if(!sent)throw new Error('Invoice email was not sent. Check agent email address and Apps Script daily email quota.');
+  invoice.Status='SENT';invoice.UpdatedAt=new Date().toISOString();saveRow_(ss,'Invoices',invoice);
+  return {sent:true,invoiceId:invoiceId,email:String(agent.Email||invoice.AgentEmail||'')};
+}
 function sendInvoicePdfToAgent_(agent,invoice,pdf){
   var email=String(agent.Email||invoice.AgentEmail||'').trim();
   if(!email||MailApp.getRemainingDailyQuota()<=0)return false;
