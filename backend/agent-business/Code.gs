@@ -1119,17 +1119,18 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
   var brandTable=body.appendTable([['','']]);
   brandTable.setBorderWidth(0);
   var logoCell=brandTable.getCell(0,0),brandCell=brandTable.getCell(0,1);
-  logoCell.setBackgroundColor(green);brandCell.setBackgroundColor(green);
-  try{brandTable.setColumnWidth(0,62);brandTable.setColumnWidth(1,470);}catch(brandWidthError){}
-  [logoCell,brandCell].forEach(function(c){c.setPaddingTop(10);c.setPaddingBottom(10);c.setPaddingLeft(10);c.setPaddingRight(8);});
+  // White, open header: no green banner behind either the logo or title.
+  logoCell.setBackgroundColor(white);brandCell.setBackgroundColor(white);
+  try{brandTable.setColumnWidth(0,82);brandTable.setColumnWidth(1,450);}catch(brandWidthError){}
+  [logoCell,brandCell].forEach(function(c){c.setPaddingTop(8);c.setPaddingBottom(8);c.setPaddingLeft(8);c.setPaddingRight(8);});
   try{
     var logo=UrlFetchApp.fetch('https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg').getBlob();
-    var logoImage=logoCell.appendImage(logo);logoImage.setWidth(42);logoImage.setHeight(42);
-  }catch(logoError){var logoFallback=logoCell.appendParagraph('TC');logoFallback.setBold(true).setFontSize(16).setForegroundColor(white);}
+    var logoImage=logoCell.appendImage(logo);logoImage.setWidth(62);logoImage.setHeight(62);
+  }catch(logoError){var logoFallback=logoCell.appendParagraph('TC');logoFallback.setBold(true).setFontSize(20).setForegroundColor(green);}
   var brand=brandCell.appendParagraph('TRUSTED CIRCLE');
-  brand.setBold(true).setFontSize(22).setForegroundColor(white).setSpacingAfter(2);
+  brand.setBold(true).setFontSize(28).setForegroundColor(green).setSpacingAfter(3);
   var subtitle=brandCell.appendParagraph('INSURANCE PREMIUM & AGENT RECEIVABLE INVOICE');
-  subtitle.setBold(true).setFontSize(8).setForegroundColor('#D7EBDD').setSpacingAfter(0);
+  subtitle.setBold(true).setFontSize(9).setForegroundColor(green2).setSpacingAfter(0);
   body.appendParagraph('').setSpacingAfter(2);
 
   var meta=body.appendTable([['INVOICE NUMBER',String(invoice.InvoiceNumber||''),'ISSUED ON',formatInvoiceDate_(invoice.InvoiceDate)]]);
