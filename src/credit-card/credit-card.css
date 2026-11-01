@@ -8,3 +8,32 @@
 
 .cc-upcoming-bills{margin:18px 0 22px;padding:15px;background:#fff;border:1px solid #e5eee8;border-radius:18px;box-shadow:0 8px 24px #1d58300a}.cc-upcoming-bills .cc-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.cc-upcoming-bills .cc-section-head h2{margin:3px 0 0;font-size:17px;color:#173c2b}.cc-upcoming-count{font-size:10px;font-weight:800;color:#176b48;background:#eaf5ee;border-radius:30px;padding:7px 10px}.cc-upcoming-row{display:flex;align-items:center;gap:11px;padding:12px 2px;border-top:1px solid #edf2ee}.cc-upcoming-date{width:42px;height:45px;flex-shrink:0;border-radius:12px;background:#edf7f0;color:#176b48;display:flex;flex-direction:column;align-items:center;justify-content:center}.cc-upcoming-date b{font-size:16px;line-height:18px}.cc-upcoming-date small{font-size:9px;font-weight:700;text-transform:uppercase}.cc-upcoming-row .cc-row-main{flex:1;min-width:0}.cc-upcoming-row .cc-row-main b{display:block;font-size:11px;color:#253d2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-upcoming-row .cc-row-main small{display:block;margin-top:4px;font-size:9px;color:#829087}.cc-upcoming-row .cc-row-limit{text-align:right;flex-shrink:0}.cc-upcoming-row .cc-row-limit b{display:block;font-size:12px;color:#176b48}.cc-upcoming-row .cc-row-limit small{display:block;margin-top:3px;font-size:8px;color:#89958d}
 @media(max-width:380px){.cc-upcoming-bills{padding:11px}.cc-upcoming-row{gap:8px}.cc-upcoming-date{width:36px;height:41px}.cc-upcoming-row .cc-row-main b{font-size:10px}.cc-upcoming-row .cc-row-limit b{font-size:10px}}
+
+
+/* Credit Card Pay centre */
+.cc-pay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:18px 0}
+.cc-pay-grid>button{min-height:150px;border:1px solid #e3ece6;background:linear-gradient(145deg,#fff,#f8fbf9);border-radius:20px;padding:18px 14px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:9px;box-shadow:0 8px 24px #16452b0a;transition:transform .2s,box-shadow .2s,border-color .2s}
+.cc-pay-grid>button:hover{transform:translateY(-3px);border-color:#9ac8a8;box-shadow:0 14px 30px #16452b14}
+.cc-pay-grid>button>b{font:800 14px Manrope;color:#193e2d}
+.cc-pay-grid>button>small{font-size:10px;line-height:1.4;color:#829087}
+.cc-pay-icon{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;flex-shrink:0}
+.cc-pay-icon svg{width:21px;height:21px}
+.cc-pay-green{background:#e8f5ec;color:#197348}
+.cc-pay-blue{background:#eaf1ff;color:#4266a8}
+.cc-pay-purple{background:#f1edff;color:#7256ad}
+.cc-pay-orange{background:#fff2e5;color:#b66a23}
+.cc-back-btn{display:inline-flex;align-items:center;gap:8px;border:0;background:#edf6f0;color:#236746;padding:10px 13px;border-radius:11px;font-size:11px;font-weight:800;margin:0 0 14px}
+.cc-pay-panel{background:#fff;border:1px solid #e4ece6;border-radius:19px;padding:17px;margin:12px 0;box-shadow:0 8px 24px #16452b09}
+.cc-pay-panel-title{display:flex;align-items:center;gap:12px;margin-bottom:17px}
+.cc-pay-panel-title b,.cc-pay-panel-title small{display:block}
+.cc-pay-panel-title b{font-size:13px;color:#1c3d2c}
+.cc-pay-panel-title small{font-size:9px;color:#859188;margin-top:4px}
+.cc-pay-label{display:flex;flex-direction:column;gap:7px;margin:12px 0;font-size:10px;font-weight:800;color:#58685e}
+.cc-pay-label input,.cc-pay-label select{width:100%;min-width:0;border:1px solid #dfe9e2;border-radius:11px;padding:13px;background:#fbfdfb;color:#213b2c;font-size:12px;outline:none}
+.cc-pay-label input:focus,.cc-pay-label select:focus{border-color:#5aa278;box-shadow:0 0 0 3px #5aa2781a}
+.cc-pay-panel>.cc-primary{width:100%;margin-top:7px}
+.cc-pay-panel>small{display:block;color:#8a968e;font-size:9px;line-height:1.5;margin-top:12px}
+.cc-qr-video{display:block;width:100%;max-height:300px;aspect-ratio:4/3;object-fit:cover;background:#14251b;border-radius:14px;margin:10px 0 15px}
+.cc-pay-panel>h2{font:800 18px Manrope;color:#193e2d}
+.cc-pay-panel>p{font-size:10px;line-height:1.5;overflow-wrap:anywhere;color:#77857c}
+@media(max-width:360px){.cc-pay-grid{gap:9px}.cc-pay-grid>button{padding:14px 11px;min-height:138px}.cc-pay-grid>button>b{font-size:12px}.cc-pay-grid>button>small{font-size:9px}}
