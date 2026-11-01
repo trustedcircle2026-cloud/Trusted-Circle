@@ -75,7 +75,7 @@ async function makeCardsPdf(cards){
    let yy=y+24;rows.forEach(r=>{pdf.setFontSize(6.8);pdf.setTextColor(115,129,120);pdf.text(r[0].toUpperCase(),22,yy);pdf.setFont('helvetica','bold');pdf.setTextColor(44,65,52);pdf.text(r[1],53,yy);pdf.setFont('helvetica','normal');pdf.setTextColor(115,129,120);pdf.text(r[2].toUpperCase(),112,yy);pdf.setFont('helvetica','bold');pdf.setTextColor(44,65,52);pdf.text(r[3],190,yy,{align:'right'});yy+=5;});
    pdf.setFont('helvetica','normal');pdf.setFontSize(6.5);pdf.setTextColor(115,129,120);pdf.text('Notes: '+safe(card.Notes),22,y+64,{maxWidth:164});y+=72;
   });
-  pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(130,140,133);pdf.text('Generated '+new Date().toLocaleString('en-IN')+'  |  Card number and CVV are not included in this report.',14,287);
+  pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(130,140,133);pdf.text('Generated '+new Date().toLocaleString('en-IN')+'  |  Card number is shown as last four digits only; CVV is never stored or included.',14,287);
  }
  pdf.save('Trusted-Circle-Credit-Cards.pdf');
 }
@@ -86,7 +86,7 @@ function App(){
  useEffect(()=>{if(token)load(token)},[token,load]);
  const login=async()=>{setLoading(true);setError('');try{const r=await agentBusinessApi.adminLogin(password);localStorage.setItem('tc_agent_admin_session',r.token);setToken(r.token);setPassword('');}catch(e){setError(e.message||'Admin sign-in failed.')}finally{setLoading(false)}};
  const logout=async()=>{try{await agentBusinessApi.adminLogout(token)}catch{}localStorage.removeItem('tc_agent_admin_session');setToken('');setCards([]);setBills([])};
- const upcomingBills=useMemo(()=>cards.map(card=>{const date=nextMonthlyBillDate(card.BillingDate);if(!date)return null;const today=new Date();today.setHours(0,0,0,0);const days=Math.round((date-today)/86400000);return days>=0&&days<=5?{card,date,days,amount:Number(card.AvailableLimit||card.UsingLimit||card.UsedLimit||0)}:null}).filter(Boolean).sort((a,b)=>a.date-b.date),[cards]);
+ const upcomingBills=useMemo(()=>cards.map(card=>{const date=nextMonthlyBillDate(card.BillingDate);if(!date)return null;const today=new Date();today.setHours(0,0,0,0);const days=Math.round((date-today)/86400000);return days>=0&&days<=5?{card,date,days,amount:(Number(card.UsedLimit||card.UsingLimit||card.AvailableLimit||0)||Math.max(0,Number(card.CreditLimit||0)-Number(card.AvailableLimit||0)))}:null}).filter(Boolean).sort((a,b)=>a.date-b.date),[cards]);
  const totals=useMemo(()=>{const limit=cards.reduce((s,c)=>s+Number(c.CreditLimit||0),0);const available=cards.reduce((s,c)=>s+Number(c.AvailableLimit||0),0);const outstanding=Math.max(0,limit-available);const unpaid=bills.filter(b=>!['PAID','SETTLED','CANCELLED'].includes(String(b.PaymentStatus||'UNPAID').toUpperCase()));const due=unpaid.reduce((s,b)=>s+Math.max(0,Number(b.BillAmount||0)-Number(b.PaidAmount||0)),0);return{limit,available,outstanding,due,active:cards.filter(c=>String(c.Status||'ACTIVE').toUpperCase()==='ACTIVE').length}},[cards,bills]);
  const openAdd=()=>{setEditing(null);setForm(emptyCard);setModal(true)};
  const openEdit=c=>{setEditing(c);setForm({...emptyCard,...c});setModal(true)};
