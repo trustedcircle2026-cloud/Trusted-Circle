@@ -34,7 +34,7 @@ var AGENT_BUSINESS = {
     Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CreatedAt','UpdatedAt','CardExpiry','FD','FDRate','FDInterest','CashbackRate','CashbackCap','CashbackEarned','TotalReturn','TotalROI'],
     CreditCardBills:['BillID','CardID','Bank','CardName','StatementDate','DueDate','BillAmount','MinimumDue','PaidAmount','PaymentStatus','PaidAt','Notes','CreatedAt','UpdatedAt'],
     CardRules:['RuleID','CardID','Category','Eligible','CashbackRate','CashbackType','MonthlyCap','MonthlyUsed','MonthlyRemaining','RewardConversion','EffectiveFrom','EffectiveTo','Notes','CreatedAt','UpdatedAt'],
-    CardTransactions:['TransactionID','PaymentID','CardID','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','CreatedAt'],
+    CardTransactions:['TransactionID','PaymentID','CardID','Bank','CardName','Merchant','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','ConfirmationToken','ActionAt','CreatedAt','UpdatedAt'],
     Cashback:['CashbackID','PaymentID','CardID','TransactionAmount','ExpectedRate','ExpectedCashback','ActualCashback','CashbackStatus','ExpectedDate','ReceivedDate','Variance','Notes','CreatedAt','UpdatedAt'],
     AgentSettlements:['SettlementID','AgentID','PeriodFrom','PeriodTo','GrossAmount','DiscountAmount','NetAmount','PaidAmount','BalanceAmount','Status','SettlementDate','ReferenceNumber','Notes','CreatedAt','UpdatedAt'],
     MoneyLedger:['LedgerID','TransactionDate','ReferenceType','ReferenceID','AgentID','ClientID','PaymentID','Description','MoneyIn','MoneyOut','Balance','PaymentMode','BankAccount','Category','Status','CreatedAt'],
@@ -160,6 +160,9 @@ function doGet(e){
   if(String(p.action||'')==='agentInvoicePaymentDecision'){
     try{return agentInvoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
   }
+  if(String(p.action||'')==='creditCardTransactionDecision'){
+    try{return creditCardTransactionDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;text-align:center"><h2>Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
+  }
   if(String(p.action||'')==='invoicePaymentDecision'){
     try{return invoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#a52b2b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
   }
@@ -189,6 +192,7 @@ function agentBusinessRoute_(p){
   if(action==='adminLogout') return adminLogout_(p);
   if(action==='setupCreditCardReminderAutomation'){requireAdmin_({adminToken:p.adminToken});return setupCreditCardReminderAutomation();}
   if(action==='testCreditCardBillReminder'){requireAdmin_({adminToken:p.adminToken});return testCreditCardBillReminder();}
+  if(action==='creditCardTransactionDecision'){return creditCardTransactionDecision_(p);}
 
 
   if(action==='agentLogin') return agentLogin_(p);
@@ -218,7 +222,11 @@ function agentBusinessRoute_(p){
   requireAdmin_(p);
   if(action==='dashboard') return dashboard_(ss);
   if(action==='list') return listRows_(ss,String(p.sheet||''),p);
-  if(action==='save') return saveRow_(ss,String(p.sheet||''),p.data||{});
+  if(action==='save'){
+    var targetSheet=String(p.sheet||''),saved=saveRow_(ss,targetSheet,p.data||{});
+    if(targetSheet==='CardTransactions') sendCreditCardTransactionEmail_(ss,saved.item);
+    return saved;
+  }
   if(action==='delete') return deleteRow_(ss,String(p.sheet||''),String(p.id||''),String(p.idField||''));
   if(action==='calculate') return calculate_(p);
   if(action==='markPaymentPaid') return markPaymentPaid_(p);
@@ -931,6 +939,46 @@ function ensureBusinessSheet_(ss,sheetName){
   }
   return sheet;
 }
+
+/* CREDIT CARD TRANSACTION EMAIL CONFIRMATION */
+var CREDIT_CARD_TXN_EMAIL='llingesh836@gmail.com';
+function sendCreditCardTransactionEmail_(ss,txn){
+  var token=String(txn.ConfirmationToken||'').trim();
+  if(!token){
+    token=Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'');
+    txn.ConfirmationToken=token;
+    var sheet=ensureBusinessSheet_(ss,'CardTransactions'),rows=sheetRows_(sheet);
+    var idx=rows.findIndex(function(r){return String(r.TransactionID)===String(txn.TransactionID);});
+    if(idx>=0){var headers=AGENT_BUSINESS.SHEETS.CardTransactions;sheet.getRange(idx+2,1,1,headers.length).setValues([headers.map(function(h){return txn[h]===undefined?'':txn[h];})]);}
+    invalidateSheetCache_('CardTransactions');
+  }
+  var base=ScriptApp.getService().getUrl();
+  if(!base)throw new Error('Apps Script Web App URL is unavailable. Deploy the latest script as a Web App.');
+  var url=base+'?action=creditCardTransactionDecision&token='+encodeURIComponent(token);
+  var esc=function(v){return escapeHtml_(String(v===undefined||v===null?'—':v));};
+  var actions=[['COMPLETED','Record as Completed','#167447'],['PENDING','Keep Pending','#B7791F'],['CANCELLED','Mark as Cancelled','#B43D3D']];
+  var buttons=actions.map(function(a){return '<a href="'+url+'&status='+a[0]+'" style="display:inline-block;background:'+a[2]+';color:#fff;text-decoration:none;padding:12px 16px;border-radius:9px;font-weight:bold;margin:5px 4px">'+a[1]+'</a>';}).join('');
+  var html='<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20352a"><div style="background:#fff;padding:22px;border-bottom:3px solid #176b48"><h2 style="margin:0;color:#176b48">TRUSTED CIRCLE</h2><p style="margin:5px 0;color:#718077">Credit Card Transaction Confirmation</p></div><div style="padding:22px;background:#f6faf7"><h2>Transaction started</h2><p>A credit card transaction has been recorded and needs a status confirmation.</p><table style="width:100%;border-collapse:collapse;background:#fff"><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Transaction ID</td><td style="padding:10px;border-bottom:1px solid #e6eee8"><b>'+esc(txn.TransactionID)+'</b></td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Merchant</td><td style="padding:10px;border-bottom:1px solid #e6eee8">'+esc(txn.Merchant)+'</td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Card</td><td style="padding:10px;border-bottom:1px solid #e6eee8">'+esc(txn.Bank)+' · '+esc(txn.CardName)+'</td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Amount</td><td style="padding:10px;border-bottom:1px solid #e6eee8"><b>₹'+esc(Number(txn.Amount||0).toLocaleString('en-IN'))+'</b></td></tr><tr><td style="padding:10px">Date</td><td style="padding:10px">'+esc(txn.TransactionDate)+'</td></tr></table><h3>Choose transaction status</h3><p>Use one of the action buttons below to update the transaction record:</p>'+buttons+'<p style="font-size:12px;color:#718077;margin-top:22px">These links update only this transaction. If no action is taken, it remains pending.</p></div></div>';
+  MailApp.sendEmail({to:CREDIT_CARD_TXN_EMAIL,subject:'[Trusted Circle] Transaction started · '+String(txn.Merchant||txn.TransactionID),htmlBody:html,body:'A credit card transaction was started. Open this email in an HTML-capable mail app to choose Completed, Pending or Cancelled.'});
+  return {sent:true,to:CREDIT_CARD_TXN_EMAIL};
+}
+function creditCardTransactionDecision_(p){
+  var token=String(p.token||'').trim(),status=String(p.status||'').toUpperCase();
+  if(!token)throw new Error('Transaction action token is missing.');
+  if(['COMPLETED','PENDING','CANCELLED'].indexOf(status)<0)throw new Error('Invalid transaction status.');
+  var ss=agentBusinessSpreadsheet_(),sheet=ensureBusinessSheet_(ss,'CardTransactions'),rows=sheetRows_(sheet);
+  var txn=rows.find(function(r){return String(r.ConfirmationToken||'')===token;});
+  if(!txn)throw new Error('Transaction action link is invalid or expired.');
+  var current=String(txn.Status||'PENDING').toUpperCase();
+  if(['COMPLETED','CANCELLED'].indexOf(current)>=0)throw new Error('This transaction is already '+current+'.');
+  txn.Status=status;txn.ActionAt=new Date().toISOString();txn.UpdatedAt=txn.ActionAt;
+  var headers=AGENT_BUSINESS.SHEETS.CardTransactions,idx=rows.findIndex(function(r){return String(r.TransactionID)===String(txn.TransactionID);});
+  sheet.getRange(idx+2,1,1,headers.length).setValues([headers.map(function(h){return txn[h]===undefined?'':txn[h];})]);
+  invalidateSheetCache_('CardTransactions');
+  var colour=status==='COMPLETED'?'#167447':status==='CANCELLED'?'#b43d3d':'#b7791f';
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:600px;margin:70px auto;padding:30px;text-align:center;border:1px solid #e5eee8;border-radius:20px"><h2 style="color:#176b48">TRUSTED CIRCLE</h2><h3>Transaction status updated</h3><p>Transaction <b>'+escapeHtml_(String(txn.TransactionID))+'</b> is now</p><div style="display:inline-block;padding:12px 24px;border-radius:30px;background:'+colour+';color:white;font-weight:bold">'+status+'</div><p style="color:#78877e">You may close this page.</p></div>');
+}
+
 function markPaymentPaid_(p){
   var requestId=String(p.requestId||'').trim();
   var amount=Number(p.amount||0);
