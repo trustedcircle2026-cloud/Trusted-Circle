@@ -1678,9 +1678,9 @@ function sendCreditCardBillReminders_(){
 function creditCardReminderDate_(v){
   if(!v)return'';
   if(v instanceof Date&&!isNaN(v.getTime()))return Utilities.formatDate(v,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
-  var raw=String(v).trim(),m=raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+  var raw=String(v).trim(),m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if(m)return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');
-  m=raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+  m=raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
   if(m)return m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');
   var d=new Date(raw);return isNaN(d.getTime())?'':Utilities.formatDate(d,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
 }
