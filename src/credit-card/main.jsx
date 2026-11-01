@@ -24,19 +24,49 @@ function parseCardCsv(text){
 function downloadCardTemplate(){const blob=new Blob([IMPORT_TEMPLATE],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Trusted-Circle-Credit-Card-Import-Template.csv';a.click();URL.revokeObjectURL(url);}
 async function makeCardsPdf(cards){
  const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'}),w=210;
- const fmt=n=>money(n),safe=v=>String(v??'—');
+ const safe=v=>String(v===undefined||v===null||v===''?'—':v),fmt=v=>money(v);
  let logo=null;try{const res=await fetch(LOGO);const blob=await res.blob();logo=await new Promise(resolve=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>resolve(null);reader.readAsDataURL(blob);});}catch{}
- const rounded=(x,y,ww,hh,r,fill)=>{pdf.setFillColor(...fill);pdf.roundedRect(x,y,ww,hh,r,r,'F');};
- const limit=cards.reduce((s,x)=>s+Number(x.CreditLimit||0),0),available=cards.reduce((s,x)=>s+Number(x.AvailableLimit||0),0);
- const pages=Math.max(1,Math.ceil(cards.length/4));
- for(let p=0;p<pages;p++){if(p)pdf.addPage();rounded(0,0,w,47,0,[17,57,41]);if(logo)try{pdf.addImage(logo,'JPEG',14,10,20,20);}catch{}pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.text('TRUSTED CIRCLE',40,18);pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.text('CREDIT CARD PORTFOLIO',40,25);pdf.setFontSize(8);pdf.text('Confidential personal financial summary',14,39);pdf.text('Page '+(p+1)+' of '+pages,195,39,{align:'right'});
- if(p===0){rounded(14,54,56,25,4,[232,246,237]);rounded(77,54,56,25,4,[235,241,255]);rounded(140,54,56,25,4,[255,242,228]);pdf.setTextColor(38,91,61);pdf.setFontSize(8);pdf.text('TOTAL CARDS',19,62);pdf.setFont('helvetica','bold');pdf.setFontSize(16);pdf.text(String(cards.length),19,73);pdf.setTextColor(47,83,139);pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text('TOTAL CREDIT LIMIT',82,62);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(fmt(limit),82,73);pdf.setTextColor(155,91,35);pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text('AVAILABLE LIMIT',145,62);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(fmt(available),145,73);}
- let y=p===0?91:58;cards.slice(p*4,p*4+4).forEach(card=>{rounded(14,y,182,46,4,[246,249,247]);rounded(14,y,4,43,2,[25,116,75]);pdf.setTextColor(30,55,42);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(safe(card.CardName||card.Bank),23,y+10);pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(100,117,106);pdf.text(safe(card.Bank)+'  •  '+safe(card.CardType),23,y+17);pdf.setTextColor(31,74,52);pdf.setFont('helvetica','bold');pdf.setFontSize(10);pdf.text(fmt(card.CreditLimit),190,y+10,{align:'right'});pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(105,119,110);pdf.text('CREDIT LIMIT',190,y+16,{align:'right'});pdf.setFontSize(8);pdf.text('Card •••• '+safe(card.Last4),23,y+27);pdf.text('Available: '+fmt(card.AvailableLimit),23,y+35);pdf.text('Due: '+safe(card.DueDate)+'   |   Bill: '+safe(card.BillingDate),190,y+27,{align:'right'});pdf.text('Expiry: '+safe(card.CardExpiry)+'   |   Status: '+safe(card.Status),190,y+35,{align:'right'});pdf.setFontSize(6.5);pdf.setTextColor(83,105,91);pdf.text('FD '+fmt(card.FD)+' | FD Rate '+safe(card.FDRate)+' | FD Interest '+fmt(card.FDInterest)+' | Cashback '+safe(card.CashbackRate)+' / '+fmt(card.CashbackCap)+' | Earned '+fmt(card.CashbackEarned)+' | Return '+fmt(card.TotalReturn)+' | ROI '+safe(card.TotalROI)+' | Fee '+fmt(card.AnnualFee),23,y+42);y+=49;});
- pdf.setTextColor(125,137,129);pdf.setFontSize(7);pdf.text('Generated '+new Date().toLocaleString('en-IN')+'  •  Sensitive card credentials are intentionally excluded.',14,287);
+ const fill=(x,y,ww,hh,r,color)=>{pdf.setFillColor(...color);pdf.roundedRect(x,y,ww,hh,r,r,'F');};
+ const total=cards.reduce((s,x)=>s+Number(x.CreditLimit||0),0),available=cards.reduce((s,x)=>s+Number(x.AvailableLimit||0),0);
+ const pages=Math.max(1,Math.ceil(cards.length/3));
+ for(let p=0;p<pages;p++){
+  if(p)pdf.addPage();
+  pdf.setFillColor(255,255,255);pdf.rect(0,0,w,297,'F');
+  if(logo)try{pdf.addImage(logo,'JPEG',14,9,19,19);}catch{}
+  pdf.setTextColor(22,62,43);pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.text('TRUSTED CIRCLE',39,17);
+  pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(90,111,98);pdf.text('CREDIT CARD PORTFOLIO STATEMENT',39,24);
+  pdf.setDrawColor(32,117,76);pdf.setLineWidth(0.8);pdf.line(14,33,196,33);
+  pdf.setTextColor(105,119,110);pdf.setFontSize(8);pdf.text('Confidential personal financial summary',14,40);pdf.text('Page '+(p+1)+' of '+pages,196,40,{align:'right'});
+  if(p===0){
+   fill(14,47,56,23,4,[232,246,237]);fill(77,47,56,23,4,[235,241,255]);fill(140,47,56,23,4,[255,242,228]);
+   pdf.setFontSize(7.5);pdf.setTextColor(38,91,61);pdf.text('TOTAL CARDS',19,55);pdf.setFont('helvetica','bold');pdf.setFontSize(14);pdf.text(String(cards.length),19,65);
+   pdf.setFont('helvetica','normal');pdf.setFontSize(7.5);pdf.setTextColor(47,83,139);pdf.text('TOTAL CREDIT LIMIT',82,55);pdf.setFont('helvetica','bold');pdf.setFontSize(11);pdf.text(fmt(total),82,65);
+   pdf.setFont('helvetica','normal');pdf.setFontSize(7.5);pdf.setTextColor(155,91,35);pdf.text('AVAILABLE LIMIT',145,55);pdf.setFont('helvetica','bold');pdf.setFontSize(11);pdf.text(fmt(available),145,65);
+  }
+  let y=p===0?79:49;
+  cards.slice(p*3,p*3+3).forEach(card=>{
+   fill(14,y,182,67,4,[247,250,248]);fill(14,y,3,67,2,[25,116,75]);
+   pdf.setTextColor(28,62,43);pdf.setFont('helvetica','bold');pdf.setFontSize(12);pdf.text(safe(card.CardName),22,y+9);
+   pdf.setFont('helvetica','normal');pdf.setFontSize(8);pdf.setTextColor(94,113,101);pdf.text(safe(card.Bank)+'  |  '+safe(card.CardType)+'  |  '+safe(card.Network),22,y+15);
+   pdf.setFont('helvetica','bold');pdf.setFontSize(9);pdf.setTextColor(31,83,57);pdf.text(fmt(card.CreditLimit),190,y+9,{align:'right'});
+   pdf.setFont('helvetica','normal');pdf.setFontSize(6.5);pdf.setTextColor(105,119,110);pdf.text('CREDIT LIMIT',190,y+14,{align:'right'});
+   const rows=[
+    ['Card number','•••• •••• •••• '+safe(card.Last4),'Expiry',safe(card.CardExpiry)],
+    ['Available limit',fmt(card.AvailableLimit),'Status',safe(card.Status)],
+    ['Billing date',safe(card.BillingDate),'Due date',safe(card.DueDate)],
+    ['Annual fee',fmt(card.AnnualFee),'FD amount',fmt(card.FD)],
+    ['FD rate',safe(card.FDRate),'FD interest',fmt(card.FDInterest)],
+    ['Cashback rate',safe(card.CashbackRate),'Cashback cap',fmt(card.CashbackCap)],
+    ['Cashback earned',fmt(card.CashbackEarned),'Total return',fmt(card.TotalReturn)],
+    ['Total ROI',safe(card.TotalROI),'Card ID',safe(card.CardID)]
+   ];
+   let yy=y+24;rows.forEach(r=>{pdf.setFontSize(6.8);pdf.setTextColor(115,129,120);pdf.text(r[0].toUpperCase(),22,yy);pdf.setFont('helvetica','bold');pdf.setTextColor(44,65,52);pdf.text(r[1],53,yy);pdf.setFont('helvetica','normal');pdf.setTextColor(115,129,120);pdf.text(r[2].toUpperCase(),112,yy);pdf.setFont('helvetica','bold');pdf.setTextColor(44,65,52);pdf.text(r[3],190,yy,{align:'right'});yy+=5;});
+   pdf.setFont('helvetica','normal');pdf.setFontSize(6.5);pdf.setTextColor(115,129,120);pdf.text('Notes: '+safe(card.Notes),22,y+64,{maxWidth:164});y+=72;
+  });
+  pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(130,140,133);pdf.text('Generated '+new Date().toLocaleString('en-IN')+'  |  Card number and CVV are not included in this report.',14,287);
  }
  pdf.save('Trusted-Circle-Credit-Cards.pdf');
 }
-
 function App(){
  const[token,setToken]=useState(()=>localStorage.getItem('tc_agent_admin_session')||'');
  const[password,setPassword]=useState(''),[page,setPage]=useState('Home'),[cards,setCards]=useState([]),[bills,setBills]=useState([]),[rules,setRules]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState(''),[modal,setModal]=useState(false),[editing,setEditing]=useState(null),[form,setForm]=useState(emptyCard),[saving,setSaving]=useState(false),[selected,setSelected]=useState(null),[showDetails,setShowDetails]=useState(false),[importOpen,setImportOpen]=useState(false),[importRows,setImportRows]=useState([]),[importFile,setImportFile]=useState(null),[importBusy,setImportBusy]=useState(false),[pdfBusy,setPdfBusy]=useState(false),[transactions,setTransactions]=useState([]),[txnModal,setTxnModal]=useState(false),[txnSaving,setTxnSaving]=useState(false),[txnForm,setTxnForm]=useState({CardID:'',Merchant:'',Amount:'',Category:'Purchase',TransactionDate:new Date().toISOString().slice(0,10),ReferenceNumber:'',Notes:''});
