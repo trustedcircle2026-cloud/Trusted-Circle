@@ -137,20 +137,22 @@ function App(){
        {key:'card',width:19},{key:'amount',width:16},{key:'category',width:16},{key:'reference',width:24},
        {key:'status',width:16},{key:'notes',width:30}
       ];
-      sheet.mergeCells('C1:J1');sheet.mergeCells('C2:J2');sheet.mergeCells('A5:J5');
+      sheet.mergeCells('C1:J2');sheet.mergeCells('C3:J3');sheet.mergeCells('A5:J5');
       sheet.getCell('C1').value='TRUSTED CIRCLE';
       sheet.getCell('C1').font={name:'Arial',size:20,bold:true,color:{argb:'FF000000'}};
-      sheet.getCell('C2').value='CREDIT CARD TRANSACTION STATEMENT';
-      sheet.getCell('C2').font={name:'Arial',size:12,bold:true,color:{argb:'FF000000'}};
+      sheet.getCell('C1').alignment={vertical:'middle',horizontal:'left'};
+      sheet.getCell('C3').value='CREDIT CARD TRANSACTION STATEMENT';
+      sheet.getCell('C3').font={name:'Arial',size:12,bold:true,color:{argb:'FF000000'}};
+      sheet.getCell('C3').alignment={vertical:'middle',horizontal:'left'};
       sheet.getCell('A5').value='Period: '+label+'   |   Status: '+statementStatus+'   |   Records: '+filtered.length;
       sheet.getCell('A5').font={name:'Arial',size:10,bold:true,color:{argb:'FF000000'}};
       sheet.getCell('A5').alignment={vertical:'middle'};
-      sheet.getRow(1).height=28;sheet.getRow(2).height=22;sheet.getRow(3).height=8;sheet.getRow(4).height=8;sheet.getRow(5).height=22;sheet.getRow(6).height=8;
+      sheet.getRow(1).height=30;sheet.getRow(2).height=24;sheet.getRow(3).height=20;sheet.getRow(4).height=8;sheet.getRow(5).height=22;sheet.getRow(6).height=8;
       const logoBase64=logo&&String(logo).includes(',')?String(logo).split(',')[1]:'';
       if(logoBase64){
        const mime=String(logo).slice(5,String(logo).indexOf(';')).toLowerCase();
        const imageId=workbook.addImage({base64:logoBase64,extension:mime.includes('png')?'png':'jpeg'});
-       sheet.addImage(imageId,{tl:{col:0.08,row:0.12},br:{col:1.85,row:4.72},editAs:'oneCell'});
+       sheet.addImage(imageId,{tl:{col:0.12,row:0.18},ext:{width:92,height:66},editAs:'oneCell'});
       }
       const headerRow=sheet.getRow(7);headerRow.values=headers;headerRow.height=26;
       headerRow.eachCell(cell=>{
