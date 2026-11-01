@@ -35,6 +35,7 @@ var AGENT_BUSINESS = {
     CreditCardBills:['BillID','CardID','Bank','CardName','StatementDate','DueDate','BillAmount','MinimumDue','PaidAmount','PaymentStatus','PaidAt','Notes','CreatedAt','UpdatedAt'],
     CardRules:['RuleID','CardID','Category','Eligible','CashbackRate','CashbackType','MonthlyCap','MonthlyUsed','MonthlyRemaining','RewardConversion','EffectiveFrom','EffectiveTo','Notes','CreatedAt','UpdatedAt'],
     CardTransactions:['TransactionID','PaymentID','CardID','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','CreatedAt','Bank','CardName','Merchant','ConfirmationToken','ActionAt','UpdatedAt'],
+    CreditCardMerchants:['MerchantID','MerchantName','PayeeName','PayeeAddress','UpiLinkTemplate','Status','CreatedAt','UpdatedAt'],
     Cashback:['CashbackID','PaymentID','CardID','TransactionAmount','ExpectedRate','ExpectedCashback','ActualCashback','CashbackStatus','ExpectedDate','ReceivedDate','Variance','Notes','CreatedAt','UpdatedAt'],
     AgentSettlements:['SettlementID','AgentID','PeriodFrom','PeriodTo','GrossAmount','DiscountAmount','NetAmount','PaidAmount','BalanceAmount','Status','SettlementDate','ReferenceNumber','Notes','CreatedAt','UpdatedAt'],
     MoneyLedger:['LedgerID','TransactionDate','ReferenceType','ReferenceID','AgentID','ClientID','PaymentID','Description','MoneyIn','MoneyOut','Balance','PaymentMode','BankAccount','Category','Status','CreatedAt'],
@@ -964,11 +965,10 @@ function sendCreditCardTransactionEmail_(ss,txn){
   return {sent:true,to:CREDIT_CARD_TXN_EMAIL};
 }
 function creditCardTransactionDecisionPage_(p){
-  var token=String(p.token||''),status=String(p.status||'').toUpperCase();
-  if(!token||['COMPLETED','PENDING','CANCELLED'].indexOf(status)<0)throw new Error('Invalid transaction action link.');
-  var base=ScriptApp.getService().getUrl();
-  var safeToken=escapeHtml_(token),safeStatus=escapeHtml_(status);
-  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:560px;margin:60px auto;padding:28px;text-align:center;border:1px solid #e5eee8;border-radius:20px"><h2 style="color:#176b48">TRUSTED CIRCLE</h2><h3>Confirm transaction status</h3><p>Confirm that you want to record this transaction as <b>'+safeStatus+'</b>.</p><form method="post" action="'+base+'"><input type="hidden" name="action" value="creditCardTransactionDecision"><input type="hidden" name="token" value="'+safeToken+'"><input type="hidden" name="status" value="'+safeStatus+'"><button type="submit" style="border:0;border-radius:10px;padding:13px 24px;background:#176b48;color:#fff;font-weight:bold">Confirm '+safeStatus+'</button></form><p style="color:#78877e;font-size:12px">No change is made until you press Confirm.</p></div>');
+  // Email action links are intentionally one-click: the selected status is saved immediately.
+  // Mail security scanners may prefetch GET links; use unique per-transaction tokens and review the
+  // resulting status in the Transactions screen if your email provider performs link inspection.
+  return creditCardTransactionDecision_(p);
 }
 function creditCardTransactionDecision_(p){
   var token=String(p.token||'').trim(),status=String(p.status||'').toUpperCase();
