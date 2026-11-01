@@ -161,7 +161,7 @@ function doGet(e){
     try{return agentInvoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#064f3b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
   }
   if(String(p.action||'')==='creditCardTransactionDecision'){
-    try{return creditCardTransactionDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;text-align:center"><h2>Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
+    try{return creditCardTransactionDecisionPage_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;text-align:center"><h2>Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
   }
   if(String(p.action||'')==='invoicePaymentDecision'){
     try{return invoicePaymentDecision_(p);}catch(err){return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:620px;margin:60px auto;padding:28px;border:1px solid #f0d5d5;border-radius:18px;text-align:center"><h2 style="color:#a52b2b">Trusted Circle</h2><h3>'+escapeHtml_(String(err&&err.message||err))+'</h3></div>');}
@@ -170,7 +170,8 @@ function doGet(e){
 }
 function doPost(e){
   var input={};
-  try{input=JSON.parse(String(e&&e.postData&&e.postData.contents||'{}'));}catch(err){input=e&&e.parameter?e.parameter:{};}
+  try{if(e&&e.postData&&e.postData.contents){input=JSON.parse(String(e.postData.contents));}else{input=e&&e.parameter?e.parameter:{};}}catch(err){input=e&&e.parameter?e.parameter:{};}
+  if(String(input.action||'')==='creditCardTransactionDecision')return creditCardTransactionDecision_(input);
   return agentBusinessResponse_(agentBusinessRouteSafe_(input));
 }
 function agentBusinessResponse_(data){
@@ -961,6 +962,13 @@ function sendCreditCardTransactionEmail_(ss,txn){
   var html='<div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;color:#20352a"><div style="background:#fff;padding:22px;border-bottom:3px solid #176b48"><h2 style="margin:0;color:#176b48">TRUSTED CIRCLE</h2><p style="margin:5px 0;color:#718077">Credit Card Transaction Confirmation</p></div><div style="padding:22px;background:#f6faf7"><h2>Transaction started</h2><p>A credit card transaction has been recorded and needs a status confirmation.</p><table style="width:100%;border-collapse:collapse;background:#fff"><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Transaction ID</td><td style="padding:10px;border-bottom:1px solid #e6eee8"><b>'+esc(txn.TransactionID)+'</b></td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Merchant</td><td style="padding:10px;border-bottom:1px solid #e6eee8">'+esc(txn.Merchant)+'</td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Card</td><td style="padding:10px;border-bottom:1px solid #e6eee8">'+esc(txn.Bank)+' · '+esc(txn.CardName)+'</td></tr><tr><td style="padding:10px;border-bottom:1px solid #e6eee8">Amount</td><td style="padding:10px;border-bottom:1px solid #e6eee8"><b>₹'+esc(Number(txn.Amount||0).toLocaleString('en-IN'))+'</b></td></tr><tr><td style="padding:10px">Date</td><td style="padding:10px">'+esc(txn.TransactionDate)+'</td></tr></table><h3>Choose transaction status</h3><p>Use one of the action buttons below to update the transaction record:</p>'+buttons+'<p style="font-size:12px;color:#718077;margin-top:22px">These links update only this transaction. If no action is taken, it remains pending.</p></div></div>';
   MailApp.sendEmail({to:CREDIT_CARD_TXN_EMAIL,subject:'[Trusted Circle] Transaction started · '+String(txn.Merchant||txn.TransactionID),htmlBody:html,body:'A credit card transaction was started. Open this email in an HTML-capable mail app to choose Completed, Pending or Cancelled.'});
   return {sent:true,to:CREDIT_CARD_TXN_EMAIL};
+}
+function creditCardTransactionDecisionPage_(p){
+  var token=String(p.token||''),status=String(p.status||'').toUpperCase();
+  if(!token||['COMPLETED','PENDING','CANCELLED'].indexOf(status)<0)throw new Error('Invalid transaction action link.');
+  var base=ScriptApp.getService().getUrl();
+  var safeToken=escapeHtml_(token),safeStatus=escapeHtml_(status);
+  return HtmlService.createHtmlOutput('<div style="font-family:Arial,sans-serif;max-width:560px;margin:60px auto;padding:28px;text-align:center;border:1px solid #e5eee8;border-radius:20px"><h2 style="color:#176b48">TRUSTED CIRCLE</h2><h3>Confirm transaction status</h3><p>Confirm that you want to record this transaction as <b>'+safeStatus+'</b>.</p><form method="post" action="'+base+'"><input type="hidden" name="action" value="creditCardTransactionDecision"><input type="hidden" name="token" value="'+safeToken+'"><input type="hidden" name="status" value="'+safeStatus+'"><button type="submit" style="border:0;border-radius:10px;padding:13px 24px;background:#176b48;color:#fff;font-weight:bold">Confirm '+safeStatus+'</button></form><p style="color:#78877e;font-size:12px">No change is made until you press Confirm.</p></div>');
 }
 function creditCardTransactionDecision_(p){
   var token=String(p.token||'').trim(),status=String(p.status||'').toUpperCase();
