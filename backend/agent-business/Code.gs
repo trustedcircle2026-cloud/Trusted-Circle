@@ -186,6 +186,9 @@ function agentBusinessRoute_(p){
   if(action==='adminLogin') return adminLogin_(p);
   if(action==='adminMe') return adminMe_(p);
   if(action==='adminLogout') return adminLogout_(p);
+  if(action==='setupCreditCardReminderAutomation'){requireAdmin_({adminToken:p.adminToken});return setupCreditCardReminderAutomation();}
+  if(action==='testCreditCardBillReminder'){requireAdmin_({adminToken:p.adminToken});return testCreditCardBillReminder();}
+
 
   if(action==='agentLogin') return agentLogin_(p);
   if(action==='agentMe') return agentMe_(p);
