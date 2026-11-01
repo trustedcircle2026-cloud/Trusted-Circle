@@ -15,7 +15,8 @@ export default defineConfig({
         adminInsurance: 'admin-portal/index.html',
         insuranceAdmin2: 'insuranceadmin2.html',
         workflowSpace: 'workflowspace.html',
-        apps: 'apps/index.html'
+        apps: 'apps/index.html',
+        creditCard: 'credit-card/index.html'
       }
     }
   }
