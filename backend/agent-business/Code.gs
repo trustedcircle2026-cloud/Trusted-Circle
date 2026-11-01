@@ -1431,7 +1431,7 @@ function updateManagedInvoice_(p){
   var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===id;});
   if(!invoice)throw new Error('Invoice not found.');
   var date=String(p.invoiceDate||invoice.InvoiceDate||'').trim(),email=String(p.agentEmail||invoice.AgentEmail||'').trim();
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))throw new Error('Enter a valid invoice date.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Enter a valid invoice date.');
   if(email&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))throw new Error('Enter a valid agent email.');
   invoice.InvoiceDate=date;invoice.AgentEmail=email;invoice.UpdatedAt=new Date().toISOString();
   saveRow_(ss,'Invoices',invoice);return {invoice:invoice};
@@ -1590,11 +1590,11 @@ function sendCreditCardBillReminders_() {
     var total = pending.reduce(function(sum,row) {
       return sum + Math.max(0,Number(row.BillAmount || 0) - Number(row.PaidAmount || 0));
     },0);
-    var body = 'Credit Card Bill Reminder - '+slot+'\\n\\n'+pending.map(function(row) {
+    var body = 'Credit Card Bill Reminder - '+slot+'\n\n'+pending.map(function(row) {
       var outstanding = Math.max(0,Number(row.BillAmount || 0)-Number(row.PaidAmount || 0));
       return [row.Bank || '',row.CardName || '', 'Due: '+creditCardReminderDate_(row.DueDate),
         'Outstanding: '+formatMoney_(outstanding),'Minimum due: '+formatMoney_(row.MinimumDue)].filter(Boolean).join(' | ');
-    }).join('\\n')+'\\n\\nTotal outstanding: '+formatMoney_(total);
+    }).join('\n')+'\n\nTotal outstanding: '+formatMoney_(total);
     var html = '<div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#173b2c">' +
       '<h2>Credit Card Bill Reminder</h2><p>'+escapeHtml_(slot)+' · '+escapeHtml_(today)+'</p>' +
       '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
@@ -1624,9 +1624,9 @@ function creditCardReminderDate_(value) {
     return Utilities.formatDate(value,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
   }
   var raw=String(value).trim(), match;
-  match=raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+  match=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (match) return match[1]+'-'+String(match[2]).padStart(2,'0')+'-'+String(match[3]).padStart(2,'0');
-  match=raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+  match=raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
   if (match) return match[3]+'-'+String(match[2]).padStart(2,'0')+'-'+String(match[1]).padStart(2,'0');
   var parsed=new Date(raw);
   return isNaN(parsed.getTime()) ? '' : Utilities.formatDate(parsed,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
