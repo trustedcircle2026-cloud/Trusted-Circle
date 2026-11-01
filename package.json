@@ -15,7 +15,8 @@
     "react-dom": "latest",
     "lucide-react": "latest",
     "jsqr": "1.4.0",
-    "jspdf": "latest"
+    "jspdf": "latest",
+    "exceljs": "^4.4.0"
   },
   "devDependencies": {}
 }
