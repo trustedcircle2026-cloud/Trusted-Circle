@@ -1637,6 +1637,55 @@ function testCreditCardBillReminder() {
   return sendCreditCardBillReminders_();
 }
 
+/*
+ * Credit-card bills and reminders. Uses the existing Insurance Business
+ * spreadsheet and its existing Admin session; insurance sheets are untouched.
+ */
+var CREDIT_CARD_REMINDER={
+  SHEET:'CreditCardBills',
+  EMAIL_PROPERTY:'CREDIT_CARD_REMINDER_EMAIL',
+  DEFAULT_EMAIL:'llingesh836@gmail.com',
+  TIMEZONE:'Asia/Kolkata',
+  HOURS:[4,16],
+  HEADERS:['BillID','CardID','Bank','CardName','StatementDate','DueDate','BillAmount','MinimumDue','PaidAmount','PaymentStatus','PaidAt','Notes','CreatedAt','UpdatedAt']
+};
+function setupCreditCardReminderAutomation(){
+  var ss=agentBusinessSpreadsheet_(),sh=ss.getSheetByName(CREDIT_CARD_REMINDER.SHEET);
+  if(!sh){sh=ss.insertSheet(CREDIT_CARD_REMINDER.SHEET);sh.getRange(1,1,1,CREDIT_CARD_REMINDER.HEADERS.length).setValues([CREDIT_CARD_REMINDER.HEADERS]);sh.setFrozenRows(1);sh.getRange(1,1,1,CREDIT_CARD_REMINDER.HEADERS.length).setFontWeight('bold').setWrap(true);}
+  else{var existing=sh.getLastRow()?sh.getRange(1,1,1,Math.max(1,sh.getLastColumn())).getValues()[0].map(String):[];CREDIT_CARD_REMINDER.HEADERS.forEach(function(h){if(existing.indexOf(h)<0){sh.getRange(1,sh.getLastColumn()+1).setValue(h);existing.push(h);}});}
+  var props=PropertiesService.getScriptProperties();if(!props.getProperty(CREDIT_CARD_REMINDER.EMAIL_PROPERTY))props.setProperty(CREDIT_CARD_REMINDER.EMAIL_PROPERTY,CREDIT_CARD_REMINDER.DEFAULT_EMAIL);
+  ScriptApp.getProjectTriggers().forEach(function(t){if(t.getHandlerFunction()==='sendCreditCardBillReminders_')ScriptApp.deleteTrigger(t);});
+  CREDIT_CARD_REMINDER.HOURS.forEach(function(hour){ScriptApp.newTrigger('sendCreditCardBillReminders_').timeBased().everyDays(1).atHour(hour).inTimezone(CREDIT_CARD_REMINDER.TIMEZONE).create();});
+  return{ok:true,sheet:CREDIT_CARD_REMINDER.SHEET,recipient:props.getProperty(CREDIT_CARD_REMINDER.EMAIL_PROPERTY),timezone:CREDIT_CARD_REMINDER.TIMEZONE,hours:CREDIT_CARD_REMINDER.HOURS,triggerCount:ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()==='sendCreditCardBillReminders_';}).length};
+}
+function sendCreditCardBillReminders_(){
+  var lock=LockService.getScriptLock();if(!lock.tryLock(20000))return{sent:false,reason:'Reminder task already running.'};
+  try{
+    var sh=agentBusinessSpreadsheet_().getSheetByName(CREDIT_CARD_REMINDER.SHEET);if(!sh||sh.getLastRow()<2)return{sent:false,reason:'No credit-card bills recorded.'};
+    var today=Utilities.formatDate(new Date(),CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
+    var pending=sheetRows_(sh).filter(function(r){var due=creditCardReminderDate_(r.DueDate),status=String(r.PaymentStatus||'UNPAID').toUpperCase(),out=Math.max(0,Number(r.BillAmount||0)-Number(r.PaidAmount||0));return due&&due<=today&&out>0&&['PAID','SETTLED','CANCELLED','WAIVED'].indexOf(status)<0;});
+    if(!pending.length)return{sent:false,reason:'No unpaid bills due today or earlier.'};
+    var to=PropertiesService.getScriptProperties().getProperty(CREDIT_CARD_REMINDER.EMAIL_PROPERTY)||CREDIT_CARD_REMINDER.DEFAULT_EMAIL;
+    var hour=Number(Utilities.formatDate(new Date(),CREDIT_CARD_REMINDER.TIMEZONE,'H')),slot=hour<12?'Morning 4:00 AM':'Evening 4:00 PM';
+    var total=pending.reduce(function(sum,r){return sum+Math.max(0,Number(r.BillAmount||0)-Number(r.PaidAmount||0));},0);
+    var lines=pending.map(function(r){return[r.Bank||'',r.CardName||'','Due '+creditCardReminderDate_(r.DueDate),'Bill '+formatMoney_(r.BillAmount),'Paid '+formatMoney_(r.PaidAmount),'Outstanding '+formatMoney_(Math.max(0,Number(r.BillAmount||0)-Number(r.PaidAmount||0))),'Minimum due '+formatMoney_(r.MinimumDue)].filter(Boolean).join(' | ');});
+    var body='Credit Card Bill Reminder - '+slot+'\n\n'+lines.join('\n')+'\n\nTotal outstanding: '+formatMoney_(total);
+    var html='<div style="font-family:Arial,sans-serif;color:#173b2c"><h2>Credit Card Bill Reminder</h2><p>'+escapeHtml_(slot)+' · '+escapeHtml_(today)+'</p><pre style="white-space:pre-wrap">'+escapeHtml_(lines.join('\n'))+'</pre><h3>Total outstanding: '+formatMoney_(total)+'</h3></div>';
+    MailApp.sendEmail({to:to,subject:'Credit Card Reminder · '+slot+' · '+formatMoney_(total),body:body,htmlBody:html,name:'Trusted Circle Credit Card Manager'});
+    return{sent:true,recipient:to,count:pending.length,total:total,slot:slot};
+  }finally{lock.releaseLock();}
+}
+function creditCardReminderDate_(v){
+  if(!v)return'';
+  if(v instanceof Date&&!isNaN(v.getTime()))return Utilities.formatDate(v,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
+  var raw=String(v).trim(),m=raw.match(/^(\\d{4})-(\\d{1,2})-(\\d{1,2})/);
+  if(m)return m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0');
+  m=raw.match(/^(\\d{1,2})[\\/-](\\d{1,2})[\\/-](\\d{4})$/);
+  if(m)return m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');
+  var d=new Date(raw);return isNaN(d.getTime())?'':Utilities.formatDate(d,CREDIT_CARD_REMINDER.TIMEZONE,'yyyy-MM-dd');
+}
+function testCreditCardBillReminder(){return sendCreditCardBillReminders_();}
+
 function cacheGetJson_(key){try{var raw=CacheService.getScriptCache().get(String(key));return raw?JSON.parse(raw):null;}catch(e){return null;}}
 function cachePutJson_(key,value,ttl){try{var raw=JSON.stringify(value);if(raw.length<=90000)CacheService.getScriptCache().put(String(key),raw,ttl||AGENT_BUSINESS.READ_CACHE_TTL_SECONDS);}catch(e){}}
 function cachedSheetRows_(sheet,name){var key='AGENT_SHEET_'+name,hit=cacheGetJson_(key);if(hit)return hit;var rows=sheetRows_(sheet);cachePutJson_(key,rows,AGENT_BUSINESS.READ_CACHE_TTL_SECONDS);return rows;}
