@@ -31,7 +31,7 @@ var AGENT_BUSINESS = {
     PaymentRequests:['RequestID','BillID','AgentID','ClientID','PolicyID','PremiumAmount','CustomerPayable','DiscountAmount','Status','RequestedAt','ApprovedAt','PaymentID','Notes'],
     Payments:['PaymentID','RequestID','BillID','AgentID','ClientID','PremiumAmount','CustomerCollected','PaymentMode','CardID','PaymentDate','ReferenceNumber','ReceiptID','Status','Notes','CreatedAt','UpdatedAt'],
     Receipts:['ReceiptID','PaymentID','ReceiptNumber','ReceiptUrl','ReceiptFileId','FileName','MimeType','ReceiptDate','Notes','CreatedAt','UpdatedAt'],
-    Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CardExpiry','FD','FDRate','FDInterest','CashbackRate','CashbackCap','CashbackEarned','TotalReturn','TotalROI','CreatedAt','UpdatedAt'],
+    Cards:['CardID','Bank','CardName','CardType','Last4','Network','CreditLimit','AvailableLimit','BillingDate','DueDate','AnnualFee','Status','Notes','CreatedAt','UpdatedAt','CardExpiry','FD','FDRate','FDInterest','CashbackRate','CashbackCap','CashbackEarned','TotalReturn','TotalROI'],
     CreditCardBills:['BillID','CardID','Bank','CardName','StatementDate','DueDate','BillAmount','MinimumDue','PaidAmount','PaymentStatus','PaidAt','Notes','CreatedAt','UpdatedAt'],
     CardRules:['RuleID','CardID','Category','Eligible','CashbackRate','CashbackType','MonthlyCap','MonthlyUsed','MonthlyRemaining','RewardConversion','EffectiveFrom','EffectiveTo','Notes','CreatedAt','UpdatedAt'],
     CardTransactions:['TransactionID','PaymentID','CardID','Amount','Category','TransactionDate','ReferenceNumber','Status','Notes','CreatedAt'],
