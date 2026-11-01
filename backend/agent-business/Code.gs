@@ -1462,7 +1462,7 @@ function listReceivables_(ss,p){
 }
 function listRows_(ss,sheetName,p){
   if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
-  var sheet=ss.getSheetByName(sheetName), rows=sheetRows_(sheet);
+  var sheet=ensureBusinessSheet_(ss,sheetName), rows=sheetRows_(sheet);
   var limit=Math.min(500,Math.max(1,Number(p.limit||200))),offset=Math.max(0,Number(p.offset||0));
   var search=String(p.search||'').trim().toLowerCase();
   if(search) rows=rows.filter(function(r){return JSON.stringify(r).toLowerCase().indexOf(search)>=0;});
@@ -1470,7 +1470,7 @@ function listRows_(ss,sheetName,p){
 }
 function saveRow_(ss,sheetName,data){
   if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
-  var sheet=ss.getSheetByName(sheetName),headers=AGENT_BUSINESS.SHEETS[sheetName],idField=headers[0],row=Object.assign({},data);
+  var sheet=ensureBusinessSheet_(ss,sheetName),headers=AGENT_BUSINESS.SHEETS[sheetName],idField=headers[0],row=Object.assign({},data);
   var id=String(row[idField]||newId_(idField));
   row[idField]=id;
   if(!row.CreatedAt) row.CreatedAt=new Date().toISOString();
@@ -1484,7 +1484,7 @@ function saveRow_(ss,sheetName,data){
 }
 function deleteRow_(ss,sheetName,id,idField){
   if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
-  var sheet=ss.getSheetByName(sheetName),field=idField||AGENT_BUSINESS.SHEETS[sheetName][0],rows=sheetRows_(sheet);
+  var sheet=ensureBusinessSheet_(ss,sheetName),field=idField||AGENT_BUSINESS.SHEETS[sheetName][0],rows=sheetRows_(sheet);
   var idx=rows.findIndex(function(r){return String(r[field])===id;});
   if(idx<0) throw new Error('Record not found.');
   sheet.deleteRow(idx+2);
