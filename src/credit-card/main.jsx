@@ -62,7 +62,8 @@ async function makeCardsPdf(cards){
    pdf.setFont('helvetica','bold');pdf.setFontSize(9);pdf.setTextColor(31,83,57);pdf.text(fmt(card.CreditLimit),190,y+9,{align:'right'});
    pdf.setFont('helvetica','normal');pdf.setFontSize(6.5);pdf.setTextColor(105,119,110);pdf.text('CREDIT LIMIT',190,y+14,{align:'right'});
    const rows=[
-    ['Card number','Card ending '+safe(card.Last4),'Expiry',safe(card.CardExpiry)],\n    ['CVV','Not stored','Available limit',fmt(card.AvailableLimit)],
+    ['Card number','Card ending '+safe(card.Last4),'Expiry',safe(card.CardExpiry)],
+    ['CVV','Not stored','Available limit',fmt(card.AvailableLimit)],
     ['Status',safe(card.Status),'Billing date',safe(card.BillingDate)],
     ['Due date',safe(card.DueDate),'Annual fee',fmt(card.AnnualFee)],
     ['FD amount',fmt(card.FD),'FD rate',safe(card.FDRate)],
