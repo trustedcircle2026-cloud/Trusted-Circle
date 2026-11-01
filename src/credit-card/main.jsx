@@ -1,5 +1,6 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {jsPDF} from 'jspdf';
+import ExcelJS from 'exceljs';
 import{createRoot}from'react-dom/client';
 import{agentBusinessApi}from'../agentBusinessApi';
 import{Home,ReceiptText,ScanLine,CreditCard,Menu,Plus,RefreshCw,LogOut,Eye,EyeOff,ShieldCheck,Wallet,CalendarDays,TrendingUp,ChevronRight,X,Landmark,Settings,AlertCircle,CheckCircle2,ArrowUpRight,FileUp,Download,FileDown,FileSpreadsheet,Upload,Check,LockKeyhole,Store,QrCode,Smartphone,ArrowLeft,Camera}from'lucide-react';
@@ -121,11 +122,68 @@ function App(){
     const rows=filtered.map(t=>[t.TransactionID,t.TransactionDate,t.Merchant,t.Bank,t.CardName,t.Amount,t.Category,t.ReferenceNumber,t.Status,t.Notes]);
     const logo=await trustedCircleLogoDataUrl();
     if(statementFormat==='Excel'){
-     const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-     const logoHtml=logo?'<img src="'+logo+'" width="76" height="76" style="width:76px;height:76px;object-fit:contain;vertical-align:middle;margin-right:16px">':'';
-     const html='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;color:#173f2d}h2{margin:0;font-size:22px;color:#145b3b}p{margin:8px 0 16px;color:#54705f}.brand{border-bottom:3px solid #23804f;padding:10px 0 16px;margin-bottom:16px}table{border-collapse:collapse;width:100%;font-size:11px}th{background:#e7f4eb;color:#194e33;text-align:left;padding:9px;border:1px solid #c9dfd0}td{padding:8px;border:1px solid #d8e4dc}tr:nth-child(even) td{background:#f7faf8}</style></head><body><div class="brand">'+logoHtml+'<span style="display:inline-block;vertical-align:middle"><h2>TRUSTED CIRCLE</h2><b>CREDIT CARD TRANSACTION STATEMENT</b></span></div><p>Period: '+esc(label)+' | Status: '+esc(statementStatus)+' | Records: '+filtered.length+'</p><table><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('')+'</table><p style="margin-top:18px;font-size:10px">Confidential personal financial statement · Generated '+esc(new Date().toLocaleString('en-IN'))+'</p></body></html>';
-     const blob=new Blob(['\uFEFF',html],{type:'application/vnd.ms-excel;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Trusted-Circle-Transactions.xls';a.click();URL.revokeObjectURL(url);
-    }else{
+      const workbook=new ExcelJS.Workbook();
+      workbook.creator='Trusted Circle';
+      workbook.subject='Credit Card Transaction Statement';
+      workbook.title='Trusted Circle - Credit Card Transaction Statement';
+      workbook.created=new Date();
+      const sheet=workbook.addWorksheet('Transactions',{
+       pageSetup:{paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:0.25,right:0.25,top:0.45,bottom:0.45,header:0.2,footer:0.2}},
+       views:[{state:'frozen',ySplit:7}]
+      });
+      sheet.columns=[
+       {key:'id',width:25},{key:'date',width:14},{key:'merchant',width:24},{key:'bank',width:19},
+       {key:'card',width:19},{key:'amount',width:16},{key:'category',width:16},{key:'reference',width:24},
+       {key:'status',width:16},{key:'notes',width:30}
+      ];
+      sheet.mergeCells('C1:J1');sheet.mergeCells('C2:J2');sheet.mergeCells('A5:J5');
+      sheet.getCell('C1').value='TRUSTED CIRCLE';
+      sheet.getCell('C1').font={name:'Arial',size:20,bold:true,color:{argb:'FF000000'}};
+      sheet.getCell('C2').value='CREDIT CARD TRANSACTION STATEMENT';
+      sheet.getCell('C2').font={name:'Arial',size:12,bold:true,color:{argb:'FF000000'}};
+      sheet.getCell('A5').value='Period: '+label+'   |   Status: '+statementStatus+'   |   Records: '+filtered.length;
+      sheet.getCell('A5').font={name:'Arial',size:10,bold:true,color:{argb:'FF000000'}};
+      sheet.getCell('A5').alignment={vertical:'middle'};
+      sheet.getRow(1).height=28;sheet.getRow(2).height=22;sheet.getRow(3).height=8;sheet.getRow(4).height=8;sheet.getRow(5).height=22;sheet.getRow(6).height=8;
+      const logoBase64=logo&&String(logo).includes(',')?String(logo).split(',')[1]:'';
+      if(logoBase64){
+       const mime=String(logo).slice(5,String(logo).indexOf(';')).toLowerCase();
+       const imageId=workbook.addImage({base64:logoBase64,extension:mime.includes('png')?'png':'jpeg'});
+       sheet.addImage(imageId,{tl:{col:0.08,row:0.12},br:{col:1.85,row:4.72},editAs:'oneCell'});
+      }
+      const headerRow=sheet.getRow(7);headerRow.values=headers;headerRow.height=26;
+      headerRow.eachCell(cell=>{
+       cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+       cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF000000'}};
+       cell.alignment={vertical:'middle',horizontal:'center',wrapText:true};
+       cell.border={top:{style:'thin',color:{argb:'FF000000'}},bottom:{style:'medium',color:{argb:'FF000000'}},left:{style:'thin',color:{argb:'FF000000'}},right:{style:'thin',color:{argb:'FF000000'}}};
+      });
+      rows.forEach((values,index)=>{
+       const row=sheet.addRow(values.map((value,i)=>i===5&&value!==''&&value!==null&&Number.isFinite(Number(value))?Number(value):String(value??'')));
+       row.height=22;
+       row.eachCell({includeEmpty:true},cell=>{
+        cell.font={name:'Arial',size:9,color:{argb:'FF000000'}};
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:index%2?'FFF2F2F2':'FFFFFFFF'}};
+        cell.alignment={vertical:'middle',wrapText:true,horizontal:cell.col===6?'right':'left'};
+        cell.border={top:{style:'thin',color:{argb:'FF000000'}},bottom:{style:'thin',color:{argb:'FF000000'}},left:{style:'thin',color:{argb:'FF000000'}},right:{style:'thin',color:{argb:'FF000000'}}};
+       });
+       row.getCell(6).numFmt='#,##0.00';
+      });
+      sheet.autoFilter={from:{row:7,column:1},to:{row:7+rows.length,column:headers.length}};
+      const footerRow=9+rows.length;sheet.mergeCells(footerRow,1,footerRow,10);
+      const footer=sheet.getCell(footerRow,1);
+      footer.value='CONFIDENTIAL PERSONAL FINANCIAL STATEMENT  |  Generated '+new Date().toLocaleString('en-IN');
+      footer.font={name:'Arial',size:8,italic:true,color:{argb:'FF000000'}};
+      footer.alignment={horizontal:'left'};
+      sheet.pageSetup.printArea='A1:J'+footerRow;
+      sheet.pageSetup.horizontalDpi=300;sheet.pageSetup.verticalDpi=300;
+      sheet.headerFooter.oddFooter='&LTrusted Circle - Confidential&CPage &P of &N';
+      const buffer=await workbook.xlsx.writeBuffer();
+      const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='Trusted-Circle-Transaction-Statement.xlsx';document.body.appendChild(a);a.click();a.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1500);
+     }else{
      const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
      if(logo)try{pdf.addImage(logo,'JPEG',14,8,19,19);}catch{}
      pdf.setTextColor(25,91,59);pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.text('TRUSTED CIRCLE',38,16);pdf.setFontSize(10);pdf.text('CREDIT CARD TRANSACTION STATEMENT',38,23);
