@@ -1,70 +1,77 @@
 import { TRADERS_API_URL } from './config'
 
-let bridgeFrame
-let bridgeReady
-let resolveBridge
-let rejectBridge
 let nextRequestId = 0
 const pending = new Map()
 
-function getBridge() {
-  if (bridgeReady) return bridgeReady
-  bridgeReady = new Promise((resolve, reject) => {
-    resolveBridge = resolve
-    rejectBridge = reject
-    const timer = window.setTimeout(() => {
-      reject(new Error('Traders backend bridge did not become ready. Deploy the latest Code.gs and Bridge.html as a NEW Apps Script version, and confirm Web App access is set correctly.'))
-    }, 15000)
-    const finish = frame => {
-      window.clearTimeout(timer)
-      resolve(frame)
-    }
-    if (!bridgeFrame) {
-      bridgeFrame = document.createElement('iframe')
-      bridgeFrame.title = 'Trusted Circle secure API bridge'
-      bridgeFrame.setAttribute('aria-hidden', 'true')
-      bridgeFrame.tabIndex = -1
-      bridgeFrame.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-10px;bottom:-10px;border:0'
-      bridgeFrame.addEventListener('error', () => {
-        window.clearTimeout(timer)
-        reject(new Error('Google Apps Script bridge could not be loaded. Check the Web App deployment URL and access permissions.'))
-      }, { once: true })
-      bridgeFrame.src = TRADERS_API_URL + (TRADERS_API_URL.includes('?') ? '&' : '?') + 'bridge=1'
-      document.body.appendChild(bridgeFrame)
-    }
-    // A load event alone is insufficient: Google may load a sign-in page or an old deployment.
-    // The HTML Service bridge explicitly announces readiness after its message handler is installed.
-    resolveBridge = () => finish(bridgeFrame)
-  })
-  return bridgeReady
+function makeNonce() {
+  const bytes = new Uint8Array(24)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 window.addEventListener('message', event => {
-  if (!bridgeFrame || event.source !== bridgeFrame.contentWindow) return
   const message = event.data
-  if (message?.type === 'tc-traders-bridge-ready') {
-    resolveBridge?.()
-    return
+  if (!message || message.type !== 'tc-traders-response' || typeof message.nonce !== 'string') return
+  const request = pending.get(message.nonce)
+  if (!request) return
+  window.clearTimeout(request.timer)
+  pending.delete(message.nonce)
+  request.cleanup()
+  if (!message.result?.ok) {
+    request.reject(new Error(message.result?.error?.message || 'The backend rejected this request.'))
+  } else {
+    request.resolve(message.result)
   }
-  if (!message || !message.id || !pending.has(message.id)) return
-  const { resolve, reject, timer } = pending.get(message.id)
-  window.clearTimeout(timer)
-  pending.delete(message.id)
-  if (message.error) reject(new Error(message.error))
-  else if (!message.result?.ok) reject(new Error(message.result?.error?.message || 'The backend rejected this request.'))
-  else resolve(message.result)
 })
 
 export async function tradersRequest(action, payload = {}, token = '') {
   if (!TRADERS_API_URL) throw new Error('Backend URL is not configured.')
-  const frame = await getBridge()
-  const id = 'tc_' + (++nextRequestId) + '_' + Date.now()
+  const nonce = makeNonce()
+  const requestId = ++nextRequestId
+  const frameName = 'tc_traders_post_' + requestId
+  const frame = document.createElement('iframe')
+  frame.name = frameName
+  frame.title = 'Trusted Circle backend response'
+  frame.setAttribute('aria-hidden', 'true')
+  frame.tabIndex = -1
+  frame.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-20px;bottom:-20px;border:0'
+  const form = document.createElement('form')
+  form.method = 'POST'
+  form.action = TRADERS_API_URL
+  form.target = frameName
+  form.acceptCharset = 'UTF-8'
+  form.style.display = 'none'
+  const fields = {
+    tc_nonce: nonce,
+    tc_payload: JSON.stringify({ action, ...payload, ...(token ? { token } : {}) })
+  }
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement('input')
+    input.type = 'hidden'
+    input.name = name
+    input.value = value
+    form.appendChild(input)
+  })
+  document.body.append(frame, form)
+
   return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      form.remove()
+      frame.remove()
+    }
     const timer = window.setTimeout(() => {
-      pending.delete(id)
-      reject(new Error('Apps Script bridge is ready but did not return data. Check spreadsheet Script Properties, run tradersSetupProduction(), and confirm the deployed Apps Script version.'))
+      pending.delete(nonce)
+      cleanup()
+      reject(new Error('No response received from Google Apps Script. Confirm that the latest Code.gs is deployed as a NEW Web App version, with Execute as Me and access enabled for your users.'))
     }, 30000)
-    pending.set(id, { resolve, reject, timer })
-    frame.contentWindow.postMessage({ id, input: { action, ...payload, ...(token ? { token } : {}) } }, '*')
+    pending.set(nonce, { resolve, reject, cleanup, timer })
+    try {
+      form.submit()
+    } catch (error) {
+      window.clearTimeout(timer)
+      pending.delete(nonce)
+      cleanup()
+      reject(new Error('Could not submit the request to Google Apps Script: ' + error.message))
+    }
   })
 }
