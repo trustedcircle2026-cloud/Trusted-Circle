@@ -18,7 +18,10 @@ function doPost(e){
     var result=tradersFail_(error.message||'Request failed.');
   }
   var message=JSON.stringify({type:'tc-traders-response',nonce:nonce,result:result}).replace(/</g,'\\u003c');
-  var html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>window.top.postMessage('+message+', "*");</scr'+'ipt></body></html>';
+  // Apps Script HTML Service can add a sandbox frame around this response.
+  // Notify both parent and top so the nonce response reaches the requesting app
+  // regardless of whether the browser exposes one or two iframe levels.
+  var html='<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"></head><body><script>(function(){var m='+message+';try{window.parent.postMessage(m,"*");}catch(e){}try{if(window.top!==window.parent)window.top.postMessage(m,"*");}catch(e){}})();</scr'+'ipt></body></html>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 function tradersHandle_(e,isPost){
