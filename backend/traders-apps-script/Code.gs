@@ -203,24 +203,25 @@ function tradersTradeBook_(userId,accountId){
 function tradersSaveTrade_(input){
   var user=tradersAuth_(input.token),d=input.trade||{},accountId=String(d.AccountID||'');
   tradersRequire_(tradersRows_(TRADERS_CONFIG.SHEETS.ACCOUNTS).some(function(a){return a.AccountID===accountId&&a.UserID===user.UserID&&a.Status==='ACTIVE';}),'Select a valid trading account.');
-  var qty=Number(d.Quantity),price=Number(d.Price),fees=Number(d.Fees||0),taxes=Number(d.Taxes||0),margin=Number(d.MarginAmount||0),mult=Number(d.ContractSize||1);
+  var qty=Number(d.Quantity),price=Number(d.Price),fees=Number(d.Fees||0),taxes=Number(d.Taxes||0),margin=Number(d.MarginAmount||0),mult=Number(d.ContractSize||1),fxRate=Number(d.FxRateToBase||0);
   var action=String(d.Action||'OPEN').toUpperCase(),side=String(d.PositionSide||(String(d.Side).toUpperCase()==='BUY'?'LONG':'SHORT')).toUpperCase(),orderSide=String(d.Side||'').toUpperCase();
   tradersRequire_(d.IdempotencyKey,'IdempotencyKey is required.');
   tradersRequire_(qty>0&&price>0&&isFinite(qty)&&isFinite(price),'Quantity and price must be positive numbers.');
-  tradersRequire_(mult>0&&isFinite(mult)&&margin>=0&&isFinite(margin),'Contract size and manual margin must be valid.');
+  tradersRequire_(mult>0&&isFinite(mult)&&margin>=0&&isFinite(margin)&&fxRate>0&&isFinite(fxRate),'Contract size, FX conversion rate and manual margin must be valid.');
   tradersRequire_(['BUY','SELL'].indexOf(orderSide)>=0,'Side must be BUY or SELL.');
   tradersRequire_(['OPEN','CLOSE'].indexOf(action)>=0&&['LONG','SHORT'].indexOf(side)>=0,'Invalid position action or direction.');
   tradersRequire_((action==='OPEN'&&((side==='LONG'&&orderSide==='BUY')||(side==='SHORT'&&orderSide==='SELL')))||(action==='CLOSE'&&((side==='LONG'&&orderSide==='SELL')||(side==='SHORT'&&orderSide==='BUY'))),'Order side does not match the selected position direction.');
   var sheet=TRADERS_CONFIG.SHEETS.TRADES;
   if(tradersRows_(sheet).some(function(t){return t.UserID===user.UserID&&t.IdempotencyKey===d.IdempotencyKey;}))return {duplicate:true,message:'This trade submission was already recorded.'};
   var book=tradersTradeBook_(user.UserID,accountId);
-  if(action==='OPEN')tradersRequire_(margin<=book.available+1e-8,'Insufficient available funds. Available: '+book.available.toFixed(2));
+  if(action==='OPEN')tradersRequire_(margin>0,'Enter a manual margin amount greater than zero.');
+  if(action==='OPEN')tradersRequire_(margin+(fees+taxes)*fxRate<=book.available+1e-8,'Insufficient available funds for manual margin and opening charges. Available: '+book.available.toFixed(2));
   if(action==='CLOSE'){
     var open=book.lots.filter(function(l){return l.side===side&&l.qty>1e-9&&l.key===[d.Market||'FOREX',String(d.Symbol||'').trim().toUpperCase(),String(d.Currency||'INR').toUpperCase(),side].join('|');}).reduce(function(total,l){return total+l.qty;},0);
     tradersRequire_(qty<=open+1e-9,'Closing quantity exceeds the open '+side.toLowerCase()+' position. Available to close: '+open);
   }
   var gross=qty*price*mult;
-  var row={TradeID:tradersId_('TRD'),UserID:user.UserID,AccountID:accountId,ExternalRef:String(d.ExternalRef||''),TradeDateTime:String(d.TradeDateTime||tradersIsoNow_()),Market:String(d.Market||'INDIAN_EQUITY'),Symbol:String(d.Symbol||'').trim().toUpperCase(),Segment:String(d.Segment||'CASH'),Side:orderSide,Quantity:qty,Price:price,GrossAmount:gross,Fees:fees,Taxes:taxes,NetCashFlow:-(fees+taxes),Currency:String(d.Currency||'INR').toUpperCase(),FxRateToBase:Number(d.FxRateToBase||1),Strategy:String(d.Strategy||''),Notes:String(d.Notes||''),Status:'POSTED',IdempotencyKey:String(d.IdempotencyKey),CreatedAt:tradersIsoNow_(),ReversalOf:String(d.ReversalOf||''),Action:action,PositionSide:side,MarginAmount:action==='OPEN'?margin:0,ContractSize:mult,RelatedTradeID:String(d.RelatedTradeID||''),RealisedPnl:0};
+  var row={TradeID:tradersId_('TRD'),UserID:user.UserID,AccountID:accountId,ExternalRef:String(d.ExternalRef||''),TradeDateTime:String(d.TradeDateTime||tradersIsoNow_()),Market:String(d.Market||'INDIAN_EQUITY'),Symbol:String(d.Symbol||'').trim().toUpperCase(),Segment:String(d.Segment||'CASH'),Side:orderSide,Quantity:qty,Price:price,GrossAmount:gross,Fees:fees,Taxes:taxes,NetCashFlow:-(fees+taxes),Currency:String(d.Currency||'INR').toUpperCase(),FxRateToBase:fxRate,Strategy:String(d.Strategy||''),Notes:String(d.Notes||''),Status:'POSTED',IdempotencyKey:String(d.IdempotencyKey),CreatedAt:tradersIsoNow_(),ReversalOf:String(d.ReversalOf||''),Action:action,PositionSide:side,MarginAmount:action==='OPEN'?margin:0,ContractSize:mult,RelatedTradeID:String(d.RelatedTradeID||''),RealisedPnl:0};
   tradersAppend_(sheet,row);
   var after=tradersTradeBook_(user.UserID,accountId);
   return {trade:row,positionSummary:{availableFunds:after.available,reservedMargin:after.reserved,realisedPnl:after.realised}};
