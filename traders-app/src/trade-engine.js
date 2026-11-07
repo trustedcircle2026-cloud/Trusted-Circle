@@ -32,13 +32,14 @@ export function buildTradeBook(rows=[]){
  const openPositions=lots.filter(l=>l.remaining>EPS).map(l=>({...l,positionId:l.trade.TradeID,quantity:l.remaining,marginReserved:l.margin}));
  const realised=history.filter(h=>h.Action==='CLOSE').reduce((s,h)=>s+Number(h.RealisedPnl||0),0);
  const reserved=openPositions.reduce((s,p)=>s+p.marginReserved,0);
- return {openPositions,history,realised,reserved};
+ const openFees=openPositions.reduce((s,p)=>s+Number(p.feesRemaining||0),0);
+ return {openPositions,history,realised,reserved,openFees};
 }
 export function getAvailableFunds(account,ledger,rows){
  const capital=Number(account?.InitialCapital||0);
  const cash=(ledger||[]).filter(x=>x.Status!=='VOID').reduce((s,x)=>s+Number(x.AmountBase??x.Amount??0),capital);
  const book=buildTradeBook(rows);
- return {cash,realised:book.realised,reserved:book.reserved,available:cash+book.realised-book.reserved,book};
+ return {cash,realised:book.realised,reserved:book.reserved,available:cash+book.realised-book.reserved-book.openFees,book};
 }
 export function positionPnl(position,markPrice){
  const diff=position.side==='LONG'?Number(markPrice)-position.entry:Number(position.entry)-Number(markPrice);
