@@ -18,6 +18,9 @@ function tradersHandle_(e,isPost){
 function tradersRoute_(action,input){
   switch(action){
     case 'health': return {service:TRADERS_CONFIG.APP_NAME,status:'ok',version:TRADERS_CONFIG.VERSION};
+    case 'register': return tradersRegister_(input);
+    case 'login': return tradersLogin_(input);
+    case 'logout': return tradersLogout_(input);
     case 'setup': return tradersSetupProduction_();
     case 'dashboard': return tradersDashboard_(input);
     case 'listTrades': return tradersListTrades_(input);
@@ -32,7 +35,7 @@ function tradersRoute_(action,input){
 function tradersHeaders_(){
   var s=TRADERS_CONFIG.SHEETS;
   var h={};
-  h[s.USERS]=['UserID','Email','DisplayName','Status','CreatedAt','UpdatedAt'];
+  h[s.USERS]=['UserID','Email','DisplayName','Status','CreatedAt','UpdatedAt','PasswordSalt','PasswordHash'];
   h[s.OTP]=['OtpID','Email','OtpHash','ExpiresAt','Attempts','CreatedAt','UsedAt','Status'];
   h[s.SESSIONS]=['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'];
   h[s.ACCOUNTS]=['AccountID','UserID','Name','Market','Broker','BaseCurrency','InitialCapital','Status','CreatedAt','UpdatedAt'];
@@ -52,6 +55,10 @@ function tradersSetupProduction_(){
   Object.keys(headers).forEach(function(name){
     var sh=ss.getSheetByName(name)||ss.insertSheet(name),head=headers[name];
     if(sh.getLastRow()===0)sh.getRange(1,1,1,head.length).setValues([head]);
+    else if(name===TRADERS_CONFIG.SHEETS.USERS){
+      var existing=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+      head.forEach(function(col){if(existing.indexOf(col)<0){sh.getRange(1,sh.getLastColumn()+1).setValue(col);existing.push(col);}});
+    }
     sh.setFrozenRows(1);
   });
   return {message:'Traders App data tables initialized.',spreadsheetId:ss.getId(),sheets:Object.keys(headers)};
@@ -84,6 +91,51 @@ function tradersAuth_(token){
   }
   throw new Error('Session is invalid or expired. Sign in again.');
 }
+
+function tradersPasswordHash_(password,salt){
+  var value=String(salt)+':'+String(password);
+  for(var i=0;i<12000;i++)value=tradersHash_(value);
+  return value;
+}
+function tradersFindUserByEmail_(email){
+  var normalized=String(email||'').trim().toLowerCase();
+  return tradersRows_(TRADERS_CONFIG.SHEETS.USERS).filter(function(u){return String(u.Email||'').toLowerCase()===normalized;})[0]||null;
+}
+function tradersCreateSession_(user){
+  var token=Utilities.getUuid()+'.'+Utilities.getUuid()+'.'+Utilities.getUuid();
+  var now=tradersNow_(),expires=new Date(now.getTime()+30*24*60*60*1000);
+  tradersAppend_(TRADERS_CONFIG.SHEETS.SESSIONS,{SessionID:tradersId_('SES'),UserID:user.UserID,TokenHash:tradersHash_(token),ExpiresAt:expires,CreatedAt:tradersIsoNow_(),RevokedAt:'',Status:'ACTIVE'});
+  return {token:token,user:{UserID:user.UserID,Email:user.Email,DisplayName:user.DisplayName},expiresAt:expires.toISOString()};
+}
+function tradersRegister_(input){
+  var email=String(input.email||'').trim().toLowerCase(),name=String(input.name||'').trim(),password=String(input.password||'');
+  tradersRequire_(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),'Enter a valid email address.');
+  tradersRequire_(name.length>=2&&name.length<=80,'Enter your name (2–80 characters).');
+  tradersRequire_(password.length>=10&&password.length<=128,'Password must contain at least 10 characters.');
+  var lock=LockService.getScriptLock();lock.waitLock(10000);
+  try{
+    tradersRequire_(!tradersFindUserByEmail_(email),'An account with this email already exists. Please sign in.');
+    var salt=Utilities.getUuid()+Utilities.getUuid();
+    var user={UserID:tradersId_('USR'),Email:email,DisplayName:name,Status:'ACTIVE',CreatedAt:tradersIsoNow_(),UpdatedAt:tradersIsoNow_(),PasswordSalt:salt,PasswordHash:tradersPasswordHash_(password,salt)};
+    tradersAppend_(TRADERS_CONFIG.SHEETS.USERS,user);
+    return tradersCreateSession_(user);
+  }finally{lock.releaseLock();}
+}
+function tradersLogin_(input){
+  var email=String(input.email||'').trim().toLowerCase(),password=String(input.password||'');
+  tradersRequire_(email&&password,'Enter your email and password.');
+  var user=tradersFindUserByEmail_(email);
+  tradersRequire_(user&&user.Status==='ACTIVE'&&user.PasswordSalt&&user.PasswordHash,'Email or password is incorrect.');
+  tradersRequire_(tradersPasswordHash_(password,user.PasswordSalt)===user.PasswordHash,'Email or password is incorrect.');
+  return tradersCreateSession_(user);
+}
+function tradersLogout_(input){
+  var user=tradersAuth_(input.token),hash=tradersHash_(input.token),sh=tradersSpreadsheet_().getSheetByName(TRADERS_CONFIG.SHEETS.SESSIONS);
+  var values=sh.getDataRange().getValues(),headers=values[0],tokenCol=headers.indexOf('TokenHash'),statusCol=headers.indexOf('Status'),revokedCol=headers.indexOf('RevokedAt'),userCol=headers.indexOf('UserID');
+  for(var i=1;i<values.length;i++)if(values[i][tokenCol]===hash&&values[i][userCol]===user.UserID){sh.getRange(i+1,statusCol+1).setValue('REVOKED');sh.getRange(i+1,revokedCol+1).setValue(tradersIsoNow_());}
+  return {message:'Signed out.'};
+}
+
 function tradersDashboard_(input){
   var user=tradersAuth_(input.token),id=user.UserID;
   var trades=tradersRows_(TRADERS_CONFIG.SHEETS.TRADES).filter(function(t){return t.UserID===id&&t.Status==='POSTED';});
