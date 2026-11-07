@@ -110,7 +110,7 @@ function tradersCreateSession_(user){
 }
 function tradersRegister_(input){
   var email=String(input.email||'').trim().toLowerCase(),name=String(input.name||'').trim(),password=String(input.password||'');
-  tradersRequire_(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),'Enter a valid email address.');
+  tradersRequire_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),'Enter a valid email address.');
   tradersRequire_(name.length>=2&&name.length<=80,'Enter your name (2–80 characters).');
   tradersRequire_(password.length>=10&&password.length<=128,'Password must contain at least 10 characters.');
   var lock=LockService.getScriptLock();lock.waitLock(10000);
