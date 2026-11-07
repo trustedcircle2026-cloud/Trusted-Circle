@@ -1,3 +1,4 @@
+function tradersSetupProduction(){return tradersSetupProduction_();}
 function doGet(e){return tradersHandle_(e,false);}
 function doPost(e){return tradersHandle_(e,true);}
 function tradersHandle_(e,isPost){
