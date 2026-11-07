@@ -16,7 +16,7 @@ function tradersHandle_(e,isPost){
     return tradersJson_(tradersFail_(error.message||'Request failed.'));
   }
 }
-function tradersBridgeRequest(input){try{input=input||{};var action=String(input.action||'health');return tradersOk_(tradersRoute_(action,input));}catch(error){console.error(error&&error.stack?error.stack:error);return tradersFail_(error.message||'Request failed.');}}
+function tradersBridgeRequest(input){try{input=input||{};var action=String(input.action||'health');return JSON.parse(JSON.stringify(tradersOk_(tradersRoute_(action,input))));}catch(error){console.error(error&&error.stack?error.stack:error);return tradersFail_(error.message||'Request failed.');}}
 function tradersRoute_(action,input){
   switch(action){
     case 'health': return {service:TRADERS_CONFIG.APP_NAME,status:'ok',version:TRADERS_CONFIG.VERSION};
