@@ -1,6 +1,26 @@
 function tradersSetupProduction(){return tradersSetupProduction_();}
 function doGet(e){if(e&&e.parameter&&e.parameter.bridge==='1')return HtmlService.createHtmlOutputFromFile('Bridge').setTitle('Trusted Circle API Bridge').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);return tradersHandle_(e,false);}
-function doPost(e){return tradersHandle_(e,true);}
+function doPost(e){
+  var input={},nonce='';
+  try{
+    var params=e&&e.parameter?e.parameter:{};
+    nonce=String(params.tc_nonce||'');
+    if(params.tc_payload){input=JSON.parse(String(params.tc_payload));}
+    else{
+      var body=e&&e.postData?String(e.postData.contents||''):'';
+      if(body){try{input=JSON.parse(body);}catch(ignore){input=params;}}
+      else input=params;
+    }
+    var action=String(input.action||'health');
+    var result=tradersOk_(tradersRoute_(action,input));
+  }catch(error){
+    console.error(error&&error.stack?error.stack:error);
+    var result=tradersFail_(error.message||'Request failed.');
+  }
+  var message=JSON.stringify({type:'tc-traders-response',nonce:nonce,result:result}).replace(/</g,'\\u003c');
+  var html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>window.top.postMessage('+message+', "*");<\\/script></body></html>';
+  return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
 function tradersHandle_(e,isPost){
   try{
     var input={};
