@@ -76,6 +76,7 @@ function tradersAppend_(name,row){
   var sh=tradersSpreadsheet_().getSheetByName(name);
   tradersRequire_(sh,'Run Traders App setup first.');
   var headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  Object.keys(row).forEach(function(key){if(headers.indexOf(key)<0){headers.push(key);sh.getRange(1,headers.length).setValue(key);}});
   sh.appendRow(headers.map(function(key){return row[key]===undefined?'':row[key];}));
 }
 function tradersAuth_(token){
