@@ -24,7 +24,7 @@ export function buildTradeBook(rows=[]){
    const exitFees=(Number(t.Fees||0)+Number(t.Taxes||0))*(take/qty)*Number(t.FxRateToBase||1);
    const net=gross-allocatedEntryFees-exitFees;
    pnl+=net;matched+=take;marginReleased+=allocatedMargin;
-   matches.push({openTradeId:lot.trade.TradeID,quantity:take,entryPrice:lot.entry,exitPrice:price,pnl:net});
+   matches.push({openTradeId:lot.trade.TradeID,quantity:take,entryPrice:lot.entry,exitPrice:price,mult:lot.mult,entryFx:lot.fx,exitFx:Number(t.FxRateToBase||1),pnl:net});
    lot.remaining-=take;lot.margin-=allocatedMargin;lot.feesRemaining-=allocatedEntryFees;remaining-=take;
   }
   history.push({...t,Action:'CLOSE',PositionSide:side,MatchedQuantity:matched,UnmatchedQuantity:remaining,RealisedPnl:pnl,Matches:matches,MarginReleased:marginReleased});
