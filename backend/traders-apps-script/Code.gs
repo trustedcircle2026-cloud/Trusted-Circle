@@ -18,7 +18,7 @@ function doPost(e){
     var result=tradersFail_(error.message||'Request failed.');
   }
   var message=JSON.stringify({type:'tc-traders-response',nonce:nonce,result:result}).replace(/</g,'\\u003c');
-  var html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>window.top.postMessage('+message+', "*");<\\/script></body></html>';
+  var html='<!doctype html><html><head><meta charset="utf-8"></head><body><script>window.top.postMessage('+message+', "*");</scr'+'ipt></body></html>';
   return HtmlService.createHtmlOutput(html).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 function tradersHandle_(e,isPost){
