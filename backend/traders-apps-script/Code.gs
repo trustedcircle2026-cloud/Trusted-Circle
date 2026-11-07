@@ -1,0 +1,144 @@
+function doGet(e){return tradersHandle_(e,false);}
+function doPost(e){return tradersHandle_(e,true);}
+function tradersHandle_(e,isPost){
+  try{
+    var input={};
+    if(isPost){
+      var body=e&&e.postData?String(e.postData.contents||''):'';
+      if(body){try{input=JSON.parse(body);}catch(ignore){input=e.parameter||{};}}
+      else input=e&&e.parameter?e.parameter:{};
+    }else input=e&&e.parameter?e.parameter:{};
+    var action=String(input.action||'health');
+    return tradersJson_(tradersOk_(tradersRoute_(action,input)));
+  }catch(error){
+    console.error(error&&error.stack?error.stack:error);
+    return tradersJson_(tradersFail_(error.message||'Request failed.'));
+  }
+}
+function tradersRoute_(action,input){
+  switch(action){
+    case 'health': return {service:TRADERS_CONFIG.APP_NAME,status:'ok',version:TRADERS_CONFIG.VERSION};
+    case 'setup': return tradersSetupProduction_();
+    case 'dashboard': return tradersDashboard_(input);
+    case 'listTrades': return tradersListTrades_(input);
+    case 'saveTrade': return tradersSaveTrade_(input);
+    case 'listLedger': return tradersListLedger_(input);
+    case 'saveLedgerEntry': return tradersSaveLedgerEntry_(input);
+    case 'listAccounts': return tradersListAccounts_(input);
+    case 'saveAccount': return tradersSaveAccount_(input);
+    default: throw new Error('Unknown Traders API action: '+action);
+  }
+}
+function tradersHeaders_(){
+  var s=TRADERS_CONFIG.SHEETS;
+  var h={};
+  h[s.USERS]=['UserID','Email','DisplayName','Status','CreatedAt','UpdatedAt'];
+  h[s.OTP]=['OtpID','Email','OtpHash','ExpiresAt','Attempts','CreatedAt','UsedAt','Status'];
+  h[s.SESSIONS]=['SessionID','UserID','TokenHash','ExpiresAt','CreatedAt','RevokedAt','Status'];
+  h[s.ACCOUNTS]=['AccountID','UserID','Name','Market','Broker','BaseCurrency','InitialCapital','Status','CreatedAt','UpdatedAt'];
+  h[s.INSTRUMENTS]=['InstrumentID','UserID','Market','Symbol','Exchange','Segment','QuoteCurrency','LotSize','TickSize','Active','CreatedAt'];
+  h[s.TRADES]=['TradeID','UserID','AccountID','ExternalRef','TradeDateTime','Market','Symbol','Segment','Side','Quantity','Price','GrossAmount','Fees','Taxes','NetCashFlow','Currency','FxRateToBase','Strategy','Notes','Status','IdempotencyKey','CreatedAt','ReversalOf'];
+  h[s.LOTS]=['LotID','UserID','AccountID','TradeID','Market','Symbol','Side','OpenQuantity','EntryPrice','EntryDateTime','Currency','FxRateToBase','Status'];
+  h[s.CASH]=['LedgerID','UserID','AccountID','EntryDate','EntryType','Description','Reference','Amount','Currency','FxRateToBase','AmountBase','Status','IdempotencyKey','CreatedAt'];
+  h[s.PRICES]=['PriceID','UserID','Market','Symbol','Price','Currency','AsOf','Source','CreatedAt'];
+  h[s.FX]=['FxRateID','UserID','FromCurrency','ToCurrency','Rate','AsOf','Source','CreatedAt'];
+  h[s.IMPORTS]=['ImportID','UserID','AccountID','FileName','RowsRead','RowsImported','RowsRejected','Summary','CreatedAt'];
+  h[s.AUDIT]=['AuditID','UserID','Action','Entity','EntityID','Metadata','CreatedAt'];
+  h[s.SETTINGS]=['UserID','Key','Value','UpdatedAt'];
+  return h;
+}
+function tradersSetupProduction_(){
+  var ss=tradersSpreadsheet_(),headers=tradersHeaders_();
+  Object.keys(headers).forEach(function(name){
+    var sh=ss.getSheetByName(name)||ss.insertSheet(name),head=headers[name];
+    if(sh.getLastRow()===0)sh.getRange(1,1,1,head.length).setValues([head]);
+    sh.setFrozenRows(1);
+  });
+  return {message:'Traders App data tables initialized.',spreadsheetId:ss.getId(),sheets:Object.keys(headers)};
+}
+function tradersRows_(name){
+  var sh=tradersSpreadsheet_().getSheetByName(name);
+  tradersRequire_(sh,'Run Traders App setup first.');
+  if(sh.getLastRow()<2)return [];
+  var values=sh.getDataRange().getValues(),headers=values.shift();
+  return values.filter(function(row){return row.some(function(v){return v!=='';});}).map(function(row){
+    var out={};headers.forEach(function(key,index){out[key]=row[index];});return out;
+  });
+}
+function tradersAppend_(name,row){
+  var sh=tradersSpreadsheet_().getSheetByName(name);
+  tradersRequire_(sh,'Run Traders App setup first.');
+  var headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  sh.appendRow(headers.map(function(key){return row[key]===undefined?'':row[key];}));
+}
+function tradersAuth_(token){
+  tradersRequire_(token,'Authentication token is required.');
+  var hash=tradersHash_(token),rows=tradersRows_(TRADERS_CONFIG.SHEETS.SESSIONS);
+  var now=Date.now();
+  for(var i=0;i<rows.length;i++){
+    if(rows[i].TokenHash===hash&&rows[i].Status==='ACTIVE'&&new Date(rows[i].ExpiresAt).getTime()>now){
+      var user=tradersRows_(TRADERS_CONFIG.SHEETS.USERS).filter(function(u){return u.UserID===rows[i].UserID&&u.Status==='ACTIVE';})[0];
+      tradersRequire_(user,'User account is unavailable.');
+      return user;
+    }
+  }
+  throw new Error('Session is invalid or expired. Sign in again.');
+}
+function tradersDashboard_(input){
+  var user=tradersAuth_(input.token),id=user.UserID;
+  var trades=tradersRows_(TRADERS_CONFIG.SHEETS.TRADES).filter(function(t){return t.UserID===id&&t.Status==='POSTED';});
+  var ledger=tradersRows_(TRADERS_CONFIG.SHEETS.CASH).filter(function(x){return x.UserID===id&&x.Status==='POSTED';});
+  var deposits=0,withdrawals=0,fees=0,tradeCount=trades.length;
+  ledger.forEach(function(x){var amount=Number(x.AmountBase||0);if(amount>0)deposits+=amount;else withdrawals+=Math.abs(amount);});
+  trades.forEach(function(t){fees+=Number(t.Fees||0)+Number(t.Taxes||0);});
+  return {summary:{tradeCount:tradeCount,deposits:deposits,withdrawals:withdrawals,recordedFees:fees,realisedPnl:0,unrealisedPnl:null,netReturnPct:null,returnStatus:'PENDING_LEDGER_AND_LOT_ENGINE'},recentTrades:trades.slice(-10).reverse()};
+}
+function tradersListTrades_(input){
+  var user=tradersAuth_(input.token);
+  return {items:tradersRows_(TRADERS_CONFIG.SHEETS.TRADES).filter(function(t){return t.UserID===user.UserID;}).reverse()};
+}
+function tradersSaveTrade_(input){
+  var user=tradersAuth_(input.token),d=input.trade||{};
+  var accountId=String(d.AccountID||'');
+  tradersRequire_(tradersRows_(TRADERS_CONFIG.SHEETS.ACCOUNTS).some(function(a){return a.AccountID===accountId&&a.UserID===user.UserID&&a.Status==='ACTIVE';}),'Select a valid trading account.');
+  var qty=Number(d.Quantity),price=Number(d.Price),fees=Number(d.Fees||0),taxes=Number(d.Taxes||0);
+  tradersRequire_(d.IdempotencyKey,'IdempotencyKey is required.');
+  tradersRequire_(qty>0&&price>0&&isFinite(qty)&&isFinite(price),'Quantity and price must be positive numbers.');
+  tradersRequire_(['BUY','SELL'].indexOf(String(d.Side||'').toUpperCase())>=0,'Side must be BUY or SELL.');
+  var sheet=TRADERS_CONFIG.SHEETS.TRADES;
+  var duplicate=tradersRows_(sheet).some(function(t){return t.UserID===user.UserID&&t.IdempotencyKey===d.IdempotencyKey;});
+  if(duplicate)return {duplicate:true,message:'This trade submission was already recorded.'};
+  var gross=qty*price;
+  var row={TradeID:tradersId_('TRD'),UserID:user.UserID,AccountID:accountId,ExternalRef:String(d.ExternalRef||''),TradeDateTime:String(d.TradeDateTime||tradersIsoNow_()),Market:String(d.Market||'INDIAN_EQUITY'),Symbol:String(d.Symbol||'').trim().toUpperCase(),Segment:String(d.Segment||'CASH'),Side:String(d.Side).toUpperCase(),Quantity:qty,Price:price,GrossAmount:gross,Fees:fees,Taxes:taxes,NetCashFlow:(String(d.Side).toUpperCase()==='BUY'?-gross:gross)-fees-taxes,Currency:String(d.Currency||'INR').toUpperCase(),FxRateToBase:Number(d.FxRateToBase||1),Strategy:String(d.Strategy||''),Notes:String(d.Notes||''),Status:'POSTED',IdempotencyKey:String(d.IdempotencyKey),CreatedAt:tradersIsoNow_(),ReversalOf:String(d.ReversalOf||'')};
+  tradersAppend_(sheet,row);
+  return {trade:row};
+}
+function tradersListLedger_(input){
+  var user=tradersAuth_(input.token);
+  return {items:tradersRows_(TRADERS_CONFIG.SHEETS.CASH).filter(function(x){return x.UserID===user.UserID;}).reverse()};
+}
+function tradersSaveLedgerEntry_(input){
+  var user=tradersAuth_(input.token),d=input.entry||{},accountId=String(d.AccountID||'');
+  tradersRequire_(tradersRows_(TRADERS_CONFIG.SHEETS.ACCOUNTS).some(function(a){return a.AccountID===accountId&&a.UserID===user.UserID&&a.Status==='ACTIVE';}),'Select a valid trading account.');
+  var amount=Number(d.Amount);
+  tradersRequire_(isFinite(amount)&&amount!==0,'Ledger amount must be a non-zero number.');
+  tradersRequire_(d.IdempotencyKey,'IdempotencyKey is required.');
+  var sheet=TRADERS_CONFIG.SHEETS.CASH;
+  if(tradersRows_(sheet).some(function(x){return x.UserID===user.UserID&&x.IdempotencyKey===d.IdempotencyKey;}))return {duplicate:true};
+  var rate=Number(d.FxRateToBase||1),currency=String(d.Currency||'INR').toUpperCase();
+  tradersRequire_(rate>0&&isFinite(rate),'FX conversion rate must be positive.');
+  var row={LedgerID:tradersId_('LED'),UserID:user.UserID,AccountID:accountId,EntryDate:String(d.EntryDate||tradersIsoNow_().slice(0,10)),EntryType:String(d.EntryType||'ADJUSTMENT'),Description:String(d.Description||''),Reference:String(d.Reference||''),Amount:amount,Currency:currency,FxRateToBase:rate,AmountBase:amount*rate,Status:'POSTED',IdempotencyKey:String(d.IdempotencyKey),CreatedAt:tradersIsoNow_()};
+  tradersAppend_(sheet,row);return {entry:row};
+}
+function tradersListAccounts_(input){
+  var user=tradersAuth_(input.token);
+  return {items:tradersRows_(TRADERS_CONFIG.SHEETS.ACCOUNTS).filter(function(a){return a.UserID===user.UserID;})};
+}
+function tradersSaveAccount_(input){
+  var user=tradersAuth_(input.token),d=input.account||{};
+  tradersRequire_(String(d.Name||'').trim(),'Account name is required.');
+  var currency=String(d.BaseCurrency||'INR').toUpperCase();
+  tradersRequire_(/^[A-Z]{3}$/.test(currency),'Base currency must be a three-letter currency code.');
+  var row={AccountID:tradersId_('ACC'),UserID:user.UserID,Name:String(d.Name).trim(),Market:String(d.Market||'MULTI_MARKET'),Broker:String(d.Broker||''),BaseCurrency:currency,InitialCapital:Number(d.InitialCapital||0),Status:'ACTIVE',CreatedAt:tradersIsoNow_(),UpdatedAt:tradersIsoNow_()};
+  tradersAppend_(TRADERS_CONFIG.SHEETS.ACCOUNTS,row);return {account:row};
+}
