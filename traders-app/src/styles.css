@@ -17,3 +17,51 @@
 @media(prefers-reduced-motion:reduce){.button-loading-logo,.loading-dots i{animation:none}}
 
 .report-note{margin:0;padding:11px 12px;border:1px solid #e0ebe3;border-radius:9px;background:#f6faf7;color:#6d7e72;font-size:10px;line-height:1.6}.quick-actions{flex-wrap:wrap}.quick-actions button{white-space:nowrap}.quick-actions button.secondary:first-child{background:#edf7f0;color:#176d43;border-color:#d7e9dd}.modal-panel .entry-form>label select:disabled{opacity:.7;background:#f4f7f5}@media(max-width:760px){.quick-actions{display:grid;grid-template-columns:1fr 1fr;min-width:132px}.quick-actions button:first-child{grid-column:1/-1}.quick-actions button{white-space:nowrap}.report-note{font-size:10px}}
+
+
+/* Separate Home and Trade workspaces */
+.primary-page-nav{display:flex;gap:8px;margin:0 0 20px;padding:5px;background:#edf4ef;border:1px solid #dce9df;border-radius:13px;width:max-content}
+.primary-page-nav button{display:flex;align-items:center;gap:8px;padding:10px 22px;border:0;border-radius:9px;background:transparent;color:#617268;font-weight:750;cursor:pointer}
+.primary-page-nav button.active{background:#176d43;color:#fff;box-shadow:0 4px 12px #176d4326}
+.home-page.hidden{display:none}
+.trade-workspace{display:grid;gap:18px}
+.trade-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:6px 0 4px}
+.trade-page-head h2{margin:8px 0 5px;font-size:clamp(25px,4vw,36px);letter-spacing:-.04em;color:#14271e}
+.trade-page-head p{margin:0;color:#728278;font-size:13px}
+.trade-funds{min-width:230px;padding:16px 19px;border:1px solid #dce9df;border-radius:14px;background:#fff;display:grid;gap:5px}
+.trade-funds small,.trade-funds span{font-size:10px;color:#728278}
+.trade-funds small{font-weight:800;letter-spacing:.12em}
+.trade-funds strong{font-size:23px;color:#176d43}
+.trade-subnav{display:flex;gap:8px;overflow:auto;border-bottom:1px solid #dce7df;padding-bottom:10px}
+.trade-subnav button{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:11px 15px;border:1px solid transparent;border-radius:10px;background:transparent;color:#6d7d73;font-size:12px;font-weight:750;cursor:pointer}
+.trade-subnav button.active{color:#176d43;background:#edf7f0;border-color:#d6eadc}
+.trade-subnav em{font-style:normal;display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:20px;background:#d9efe0;color:#176d43;font-size:10px}
+.trade-entry-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(230px,.8fr);gap:16px;align-items:start}
+.trade-entry-card{display:grid;gap:16px}
+.direction-switch{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.direction-switch button{display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border:1px solid #dce8df;border-radius:11px;background:#fff;color:#65766b;font-weight:800;cursor:pointer}
+.direction-switch button.buy-selected{background:#eaf7ef;border-color:#8dc8a3;color:#087c45}
+.direction-switch button.sell-selected{background:#fff0ed;border-color:#e7a59a;color:#c3483b}
+.trade-funds-check{display:grid;grid-template-columns:1fr auto;gap:5px;padding:13px 15px;border:1px solid #dce9df;border-radius:11px;background:#f5faf6}
+.trade-funds-check span{font-size:11px;color:#6f8075}
+.trade-funds-check strong{font-size:14px;color:#176d43}
+.trade-funds-check small{grid-column:1/-1;color:#829087;font-size:10px}
+.trade-rules{padding:20px}
+.trade-rules h3{margin:0 0 12px;font-size:16px}
+.trade-rules ul{padding-left:18px;margin:0;display:grid;gap:11px;color:#5f7166;font-size:12px;line-height:1.55}
+.trade-rules p{margin:18px 0 0;padding-top:13px;border-top:1px solid #e6eee8;color:#829087;font-size:10px;line-height:1.6}
+.position-list{display:grid}
+.position-row{display:grid;grid-template-columns:1.3fr .65fr .7fr .9fr 1.7fr;gap:13px;align-items:center;padding:16px 0;border-top:1px solid #edf1ee}
+.position-main{display:grid;gap:5px}
+.position-main>b{font-size:14px;color:#1a2a21}
+.position-main>small,.position-row>div>small{font-size:10px;color:#829087}
+.position-row>div:not(.position-main):not(.position-close){display:grid;gap:5px}
+.position-row>div>b{font-size:12px;color:#23372b}
+.position-badge{width:max-content;padding:4px 8px;border-radius:20px;font-size:9px;font-weight:850;letter-spacing:.06em}
+.position-badge.long{background:#e8f7ee;color:#0c8248}
+.position-badge.short{background:#fff0ed;color:#c3483b}
+.position-close{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+.position-close input{min-width:0;width:100%;padding:9px 8px;border:1px solid #dce7df;border-radius:8px;font-size:11px}
+.position-close button{padding:9px 10px;border:0;border-radius:8px;background:#176d43;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer}
+@media(max-width:900px){.trade-entry-layout{grid-template-columns:1fr}.position-row{grid-template-columns:1fr 1fr;gap:12px}.position-close{grid-column:1/-1}.trade-rules{display:none}}
+@media(max-width:600px){.primary-page-nav{width:100%;display:grid;grid-template-columns:1fr 1fr}.primary-page-nav button{justify-content:center}.trade-page-head{align-items:stretch;flex-direction:column}.trade-funds{min-width:0}.trade-subnav{gap:3px}.trade-subnav button{padding:10px 11px;font-size:11px}.position-row{grid-template-columns:1fr 1fr}.position-main{grid-column:1/-1}.position-close{grid-template-columns:1fr 1fr}.position-close button{grid-column:1/-1}.trade-entry-card{padding:14px}.direction-switch button{font-size:11px;padding:11px 6px}}
