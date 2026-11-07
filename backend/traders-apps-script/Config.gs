@@ -1,7 +1,7 @@
 /** Trusted Circle Traders App backend configuration. */
 var TRADERS_CONFIG = Object.freeze({
   APP_NAME: 'Trusted Circle Traders App',
-  VERSION: '0.1.0',
+  VERSION: '0.2.0',
   TIMEZONE: 'Asia/Kolkata',
   SPREADSHEET_PROPERTY: 'TRADERS_SPREADSHEET_ID',
   OTP_TTL_SECONDS: 600,

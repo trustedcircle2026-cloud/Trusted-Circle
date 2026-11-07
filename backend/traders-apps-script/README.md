@@ -11,6 +11,11 @@ Run `tradersSetupProduction()` once, authorize the script, then deploy a new Web
 
 For a production deployment, implement OTP issuing/verification and account creation before opening access to end users. The initial API in this milestone has the authenticated data handlers, but does not yet provide a public registration/login flow. Do not expose a live deployment until that is completed and reviewed.
 
+## Authentication and local-first behaviour
+- `register` and `login` accept email/password; registration also accepts display name. Passwords are salted and iteratively SHA-256 hashed on the server; plaintext passwords are never written to Sheets or browser storage.
+- Sessions are random opaque tokens, stored hashed in the Sessions sheet and returned to the browser. The browser persists the session token for remembered sign-in; users can sign out to revoke it.
+- Frontend caches records in Chrome localStorage and queues writes for background sync when online. This is browser/device-local caching, not a replacement for server-side backups or multi-device sync.
+
 ## API actions currently implemented
 - `health`
 - `setup`
