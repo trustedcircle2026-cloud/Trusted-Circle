@@ -14,5 +14,8 @@
       window.parent.postMessage({ id: message.id, error: error && error.message ? error.message : 'Apps Script request failed.' }, event.origin);
     }).tradersBridgeRequest(message.input);
   });
+  var parentOrigin = '*';
+  try { var referrerOrigin = new URL(document.referrer).origin; if (allowedOrigins.indexOf(referrerOrigin) !== -1) parentOrigin = referrerOrigin; } catch (ignore) {}
+  window.parent.postMessage({ type: 'tc-traders-bridge-ready' }, parentOrigin);
 })();
 </script></body></html>
