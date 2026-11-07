@@ -179,7 +179,8 @@ function tradersTradeBook_(userId,accountId){
   var rows=tradersRows_(TRADERS_CONFIG.SHEETS.TRADES).filter(function(t){return t.UserID===userId&&t.AccountID===accountId&&t.Status==='POSTED';}).sort(function(a,b){return new Date(a.TradeDateTime)-new Date(b.TradeDateTime);});
   var lots=[],realised=0,reserved=0,openFees=0;
   rows.forEach(function(t){
-    var qty=Number(t.Quantity||0),price=Number(t.Price||0),fees=Number(t.Fees||0)+Number(t.Taxes||0),action=String(t.Action||'OPEN'),side=String(t.PositionSide||(t.Side==='BUY'?'LONG':'SHORT'));
+    var qty=Number(t.Quantity||0),price=Number(t.Price||0),fees=Number(t.Fees||0)+Number(t.Taxes||0),action=String(t.Action||''),side=String(t.PositionSide||'');
+    if(!action){var longKey=[t.Market,t.Symbol,t.Currency||'INR','LONG'].join('|'),shortKey=[t.Market,t.Symbol,t.Currency||'INR','SHORT'].join('|');var hasLong=lots.some(function(l){return l.key===longKey&&l.qty>1e-9}),hasShort=lots.some(function(l){return l.key===shortKey&&l.qty>1e-9});if(t.Side==='SELL'&&hasLong){action='CLOSE';side='LONG';}else if(t.Side==='BUY'&&hasShort){action='CLOSE';side='SHORT';}else{action='OPEN';side=t.Side==='BUY'?'LONG':'SHORT';}}
     var key=[t.Market,t.Symbol,t.Currency||'INR',side].join('|');
     if(action==='OPEN'){
       lots.push({key:key,side:side,qty:qty,entry:price,mult:Number(t.ContractSize||1),fx:Number(t.FxRateToBase||1),margin:Number(t.MarginAmount||0),fees:fees*Number(t.FxRateToBase||1)});
