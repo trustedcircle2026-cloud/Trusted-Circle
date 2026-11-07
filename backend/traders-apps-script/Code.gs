@@ -184,7 +184,7 @@ function tradersTradeBook_(userId,accountId){
     var key=[t.Market,t.Symbol,t.Currency||'INR',side].join('|');
     if(action==='OPEN'){
       lots.push({key:key,side:side,qty:qty,entry:price,mult:Number(t.ContractSize||1),fx:Number(t.FxRateToBase||1),margin:Number(t.MarginAmount||0),fees:fees*Number(t.FxRateToBase||1)});
-      reserved+=Number(t.MarginAmount||0);openFees+=fees;return;
+      reserved+=Number(t.MarginAmount||0);openFees+=fees*Number(t.FxRateToBase||1);return;
     }
     var remaining=qty;
     for(var i=0;i<lots.length&&remaining>1e-9;i++){
