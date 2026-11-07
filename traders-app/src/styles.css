@@ -60,7 +60,7 @@
 .position-badge{width:max-content;padding:4px 8px;border-radius:20px;font-size:9px;font-weight:850;letter-spacing:.06em}
 .position-badge.long{background:#e8f7ee;color:#0c8248}
 .position-badge.short{background:#fff0ed;color:#c3483b}
-.position-close{display:grid;grid-template-columns:1fr 1fr auto;gap:6px}
+.position-close{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px}
 .position-close input{min-width:0;width:100%;padding:9px 8px;border:1px solid #dce7df;border-radius:8px;font-size:11px}
 .position-close button{padding:9px 10px;border:0;border-radius:8px;background:#176d43;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer}
 @media(max-width:900px){.trade-entry-layout{grid-template-columns:1fr}.position-row{grid-template-columns:1fr 1fr;gap:12px}.position-close{grid-column:1/-1}.trade-rules{display:none}}
