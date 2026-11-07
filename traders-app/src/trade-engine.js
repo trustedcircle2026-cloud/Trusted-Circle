@@ -4,12 +4,12 @@ export function buildTradeBook(rows=[]){
  const ordered=[...rows].filter(t=>t.Status!=='VOID').sort((a,b)=>new Date(a.TradeDateTime)-new Date(b.TradeDateTime)||String(a.TradeID).localeCompare(String(b.TradeID)));
  const lots=[],history=[];
  for(const t of ordered){
-  const qty=Number(t.Quantity||0),price=Number(t.Price||0),mult=Number(t.ContractSize||1),fees=Number(t.Fees||0)+Number(t.Taxes||0);
+  const qty=Number(t.Quantity||0),price=Number(t.Price||0),mult=Number(t.ContractSize||1),fx=Number(t.FxRateToBase||1),fees=(Number(t.Fees||0)+Number(t.Taxes||0))*fx;
   if(!(qty>0&&price>0))continue;
   let action=t.Action,side=t.PositionSide;
   if(!action){side=side||(t.Side==='BUY'?'LONG':'SHORT');action='OPEN';}
   if(action==='OPEN'){
-   lots.push({key:keyOf({...t,PositionSide:side}),trade:t,side,remaining:qty,entry:price,mult,margin:Number(t.MarginAmount||0),feesRemaining:fees});
+   lots.push({key:keyOf({...t,PositionSide:side}),trade:t,side,remaining:qty,entry:price,mult,fx,margin:Number(t.MarginAmount||0),feesRemaining:fees});
    history.push({...t,Action:'OPEN',PositionSide:side,RealisedPnl:0});
    continue;
   }
@@ -20,8 +20,8 @@ export function buildTradeBook(rows=[]){
    const lot=lots[i];if(lot.key!==key||lot.remaining<=EPS)continue;
    const take=Math.min(remaining,lot.remaining),ratio=take/lot.remaining;
    const allocatedEntryFees=lot.feesRemaining*ratio,allocatedMargin=lot.margin*ratio;
-   const gross=(side==='LONG'?(price-lot.entry):(lot.entry-price))*take*lot.mult;
-   const exitFees=fees*(take/qty);
+   const gross=(side==='LONG'?(price-lot.entry):(lot.entry-price))*take*lot.mult*Number(t.FxRateToBase||1);
+   const exitFees=(Number(t.Fees||0)+Number(t.Taxes||0))*(take/qty)*Number(t.FxRateToBase||1);
    const net=gross-allocatedEntryFees-exitFees;
    pnl+=net;matched+=take;marginReleased+=allocatedMargin;
    matches.push({openTradeId:lot.trade.TradeID,quantity:take,entryPrice:lot.entry,exitPrice:price,pnl:net});
