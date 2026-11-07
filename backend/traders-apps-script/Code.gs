@@ -182,14 +182,14 @@ function tradersTradeBook_(userId,accountId){
     var qty=Number(t.Quantity||0),price=Number(t.Price||0),fees=Number(t.Fees||0)+Number(t.Taxes||0),action=String(t.Action||'OPEN'),side=String(t.PositionSide||(t.Side==='BUY'?'LONG':'SHORT'));
     var key=[t.Market,t.Symbol,t.Currency||'INR',side].join('|');
     if(action==='OPEN'){
-      lots.push({key:key,side:side,qty:qty,entry:price,mult:Number(t.ContractSize||1),margin:Number(t.MarginAmount||0),fees:fees});
+      lots.push({key:key,side:side,qty:qty,entry:price,mult:Number(t.ContractSize||1),fx:Number(t.FxRateToBase||1),margin:Number(t.MarginAmount||0),fees:fees*Number(t.FxRateToBase||1)});
       reserved+=Number(t.MarginAmount||0);openFees+=fees;return;
     }
     var remaining=qty;
     for(var i=0;i<lots.length&&remaining>1e-9;i++){
       var lot=lots[i];if(lot.key!==key||lot.qty<=1e-9)continue;
       var take=Math.min(remaining,lot.qty),ratio=take/lot.qty,entryFee=lot.fees*ratio,marginPart=lot.margin*ratio;
-      var pnl=(side==='LONG'?(price-lot.entry):(lot.entry-price))*take*lot.mult-entryFee-fees*(take/qty);
+      var pnl=(side==='LONG'?(price-lot.entry):(lot.entry-price))*take*lot.mult*Number(t.FxRateToBase||1)-entryFee-fees*(take/qty)*Number(t.FxRateToBase||1);
       realised+=pnl;reserved-=marginPart;openFees-=entryFee;lot.qty-=take;lot.margin-=marginPart;lot.fees-=entryFee;remaining-=take;
     }
   });
