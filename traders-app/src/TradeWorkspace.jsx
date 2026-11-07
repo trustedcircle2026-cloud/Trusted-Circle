@@ -5,7 +5,7 @@ const fmt=(n,c='INR')=>new Intl.NumberFormat('en-IN',{style:'currency',currency:
 const dateFmt=v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 export default function TradeWorkspace({account,trades,ledger,onSave,money=fmt,dateText=dateFmt,onError=()=>{}}){
  const [section,setSection]=useState('trade'),[direction,setDirection]=useState('LONG');
- const [form,setForm]=useState({Market:'FOREX',Symbol:'XAUUSD',Quantity:'0.10',Price:'',ContractSize:'100',MarginAmount:'',Currency:'USD',Fees:'0',Taxes:'0'});
+ const [form,setForm]=useState({Market:'FOREX',Symbol:'XAUUSD',Quantity:'0.10',Price:'',ContractSize:'100',MarginAmount:'',Currency:'USD',FxRateToBase:'1',Fees:'0',Taxes:'0'});
  const [closeInputs,setCloseInputs]=useState({});
  const [busy,setBusy]=useState(false);
  const stats=useMemo(()=>getAvailableFunds(account,ledger,trades),[account,ledger,trades]);
@@ -15,10 +15,10 @@ export default function TradeWorkspace({account,trades,ledger,onSave,money=fmt,d
   e.preventDefault();
   if(!account){onError('Create or select a trading account first.');return}
   const quantity=Number(form.Quantity),price=Number(form.Price),margin=Number(form.MarginAmount),contract=Number(form.ContractSize||1);
-  if(!form.Symbol.trim()||!(quantity>0)||!(price>0)||!(contract>0)||!(margin>=0)){onError('Enter a valid instrument, quantity, execution price, contract size and manual margin.');return}
+  if(!form.Symbol.trim()||!(quantity>0)||!(price>0)||!(contract>0)||!(margin>=0)||!(Number(form.FxRateToBase)>0)){onError('Enter a valid instrument, quantity, execution price, contract size and manual margin.');return}
   if(margin>stats.available){onError('Insufficient available funds. Required margin: '+fmt(margin,currency)+'. Available: '+fmt(stats.available,currency)+'.');return}
   setBusy(true);
-  onSave({Market:form.Market,Segment:form.Market==='FOREX'?'FX':'CASH',Symbol:form.Symbol.trim().toUpperCase(),Side:direction==='LONG'?'BUY':'SELL',PositionSide:direction,Action:'OPEN',Quantity:quantity,Price:price,ContractSize:contract,MarginAmount:margin,Currency:form.Currency||currency,Fees:Number(form.Fees||0),Taxes:Number(form.Taxes||0),TradeDateTime:new Date().toISOString(),FxRateToBase:1},()=>setBusy(false));
+  onSave({Market:form.Market,Segment:form.Market==='FOREX'?'FX':'CASH',Symbol:form.Symbol.trim().toUpperCase(),Side:direction==='LONG'?'BUY':'SELL',PositionSide:direction,Action:'OPEN',Quantity:quantity,Price:price,ContractSize:contract,MarginAmount:margin,Currency:form.Currency||currency,FxRateToBase:Number(form.FxRateToBase||1),Fees:Number(form.Fees||0),Taxes:Number(form.Taxes||0),TradeDateTime:new Date().toISOString(),FxRateToBase:1},()=>setBusy(false));
   setBusy(false);setForm(v=>({...v,Price:'',MarginAmount:'',Fees:'0',Taxes:'0'}));
  };
  const close=(p)=>{
@@ -35,10 +35,10 @@ export default function TradeWorkspace({account,trades,ledger,onSave,money=fmt,d
    <form className="content-card trade-entry-card" onSubmit={submit}>
     <div className="card-heading"><div><h3>New execution</h3><p>Choose a direction and enter the trade details.</p></div></div>
     <div className="direction-switch"><button type="button" className={direction==='LONG'?'buy-selected':''} onClick={()=>setDirection('LONG')}><ArrowUpRight size={17}/> Buy / Long</button><button type="button" className={direction==='SHORT'?'sell-selected':''} onClick={()=>setDirection('SHORT')}><ArrowDownRight size={17}/> Sell / Short</button></div>
-    <div className="form-two"><label>Market<select value={form.Market} onChange={e=>setForm({...form,Market:e.target.value,ContractSize:e.target.value==='FOREX'?'100000':'1',Currency:e.target.value==='FOREX'?'USD':currency})}><option value="FOREX">Forex / Metals</option><option value="INDIAN_EQUITY">Indian equity</option><option value="INDIAN_FNO">Indian F&amp;O</option></select></label><label>Instrument<input required value={form.Symbol} onChange={e=>setForm({...form,Symbol:e.target.value})} placeholder="XAUUSD / RELIANCE"/></label></div>
+    <div className="form-two"><label>Market<select value={form.Market} onChange={e=>setForm({...form,Market:e.target.value,ContractSize:e.target.value==='FOREX'?'100000':'1',Currency:e.target.value==='FOREX'?'USD':currency,FxRateToBase:e.target.value==='FOREX'&&currency==='INR'?'83':'1'})}><option value="FOREX">Forex / Metals</option><option value="INDIAN_EQUITY">Indian equity</option><option value="INDIAN_FNO">Indian F&amp;O</option></select></label><label>Instrument<input required value={form.Symbol} onChange={e=>setForm({...form,Symbol:e.target.value})} placeholder="XAUUSD / RELIANCE"/></label></div>
     <div className="form-two"><label>Quantity / Lots<input required type="number" min="0.000001" step="any" value={form.Quantity} onChange={e=>setForm({...form,Quantity:e.target.value})}/></label><label>Execution price<input required type="number" min="0.00000001" step="any" value={form.Price} onChange={e=>setForm({...form,Price:e.target.value})}/></label></div>
     <div className="form-two"><label>Contract size / multiplier<input required type="number" min="0.000001" step="any" value={form.ContractSize} onChange={e=>setForm({...form,ContractSize:e.target.value})}/></label><label>Manual margin required ({currency})<input required type="number" min="0" step="any" value={form.MarginAmount} onChange={e=>setForm({...form,MarginAmount:e.target.value})} placeholder="Enter margin to reserve"/></label></div>
-    <div className="form-two"><label>Fees<input type="number" min="0" step="any" value={form.Fees} onChange={e=>setForm({...form,Fees:e.target.value})}/></label><label>Taxes<input type="number" min="0" step="any" value={form.Taxes} onChange={e=>setForm({...form,Taxes:e.target.value})}/></label></div>
+    <div className="form-two"><label>FX rate to account currency<input required type="number" min="0.00000001" step="any" value={form.FxRateToBase} onChange={e=>setForm({...form,FxRateToBase:e.target.value})}/></label><label>Fees<input type="number" min="0" step="any" value={form.Fees} onChange={e=>setForm({...form,Fees:e.target.value})}/></label><label>Taxes<input type="number" min="0" step="any" value={form.Taxes} onChange={e=>setForm({...form,Taxes:e.target.value})}/></label></div>
     <div className="trade-funds-check"><span>Available funds</span><strong>{fmt(stats.available,currency)}</strong><small>After opening this trade: {fmt(stats.available-Number(form.MarginAmount||0),currency)}</small></div>
     <button className="primary-submit" disabled={busy||!account}><Plus size={16}/> {busy?'Recording…':direction==='LONG'?'Buy / Open long':'Sell / Open short'}</button>
    </form>
