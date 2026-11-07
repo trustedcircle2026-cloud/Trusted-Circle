@@ -1,0 +1,50 @@
+import { useMemo, useState } from 'react';
+import { ArrowDownRight, ArrowUpRight, BriefcaseBusiness, Clock3, Layers3, Plus, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { buildTradeBook, getAvailableFunds, positionPnl } from './trade-engine';
+const fmt=(n,c='INR')=>new Intl.NumberFormat('en-IN',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(n||0));
+const dateFmt=v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+export default function TradeWorkspace({account,trades,ledger,onSave,money=fmt,dateText=dateFmt,onError=()=>{}}){
+ const [section,setSection]=useState('trade'),[direction,setDirection]=useState('LONG');
+ const [form,setForm]=useState({Market:'FOREX',Symbol:'XAUUSD',Quantity:'0.10',Price:'',ContractSize:'100',MarginAmount:'',Currency:'USD',Fees:'0',Taxes:'0'});
+ const [closeInputs,setCloseInputs]=useState({});
+ const [busy,setBusy]=useState(false);
+ const stats=useMemo(()=>getAvailableFunds(account,ledger,trades),[account,ledger,trades]);
+ const positions=stats.book.openPositions;
+ const currency=account?.BaseCurrency||'INR';
+ const submit=e=>{
+  e.preventDefault();
+  if(!account){onError('Create or select a trading account first.');return}
+  const quantity=Number(form.Quantity),price=Number(form.Price),margin=Number(form.MarginAmount),contract=Number(form.ContractSize||1);
+  if(!form.Symbol.trim()||!(quantity>0)||!(price>0)||!(contract>0)||!(margin>=0)){onError('Enter a valid instrument, quantity, execution price, contract size and manual margin.');return}
+  if(margin>stats.available){onError('Insufficient available funds. Required margin: '+fmt(margin,currency)+'. Available: '+fmt(stats.available,currency)+'.');return}
+  setBusy(true);
+  onSave({Market:form.Market,Segment:form.Market==='FOREX'?'FX':'CASH',Symbol:form.Symbol.trim().toUpperCase(),Side:direction==='LONG'?'BUY':'SELL',PositionSide:direction,Action:'OPEN',Quantity:quantity,Price:price,ContractSize:contract,MarginAmount:margin,Currency:form.Currency||currency,Fees:Number(form.Fees||0),Taxes:Number(form.Taxes||0),TradeDateTime:new Date().toISOString(),FxRateToBase:1},()=>setBusy(false));
+  setBusy(false);setForm(v=>({...v,Price:'',MarginAmount:'',Fees:'0',Taxes:'0'}));
+ };
+ const close=(p)=>{
+  const raw=closeInputs[p.positionId]||{};
+  const price=Number(raw.price),qty=Number(raw.qty||p.quantity);
+  if(!(price>0)||!(qty>0)||qty>p.quantity+1e-9){onError('Enter a valid closing price and quantity not exceeding the open position.');return}
+  onSave({Market:p.trade.Market,Segment:p.trade.Segment,Symbol:p.trade.Symbol,Side:p.side==='LONG'?'SELL':'BUY',PositionSide:p.side,Action:'CLOSE',Quantity:qty,Price:price,ContractSize:p.mult,MarginAmount:0,Currency:p.trade.Currency||currency,Fees:0,Taxes:0,TradeDateTime:new Date().toISOString(),FxRateToBase:1,RelatedTradeID:p.trade.TradeID},()=>{});
+ };
+ const tabs=[['trade','Trade',Plus],['positions','Open positions',Layers3],['history','History',Clock3]];
+ return <section className="trade-workspace">
+  <div className="trade-page-head"><div><span className="eyebrow">EXECUTION WORKSPACE</span><h2>Trade with control.</h2><p>Open long or short positions, reserve your own margin and close when ready.</p></div><div className="trade-funds"><small>AVAILABLE FUNDS</small><strong>{fmt(stats.available,currency)}</strong><span>Reserved margin {fmt(stats.reserved,currency)}</span></div></div>
+  <div className="trade-subnav">{tabs.map(([id,label,Icon])=><button key={id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon size={16}/>{label}{id==='positions'&&<em>{positions.length}</em>}</button>)}</div>
+  {section==='trade'&&<div className="trade-entry-layout">
+   <form className="content-card trade-entry-card" onSubmit={submit}>
+    <div className="card-heading"><div><h3>New execution</h3><p>Choose a direction and enter the trade details.</p></div></div>
+    <div className="direction-switch"><button type="button" className={direction==='LONG'?'buy-selected':''} onClick={()=>setDirection('LONG')}><ArrowUpRight size={17}/> Buy / Long</button><button type="button" className={direction==='SHORT'?'sell-selected':''} onClick={()=>setDirection('SHORT')}><ArrowDownRight size={17}/> Sell / Short</button></div>
+    <div className="form-two"><label>Market<select value={form.Market} onChange={e=>setForm({...form,Market:e.target.value,ContractSize:e.target.value==='FOREX'?'100000':'1',Currency:e.target.value==='FOREX'?'USD':currency})}><option value="FOREX">Forex / Metals</option><option value="INDIAN_EQUITY">Indian equity</option><option value="INDIAN_FNO">Indian F&amp;O</option></select></label><label>Instrument<input required value={form.Symbol} onChange={e=>setForm({...form,Symbol:e.target.value})} placeholder="XAUUSD / RELIANCE"/></label></div>
+    <div className="form-two"><label>Quantity / Lots<input required type="number" min="0.000001" step="any" value={form.Quantity} onChange={e=>setForm({...form,Quantity:e.target.value})}/></label><label>Execution price<input required type="number" min="0.00000001" step="any" value={form.Price} onChange={e=>setForm({...form,Price:e.target.value})}/></label></div>
+    <div className="form-two"><label>Contract size / multiplier<input required type="number" min="0.000001" step="any" value={form.ContractSize} onChange={e=>setForm({...form,ContractSize:e.target.value})}/></label><label>Manual margin required ({currency})<input required type="number" min="0" step="any" value={form.MarginAmount} onChange={e=>setForm({...form,MarginAmount:e.target.value})} placeholder="Enter margin to reserve"/></label></div>
+    <div className="form-two"><label>Fees<input type="number" min="0" step="any" value={form.Fees} onChange={e=>setForm({...form,Fees:e.target.value})}/></label><label>Taxes<input type="number" min="0" step="any" value={form.Taxes} onChange={e=>setForm({...form,Taxes:e.target.value})}/></label></div>
+    <div className="trade-funds-check"><span>Available funds</span><strong>{fmt(stats.available,currency)}</strong><small>After opening this trade: {fmt(stats.available-Number(form.MarginAmount||0),currency)}</small></div>
+    <button className="primary-submit" disabled={busy||!account}><Plus size={16}/> {busy?'Recording…':direction==='LONG'?'Buy / Open long':'Sell / Open short'}</button>
+   </form>
+   <aside className="content-card trade-rules"><h3>How this trade is recorded</h3><ul><li>Manual margin is reserved from available funds.</li><li>Long positions are closed with Sell.</li><li>Short positions are closed with Buy.</li><li>FIFO matches the earliest open lot first.</li><li>Closing releases the matched margin and posts realised P&amp;L.</li></ul><p>Contract size is editable. For XAUUSD, 100 is a common contract multiplier; confirm your broker's specification before recording.</p></aside>
+  </div>}
+  {section==='positions'&&<div className="content-card"><div className="card-heading"><div><h3>Open positions</h3><p>{positions.length} active positions · FIFO lots</p></div></div>{!positions.length?<div className="empty-state">No open positions. Start by recording a Buy or Sell trade.</div>:<div className="position-list">{positions.map((p,i)=><article className="position-row" key={p.positionId+'-'+i}><div className="position-main"><span className={'position-badge '+(p.side==='LONG'?'long':'short')}>{p.side}</span><b>{p.trade.Symbol}</b><small>{p.trade.Market} · Open {dateFmt(p.trade.TradeDateTime)}</small></div><div><small>Open qty</small><b>{p.quantity}</b></div><div><small>Entry price</small><b>{p.entry}</b></div><div><small>Margin reserved</small><b>{fmt(p.marginReserved,currency)}</b></div><div className="position-close"><input aria-label="Close price" type="number" min="0.00000001" step="any" placeholder="Close price" value={closeInputs[p.positionId]?.price||''} onChange={e=>setCloseInputs(v=>({...v,[p.positionId]:{...v[p.positionId],price:e.target.value}}))}/><input aria-label="Close quantity" type="number" min="0.000001" step="any" placeholder={String(p.quantity)} value={closeInputs[p.positionId]?.qty||''} onChange={e=>setCloseInputs(v=>({...v,[p.positionId]:{...v[p.positionId],qty:e.target.value}}))}/><button onClick={()=>close(p)}>Close {p.side==='LONG'?'with Sell':'with Buy'}</button></div></article>)}</div>}</div>}
+  {section==='history'&&<div className="content-card"><div className="card-heading"><div><h3>Execution history</h3><p>Open and close executions with FIFO realised P&amp;L</p></div></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Instrument</th><th>Action</th><th>Position</th><th>Qty</th><th>Price</th><th>Realised P&amp;L</th></tr></thead><tbody>{stats.book.history.slice().reverse().map((t,i)=><tr key={t.TradeID||i}><td>{dateFmt(t.TradeDateTime)}</td><td><b>{t.Symbol}</b></td><td>{t.Action}</td><td>{t.PositionSide}</td><td>{Number(t.Quantity).toLocaleString('en-IN')}</td><td>{Number(t.Price).toLocaleString('en-IN')}</td><td className={Number(t.RealisedPnl)>0?'positive':Number(t.RealisedPnl)<0?'negative':''}>{t.Action==='CLOSE'?fmt(t.RealisedPnl,t.Currency||currency):'—'}</td></tr>)}</tbody></table>{!stats.book.history.length&&<div className="empty-state">No execution history recorded yet.</div>}</div></div>}
+ </section>;
+}
