@@ -211,6 +211,8 @@ function tradersSaveTrade_(input){
   tradersRequire_(['BUY','SELL'].indexOf(orderSide)>=0,'Side must be BUY or SELL.');
   tradersRequire_(['OPEN','CLOSE'].indexOf(action)>=0&&['LONG','SHORT'].indexOf(side)>=0,'Invalid position action or direction.');
   tradersRequire_((action==='OPEN'&&((side==='LONG'&&orderSide==='BUY')||(side==='SHORT'&&orderSide==='SELL')))||(action==='CLOSE'&&((side==='LONG'&&orderSide==='SELL')||(side==='SHORT'&&orderSide==='BUY'))),'Order side does not match the selected position direction.');
+  var lock=LockService.getScriptLock();lock.waitLock(10000);
+  try{
   var sheet=TRADERS_CONFIG.SHEETS.TRADES;
   if(tradersRows_(sheet).some(function(t){return t.UserID===user.UserID&&t.IdempotencyKey===d.IdempotencyKey;}))return {duplicate:true,message:'This trade submission was already recorded.'};
   var book=tradersTradeBook_(user.UserID,accountId);
@@ -225,6 +227,7 @@ function tradersSaveTrade_(input){
   tradersAppend_(sheet,row);
   var after=tradersTradeBook_(user.UserID,accountId);
   return {trade:row,positionSummary:{availableFunds:after.available,reservedMargin:after.reserved,realisedPnl:after.realised}};
+  }finally{lock.releaseLock();}
 }
 function tradersListLedger_(input){
   var user=tradersAuth_(input.token);
