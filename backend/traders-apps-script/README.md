@@ -31,3 +31,10 @@ The frontend is configured to call the supplied Web App URL. The Apps Script pro
 - `listAccounts` / `saveAccount`
 
 The initial milestone does not yet calculate FIFO realised P&L, open-position unrealised P&L, XIRR or drawdown. Those require the next accounting-engine milestone. Do not store broker credentials, passwords, API keys or tokens in this repository.
+
+
+## Cross-origin browser connection
+
+The Traders frontend uses an Apps Script HTML Service iframe bridge and google.script.run. This avoids browser fetch/CORS failures at Google's ContentService redirect and does not put passwords in query strings. Update Code.gs and add Bridge.html to the Apps Script project, save, then deploy a New version of the existing Web App. Keep access configured for the intended audience (public self-registration requires the Web App to be accessible to anyone). Bridge.html only accepts messages from https://trustedcircle.shop and https://www.trustedcircle.shop; update that allowlist if the production app uses another origin.
+
+The password accepts any non-empty value up to 128 characters; there is no forced complexity or minimum-length format rule. Users should still choose a strong, unique password.
