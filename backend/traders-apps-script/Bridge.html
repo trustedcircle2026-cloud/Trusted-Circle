@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><base target="_top"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+<script>
+(function () {
+  'use strict';
+  var allowedOrigins = ['https://trustedcircle.shop', 'https://www.trustedcircle.shop'];
+  window.addEventListener('message', function (event) {
+    if (event.source !== window.parent || allowedOrigins.indexOf(event.origin) === -1) return;
+    var message = event.data;
+    if (!message || typeof message.id !== 'string' || !message.input || typeof message.input.action !== 'string') return;
+    google.script.run.withSuccessHandler(function (result) {
+      window.parent.postMessage({ id: message.id, result: result }, event.origin);
+    }).withFailureHandler(function (error) {
+      window.parent.postMessage({ id: message.id, error: error && error.message ? error.message : 'Apps Script request failed.' }, event.origin);
+    }).tradersBridgeRequest(message.input);
+  });
+})();
+</script></body></html>
