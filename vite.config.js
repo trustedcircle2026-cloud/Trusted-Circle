@@ -16,7 +16,8 @@ export default defineConfig({
         insuranceAdmin2: 'insuranceadmin2.html',
         workflowSpace: 'workflowspace.html',
         apps: 'apps/index.html',
-        creditCard: 'credit-card/index.html'
+        creditCard: 'credit-card/index.html',
+        tradersApp: 'traders-app/index.html'
       }
     }
   }
