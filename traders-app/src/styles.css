@@ -15,3 +15,5 @@
 @keyframes tc-logo-bounce{from{transform:translateY(2px) rotate(-8deg)}to{transform:translateY(-5px) rotate(8deg)}}
 @keyframes tc-dot-hop{from{transform:translateY(3px);opacity:.55}to{transform:translateY(-4px);opacity:1}}
 @media(prefers-reduced-motion:reduce){.button-loading-logo,.loading-dots i{animation:none}}
+
+.report-note{margin:0;padding:11px 12px;border:1px solid #e0ebe3;border-radius:9px;background:#f6faf7;color:#6d7e72;font-size:10px;line-height:1.6}.quick-actions{flex-wrap:wrap}.quick-actions button{white-space:nowrap}.quick-actions button.secondary:first-child{background:#edf7f0;color:#176d43;border-color:#d7e9dd}.modal-panel .entry-form>label select:disabled{opacity:.7;background:#f4f7f5}@media(max-width:760px){.quick-actions{display:grid;grid-template-columns:1fr 1fr;min-width:132px}.quick-actions button:first-child{grid-column:1/-1}.quick-actions button{white-space:nowrap}.report-note{font-size:10px}}
