@@ -1,5 +1,5 @@
 function tradersSetupProduction(){return tradersSetupProduction_();}
-function doGet(e){return tradersHandle_(e,false);}
+function doGet(e){if(e&&e.parameter&&e.parameter.bridge==='1')return HtmlService.createHtmlOutputFromFile('Bridge').setTitle('Trusted Circle API Bridge').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);return tradersHandle_(e,false);}
 function doPost(e){return tradersHandle_(e,true);}
 function tradersHandle_(e,isPost){
   try{
@@ -16,6 +16,7 @@ function tradersHandle_(e,isPost){
     return tradersJson_(tradersFail_(error.message||'Request failed.'));
   }
 }
+function tradersBridgeRequest(input){try{input=input||{};var action=String(input.action||'health');return tradersOk_(tradersRoute_(action,input));}catch(error){console.error(error&&error.stack?error.stack:error);return tradersFail_(error.message||'Request failed.');}}
 function tradersRoute_(action,input){
   switch(action){
     case 'health': return {service:TRADERS_CONFIG.APP_NAME,status:'ok',version:TRADERS_CONFIG.VERSION};
@@ -113,7 +114,7 @@ function tradersRegister_(input){
   var email=String(input.email||'').trim().toLowerCase(),name=String(input.name||'').trim(),password=String(input.password||'');
   tradersRequire_(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),'Enter a valid email address.');
   tradersRequire_(name.length>=2&&name.length<=80,'Enter your name (2–80 characters).');
-  tradersRequire_(password.length>=10&&password.length<=128,'Password must contain at least 10 characters.');
+  tradersRequire_(password.length>=1&&password.length<=128,'Enter a password of up to 128 characters.');
   var lock=LockService.getScriptLock();lock.waitLock(10000);
   try{
     tradersRequire_(!tradersFindUserByEmail_(email),'An account with this email already exists. Please sign in.');
