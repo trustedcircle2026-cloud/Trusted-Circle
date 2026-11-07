@@ -7,7 +7,7 @@ export function buildTradeBook(rows=[]){
   const qty=Number(t.Quantity||0),price=Number(t.Price||0),mult=Number(t.ContractSize||1),fx=Number(t.FxRateToBase||1),fees=(Number(t.Fees||0)+Number(t.Taxes||0))*fx;
   if(!(qty>0&&price>0))continue;
   let action=t.Action,side=t.PositionSide;
-  if(!action){side=side||(t.Side==='BUY'?'LONG':'SHORT');action='OPEN';}
+  if(!action){const longKey=keyOf({...t,PositionSide:'LONG'}),shortKey=keyOf({...t,PositionSide:'SHORT'});const hasLong=lots.some(l=>l.key===longKey&&l.remaining>EPS),hasShort=lots.some(l=>l.key===shortKey&&l.remaining>EPS);if(t.Side==='SELL'&&hasLong){action='CLOSE';side='LONG'}else if(t.Side==='BUY'&&hasShort){action='CLOSE';side='SHORT'}else{action='OPEN';side=t.Side==='BUY'?'LONG':'SHORT'}}
   if(action==='OPEN'){
    lots.push({key:keyOf({...t,PositionSide:side}),trade:t,side,remaining:qty,entry:price,mult,fx,margin:Number(t.MarginAmount||0),feesRemaining:fees});
    history.push({...t,Action:'OPEN',PositionSide:side,RealisedPnl:0});
