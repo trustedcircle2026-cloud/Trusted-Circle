@@ -136,26 +136,6 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
   }
  }
  useEffect(()=>{if(!initialWallet)load()},[initialWallet])
- // Razorpay Payment Button redirects back with payment_id in the hash query.
- // Consume it here so the SPA does not remain stuck behind the checkout popup.
- useEffect(()=>{
-  const readRazorpayReturn=()=>{
-   const hash=String(window.location.hash||'');
-   const query=hash.includes('?')?hash.slice(hash.indexOf('?')+1):'';
-   const params=new URLSearchParams(query);
-   const paymentId=String(params.get('payment_id')||'').trim();
-   if(!paymentId)return;
-   let returnedAmount=0;
-   let returnedTransactionId='';try{returnedAmount=Number(localStorage.getItem('tc_razorpay_pending_amount')||0);returnedTransactionId=String(localStorage.getItem('tc_razorpay_pending_transaction')||'')}catch{}
-   setModal({type:'razorpay-return',paymentId,amount:returnedAmount,transactionId:returnedTransactionId});
-   try{localStorage.removeItem('tc_razorpay_pending_amount')}catch{}
-   window.history.replaceState(null,'',window.location.pathname+window.location.search+'#/wallet-services');
-  };
-  readRazorpayReturn();
-  window.addEventListener('hashchange',readRazorpayReturn);
-  window.addEventListener('popstate',readRazorpayReturn);
-  return()=>{window.removeEventListener('hashchange',readRazorpayReturn);window.removeEventListener('popstate',readRazorpayReturn)};
- },[]);
 
  useEffect(()=>{if(!wallet)return;try{localStorage.setItem('tc_wallet_snapshot_v1_'+(identity?.userId||identity?.email||'guest'),JSON.stringify({savedAt:Date.now(),wallet}))}catch{}},[wallet,identity?.userId,identity?.email])
  // Quiet background sync: refresh balances and transaction history every 15 seconds.
@@ -327,8 +307,6 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
  {successNotice&&<div className="wallet-modal-layer"><div className="wallet-modal payment-result wallet-persistent-success"><div className="wallet-result-icon success"><CheckCircle2 size={54}/></div><span className="wallet-services-eyebrow">PAYMENT SUCCESSFUL</span><h2>Your money was added successfully</h2><div className="wallet-live-summary result-summary"><div><span>Transaction No.</span><b>{successNotice.transactionId}</b></div><div><span>Amount Added</span><b>₹{money(successNotice.amount)}</b></div></div><button className="wallet-submit" onClick={()=>{try{localStorage.setItem('tc_wallet_success_seen_'+successNotice.transactionId,'1')}catch{}setSuccessNotice(null);load()}}>View Updated Balance <ArrowRight size={16}/></button><button className="wallet-secondary-btn" onClick={()=>{try{localStorage.setItem('tc_wallet_success_seen_'+successNotice.transactionId,'1')}catch{}setSuccessNotice(null)}}>Close</button></div></div>}
 </main>
 }
-
-function RazorpayPaymentButton({buttonId,email='',contact=''}){useEffect(()=>{const mount=document.getElementById('wallet-razorpay-button-mount');if(!mount||!buttonId)return;mount.innerHTML='';const form=document.createElement('form');const script=document.createElement('script');script.src='https://checkout.razorpay.com/v1/payment-button.js';script.async=true;script.setAttribute('data-payment_button_id',buttonId);if(email)script.setAttribute('data-prefill.email',email);if(contact)script.setAttribute('data-prefill.contact',contact);form.appendChild(script);mount.appendChild(form);return()=>{mount.innerHTML=''}},[buttonId,email,contact]);return <div className="wallet-razorpay-button-mount" id="wallet-razorpay-button-mount"><span className="wallet-razorpay-loading">Loading Razorpay checkout…</span></div>}
 
 function WalletModal({identity,user,modal,onClose,onAdd,onPrepareRazorpay,onSelectAdd,onContinueAdd,onRetryPending,onCancelPending,onEditAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
  const type=modal.type,returnedTransaction=type==='razorpay-return'?orders.find(t=>t.transactionId===modal.transactionId):null,returnedStatus=String(returnedTransaction?.status||'PENDING_PAYMENT').toUpperCase(),desktopUPI=typeof window!=='undefined'&&window.matchMedia('(min-width: 768px)').matches,[amount,setAmount]=useState(String(modal.amount||'500')),[manual,setManual]=useState(!!modal.manualUPI),[notes,setNotes]=useState(modal.notes||'Verified'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[customAmountVisible,setCustomAmountVisible]=useState(false),[selectedButton,setSelectedButton]=useState(''),[preparedTransaction,setPreparedTransaction]=useState(null),[contact,setContact]=useState(String(user?.mobile||user?.phone||user?.Mobile||user?.MobileNo||identity?.mobile||''));
