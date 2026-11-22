@@ -6,10 +6,18 @@ import {api} from '../api'
 import './wallet-services.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
-const RAZORPAY_WALLET_BUTTONS={500:'pl_U3C2KDYnDEMEL9',1000:'pl_U3CGJEPZ8hyjJu',1500:'',2000:''};
 const money=n=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})
 const statusClass=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')
 
+async function ensureRazorpayCheckout(){
+ if(window.Razorpay)return;
+ await new Promise((resolve,reject)=>{
+  const existing=document.querySelector('script[data-tc-razorpay-checkout]');
+  if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}
+  const script=document.createElement('script');script.src='https://checkout.razorpay.com/v1/checkout.js';script.async=true;script.dataset.tcRazorpayCheckout='1';script.onload=resolve;script.onerror=()=>reject(new Error('Could not load Razorpay Checkout. Please refresh and try again.'));document.body.appendChild(script);
+ });
+ if(!window.Razorpay)throw new Error('Razorpay Checkout did not initialize.');
+}
 async function logoDataUrl(){
  try{const b=await fetch(LOGO_URL).then(r=>r.blob());return await new Promise((resolve,reject)=>{const fr=new FileReader();fr.onload=()=>resolve(fr.result);fr.onerror=reject;fr.readAsDataURL(b)})}catch{return null}
 }
@@ -76,12 +84,34 @@ function readWalletCache(identity){
 function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}){
  const cachedWallet=initialWallet||readWalletCache(identity);
  const[wallet,setWallet]=useState(cachedWallet),[orders,setOrders]=useState(cachedWallet?.transactions||[]),[busy,setBusy]=useState(false),[modal,setModal]=useState(null),[selectedTx,setSelectedTx]=useState(null),[notice,setNotice]=useState(''),[profileOpen,setProfileOpen]=useState(false),[statementOpen,setStatementOpen]=useState(false),[txFilter,setTxFilter]=useState('all'),[txStatus,setTxStatus]=useState('all'),[txSearch,setTxSearch]=useState(''),[successNotice,setSuccessNotice]=useState(null),[showMoreTransactions,setShowMoreTransactions]=useState(false),[transactionPage,setTransactionPage]=useState(1)
- const prepareRazorpay=async(amount)=>{
-  const result=await walletApi.addMoney(identity,amount,{provider:'RAZORPAY'});
+ const prepareRazorpay=async(amount,contact)=>{
+  const mobile=String(contact||'').replace(/\D/g,'');
+  if(mobile.length<10||mobile.length>15)throw new Error('Enter a valid mobile number (10 to 15 digits).');
+  const result=await walletApi.addMoney(identity,amount,{provider:'RAZORPAY',contact:mobile});
   const transaction=result?.transaction||result?.data?.transaction;
-  if(!transaction?.transactionId)throw new Error('Wallet transaction could not be created. Please try again.');
-  const latest=await walletApi.snapshot(identity);
-  setWallet(latest);setOrders(latest.transactions||[]);
+  const order=result?.razorpayOrder||result?.data?.razorpayOrder;
+  if(!transaction?.transactionId||!order?.orderId||!order?.keyId)throw new Error('Razorpay order was not returned by the backend.');
+  await ensureRazorpayCheckout();
+  const checkout=new window.Razorpay({
+   key:order.keyId,order_id:order.orderId,amount:order.amount,currency:order.currency||'INR',
+   name:'Trusted Circle',description:'Money Wallet Top-up',
+   prefill:{name:user?.name||user?.Name||'',email:order.prefill?.email||identity.email,contact:order.prefill?.contact||mobile},
+   notes:{wallet_transaction_id:transaction.transactionId},
+   theme:{color:'#0f5132'},
+   handler:async response=>{
+    try{localStorage.setItem('tc_razorpay_pending_amount',String(amount));localStorage.setItem('tc_razorpay_pending_transaction',String(transaction.transactionId))}catch{}
+    setModal({type:'razorpay-return',paymentId:String(response?.razorpay_payment_id||''),amount:Number(amount),transactionId:transaction.transactionId});
+    try{const latest=await walletApi.snapshot(identity);setWallet(latest);setOrders(latest.transactions||[])}catch{}
+   },
+   modal:{ondismiss:()=>{
+    setModal({type:'payment',phase:'verifying',transaction:transaction,expiresAt:null,user,amount:Number(amount),paymentLink:'',paymentOpened:false,adminEmailSent:true});
+   }}
+  });
+  checkout.on('payment.failed',()=>{
+   setModal({type:'payment',phase:'verifying',transaction:transaction,expiresAt:null,user,amount:Number(amount),paymentLink:'',paymentOpened:false,adminEmailSent:true});
+  });
+  const latest=await walletApi.snapshot(identity);setWallet(latest);setOrders(latest.transactions||[]);
+  checkout.open();
   return transaction;
  };
  const load=async()=>{
@@ -230,8 +260,8 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
       ?{...prev,phase:'error',error:e.message,linkTimeout:false}
       :null);
   }
- }; const startAdd=(amount,options={})=>openPaymentFlow(amount,null,options);
- const retry=tx=>openPaymentFlow(null,tx);
+ }; const startAdd=(amount,options={})=>prepareRazorpay(amount,user?.mobile||user?.phone||user?.Mobile||'').catch(e=>setNotice(e.message||'Could not start Razorpay Checkout.'));
+ const retry=tx=>setModal({type:'add',amount:Number(tx?.amount||500)});
  const beginAdd=()=>setModal({type:'add'});
  const retryPending=tx=>{const link=String(tx.paymentLink||tx.PaymentLink||'').trim();if(link)window.open(link,'_blank');setModal({type:'payment',phase:'verifying',transaction:tx,expiresAt:null,user,amount:tx.amount,paymentLink:link,paymentOpened:!!link,adminEmailSent:null})};
  const cancelPending=async tx=>{try{await walletApi.cancelAddMoney(identity,tx.transactionId);const w=await walletApi.snapshot(identity);setWallet(w);setOrders(w.transactions||[]);const pending=(w.transactions||[]).filter(t=>t.type==='ADD_MONEY'&&String(t.status||'').toUpperCase()==='PENDING_PAYMENT');setModal(pending.length?{type:'pending-summary',pending}:null)}catch(e){setNotice(e.message||'Could not cancel this payment.')}};
@@ -301,12 +331,12 @@ function WalletHome({user,identity,onLogout,initialWallet=null,shoppingToken=''}
 function RazorpayPaymentButton({buttonId,email='',contact=''}){useEffect(()=>{const mount=document.getElementById('wallet-razorpay-button-mount');if(!mount||!buttonId)return;mount.innerHTML='';const form=document.createElement('form');const script=document.createElement('script');script.src='https://checkout.razorpay.com/v1/payment-button.js';script.async=true;script.setAttribute('data-payment_button_id',buttonId);if(email)script.setAttribute('data-prefill.email',email);if(contact)script.setAttribute('data-prefill.contact',contact);form.appendChild(script);mount.appendChild(form);return()=>{mount.innerHTML=''}},[buttonId,email,contact]);return <div className="wallet-razorpay-button-mount" id="wallet-razorpay-button-mount"><span className="wallet-razorpay-loading">Loading Razorpay checkout…</span></div>}
 
 function WalletModal({identity,user,modal,onClose,onAdd,onPrepareRazorpay,onSelectAdd,onContinueAdd,onRetryPending,onCancelPending,onEditAdd,onWithdraw,onRetry,orders,setSelectedTx,onOpenOrders,onViewBalance}){
- const type=modal.type,returnedTransaction=type==='razorpay-return'?orders.find(t=>t.transactionId===modal.transactionId):null,returnedStatus=String(returnedTransaction?.status||'PENDING_PAYMENT').toUpperCase(),desktopUPI=typeof window!=='undefined'&&window.matchMedia('(min-width: 768px)').matches,[amount,setAmount]=useState(String(modal.amount||'500')),[manual,setManual]=useState(!!modal.manualUPI),[notes,setNotes]=useState(modal.notes||'Verified'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[customAmountVisible,setCustomAmountVisible]=useState(false),[selectedButton,setSelectedButton]=useState(''),[preparedTransaction,setPreparedTransaction]=useState(null);
+ const type=modal.type,returnedTransaction=type==='razorpay-return'?orders.find(t=>t.transactionId===modal.transactionId):null,returnedStatus=String(returnedTransaction?.status||'PENDING_PAYMENT').toUpperCase(),desktopUPI=typeof window!=='undefined'&&window.matchMedia('(min-width: 768px)').matches,[amount,setAmount]=useState(String(modal.amount||'500')),[manual,setManual]=useState(!!modal.manualUPI),[notes,setNotes]=useState(modal.notes||'Verified'),[busy,setBusy]=useState(false),[error,setError]=useState(''),[customAmountVisible,setCustomAmountVisible]=useState(false),[selectedButton,setSelectedButton]=useState(''),[preparedTransaction,setPreparedTransaction]=useState(null),[contact,setContact]=useState(String(user?.mobile||user?.phone||user?.Mobile||user?.MobileNo||identity?.mobile||''));
  if(type==='custom-mobile-only')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-custom-mobile-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-summary-icon"><Smartphone size={28}/></div><span className="wallet-services-eyebrow">CUSTOM UPI PAYMENT</span><h2>Use your mobile to add custom money</h2><p>Custom amount UPI links can open only in a mobile UPI app. Please open Trusted Circle on your mobile and choose Custom Amount to continue.</p><button className="wallet-submit" onClick={onClose}>Understood</button></div></div>;
  if(type==='pending-summary'&&!modal.pending?.length)return null;
  if(type==='pending-summary')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-pending-summary"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">PENDING WALLET PAYMENTS</span><h2>Resolve previous top-ups</h2><p>You have {modal.pending.length} pending add-money transaction{modal.pending.length===1?'':'s'}. Retry an existing payment before creating another.</p><div className="wallet-pending-list">{modal.pending.map(t=><div className="wallet-pending-item" key={t.transactionId}><div><b>₹{money(t.amount)}</b><small>{t.transactionId}</small><small>{String(t.status).replace(/_/g,' ')}</small></div><div className="wallet-pending-row-actions"><button className="wallet-secondary-btn" onClick={()=>onCancelPending(t)}>Cancel</button><button className="wallet-submit" onClick={()=>onRetryPending(t)}>Retry <RefreshCw size={15}/></button></div></div>)}</div><div className="wallet-pending-actions"><button className="wallet-secondary-btn" onClick={onClose}>Cancel</button>{modal.pending.length<3&&<button className="wallet-submit" onClick={onContinueAdd}>Continue to Add Money <ArrowRight size={15}/></button>}</div>{modal.pending.length>=3&&<p className="wallet-pending-block-note">New top-ups are blocked while 3 or more payments are pending. Resolve an existing payment first.</p>}</div></div>;
 if(type==='razorpay-return')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-razorpay-return-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-result-icon success"><CheckCircle2 size={42}/></div><span className="wallet-services-eyebrow">RAZORPAY RESPONSE RECEIVED</span><h2>Payment submitted</h2><p>Razorpay returned a payment reference. Trusted Circle must verify the payment before adding money to your wallet.</p><div className="wallet-live-summary result-summary"><div><span>Razorpay Payment ID</span><b>{modal.paymentId}</b></div>{modal.transactionId&&<div><span>Wallet transaction ID</span><b>{modal.transactionId}</b></div>}{modal.amount>0&&<div><span>Selected amount</span><b>₹{money(modal.amount)}</b></div>}<div><span>Wallet status</span><b className={'live-status '+(returnedStatus==='COMPLETED'?'success':returnedStatus==='PENDING_PAYMENT'?'pending':'warning')}>{returnedStatus.replace(/_/g,' ')}</b></div></div><p className="wallet-razorpay-warning">{returnedStatus==='COMPLETED'?'Your payment is verified and your Money Wallet has been credited.':returnedStatus==='PAYMENT_AMOUNT_MISMATCH'?'The amount received did not match the requested wallet top-up. No wallet credit was made. Please contact support with the transaction ID.':returnedStatus==='PAYMENT_REVIEW'?'The checkout mobile number requires verification. Your wallet has not been credited. Please contact support.':'Your wallet has not been credited yet. Do not make another payment for this request until its status is confirmed.'}</p><button className="wallet-submit" onClick={onViewBalance}>Refresh Wallet <RefreshCw size={16}/></button><button className="wallet-secondary-btn" onClick={onClose}>Close</button></div></div>;
- if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-select-modal wallet-razorpay-select-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-add-topline"><img className="wallet-modal-logo" src={LOGO_URL} alt="Trusted Circle"/><button type="button" className={'wallet-custom-toggle '+(customAmountVisible?'active':'')} onClick={()=>{setCustomAmountVisible(v=>!v);setError('')}} aria-label="Toggle custom amount"><Pencil size={17}/></button></div><span className="wallet-services-eyebrow">ADD MONEY</span>{!selectedButton?<><h2>Choose an amount</h2><p>Select a fixed amount to continue securely with Razorpay.</p><div className="wallet-denoms wallet-razorpay-denoms">{[500,1000,1500,2000].map(a=>{const id=RAZORPAY_WALLET_BUTTONS[a];return <button type="button" className={!id?'unavailable':''} key={a} disabled={!id} onClick={async()=>{setBusy(true);setError('');try{const tx=await onPrepareRazorpay(a);setPreparedTransaction(tx);setAmount(String(a));setSelectedButton(id);try{localStorage.setItem('tc_razorpay_pending_amount',String(a));localStorage.setItem('tc_razorpay_pending_transaction',String(tx.transactionId))}catch{}}catch(e){setError(e.message||'Could not prepare the wallet transaction.')}finally{setBusy(false)}}}>₹{money(a)}{!id&&<small>Setup pending</small>}</button>})}</div>{customAmountVisible&&<div className="wallet-custom-reveal"><label className="wallet-custom-label" htmlFor="wallet-custom-amount">Custom amount (₹)</label><input id="wallet-custom-amount" className="wallet-field wallet-custom-amount" type="number" min="1" step="1" value={manual?amount:''} placeholder="Enter any amount" onChange={e=>{setAmount(e.target.value);setManual(true);setError('')}}/><small>Custom amount checkout requires a separate Razorpay Payment Button configured for customer-entered amounts.</small></div>}{error&&<div className="wallet-login-message">{error}</div>}<div className="wallet-add-hint">Razorpay checkout opens immediately when you select an available amount.</div></>:<><div className="wallet-razorpay-selected"><span className="wallet-services-eyebrow">RAZORPAY CHECKOUT</span><h2>Pay ₹{money(amount)}</h2><p>Complete your payment in the secure Razorpay checkout below.</p>{Number(amount)===1000&&<div className="wallet-razorpay-warning">Temporary test setup: the current ₹1,000 button is configured to collect ₹10. The webhook will detect this amount mismatch and will not credit ₹1,000. Replace the test button with the matching ₹1,000 button before a real top-up.</div>}<RazorpayPaymentButton buttonId={selectedButton} email={identity?.email||user?.email||''} contact={user?.mobile||user?.phone||identity?.mobile||identity?.phone||''}/><small className="wallet-razorpay-transaction-ref">Wallet transaction: {preparedTransaction?.transactionId||'Preparing…'}</small><button type="button" className="wallet-secondary-btn wallet-change-denomination" onClick={async()=>{if(preparedTransaction?.transactionId){try{await walletApi.cancelAddMoney(identity,preparedTransaction.transactionId)}catch{}}setPreparedTransaction(null);setSelectedButton('');try{localStorage.removeItem('tc_razorpay_pending_amount');localStorage.removeItem('tc_razorpay_pending_transaction')}catch{}}}>Choose another amount</button></div><div className="wallet-razorpay-note">Your Money Wallet will be credited only after the payment is verified by Trusted Circle.</div></>}</div></div>;
+ if(type==='add')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-select-modal wallet-razorpay-select-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-add-topline"><img className="wallet-modal-logo" src={LOGO_URL} alt="Trusted Circle"/></div><span className="wallet-services-eyebrow">ADD MONEY</span><h2>Choose an amount</h2><p>Select an amount. A fresh Razorpay order will be created securely for every request.</p><label className="wallet-custom-label" htmlFor="wallet-razorpay-mobile">Mobile number (required)</label><input id="wallet-razorpay-mobile" className="wallet-field" type="tel" inputMode="numeric" autoComplete="tel" maxLength={15} value={contact} onChange={e=>setContact(e.target.value.replace(/[^0-9+]/g,'').slice(0,16))} placeholder="Enter your 10-digit mobile number"/><div className="wallet-denoms wallet-razorpay-denoms">{[500,1000,1500,2000].map(a=><button type="button" key={a} disabled={busy||contact.replace(/\D/g,'').length<10||contact.replace(/\D/g,'').length>15} onClick={async()=>{setBusy(true);setError('');try{const tx=await onPrepareRazorpay(a,contact);setPreparedTransaction(tx);setAmount(String(a));}catch(e){setError(e.message||'Could not prepare Razorpay Checkout.')}finally{setBusy(false)}}}>₹{money(a)}{busy&&<small>Preparing secure order…</small>}</button>)}</div>{error&&<div className="wallet-login-message">{error}</div>}<div className="wallet-add-hint">Email: {identity?.email||user?.email||'—'} · Your Money Wallet is credited only after Razorpay confirms a captured payment through the verified webhook.</div></div></div>;
 if(type==='add-summary')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-add-summary-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><div className="wallet-summary-icon"><WalletCards size={28}/></div><span className="wallet-services-eyebrow">PAYMENT SUMMARY</span><h2>Confirm Add Money</h2><p>Review your wallet top-up before creating the payment request.</p><div className="wallet-add-summary-amount"><span>Amount to add</span><strong>₹{money(modal.amount)}</strong></div><div className="wallet-add-summary-row"><span>Destination</span><b>Trusted Circle Money Wallet</b></div><div className="wallet-add-summary-row"><span>Payment method</span><b>{modal.manualUPI?'UPI payment request':'Secure payment link from stock'}</b></div>{modal.manualUPI&&<div className="wallet-add-summary-row"><span>UPI note</span><b>{modal.notes||'Verified'}</b></div>}<div className="wallet-add-summary-safe"><CheckCircle2 size={17}/><span>Your balance updates only after the admin confirms receipt.</span></div><button className="wallet-submit add-money-primary" disabled={busy} onClick={async()=>{setBusy(true);setError('');try{await onAdd(Number(modal.amount),{manualUPI:!!modal.manualUPI,notes:modal.notes||'TC-Wallet'})}catch(e){setError(e.message||'Could not start payment.')}finally{setBusy(false)}}}>{busy?<><RefreshCw size={16} className="wallet-spin"/> Preparing payment…</>:<>Make Payment <ArrowRight size={17}/></>}</button>{error&&<div className="wallet-login-message">{error}</div>}<button className="wallet-secondary-btn" onClick={()=>onEditAdd(modal.amount,{manualUPI:!!modal.manualUPI,notes:modal.notes||'TC-Wallet'})}>Edit Amount</button></div></div>;
  if(type==='withdraw')return <WithdrawModal onClose={onClose} onSubmit={onWithdraw} cashbackBalance={Number(modal.cashbackBalance||0)} moneyBalance={Number(modal.moneyBalance||0)}/>;
  if(type==='orders')return <div className="wallet-modal-layer"><div className="wallet-modal wallet-orders-modal"><button className="wallet-modal-x" onClick={onClose}><X size={18}/></button><span className="wallet-services-eyebrow">WALLET ORDERS</span><h2>All Transactions</h2><div className="wallet-order-list">{orders.map(t=><button key={t.transactionId} onClick={()=>{onClose();setSelectedTx(t)}} className="wallet-transaction"><span className="wallet-tx-main"><b>{t.type==='ADD_MONEY'?'Add Money':'Withdraw'}</b><small>{t.transactionId}</small></span><span className="wallet-tx-right"><b>₹{money(t.amount)}</b><small className={'wallet-status '+statusClass(t.status)}>{t.status.replace(/_/g,' ')}</small></span></button>)}</div></div></div>;
@@ -328,7 +358,7 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
        if(!active||!next)return;
        setLiveTx(next);
        setLeft(expiresAt?Math.max(0,Math.floor((new Date(expiresAt)-Date.now())/1000)):900);
-       if(['COMPLETED','NOT_RECEIVED','REJECTED'].includes(String(next.status||'').toUpperCase()))setResult(next);
+       if(['COMPLETED','NOT_RECEIVED','REJECTED','PAYMENT_FAILED','PAYMENT_REVIEW','PAYMENT_AMOUNT_MISMATCH'].includes(String(next.status||'').toUpperCase()))setResult(next);
      }catch{}
    };
    check();
@@ -364,20 +394,22 @@ function PaymentWaiting({identity,user,tx,expiresAt,onClose,onRetry,onOpenOrders
    <button className="wallet-secondary-btn" onClick={onClose}>Continue in Wallet</button>
  </div></div>;
  if(result){
-   const success=String(result.status||'').toUpperCase()==='COMPLETED';
-   const notReceived=String(result.status||'').toUpperCase()==='NOT_RECEIVED';
+   const resultStatus=String(result.status||'').toUpperCase();
+   const success=resultStatus==='COMPLETED';
+   const notReceived=resultStatus==='NOT_RECEIVED';
+   const failed=['PAYMENT_FAILED','REJECTED','PAYMENT_SETUP_FAILED'].includes(resultStatus);
    return <div className="wallet-modal-layer"><div className="wallet-modal payment-result payment-live-card">
      <div className={'wallet-result-icon '+(success?'success wallet-wallet-success-icon':'failed')}>{success?<CheckCircle2 size={42}/>:<X size={42}/>}</div>
      <span className="wallet-services-eyebrow">ADMIN ACTION COMPLETED</span>
-     <h2>{success?'Payment Successful':notReceived?'Payment Not Received':'Payment Failed / Rejected'}</h2>
+     <h2>{success?'Payment Successful':notReceived?'Payment Not Received':resultStatus==='PAYMENT_REVIEW'?'Payment Under Review':resultStatus==='PAYMENT_AMOUNT_MISMATCH'?'Payment Amount Mismatch':'Payment Failed / Rejected'}</h2>
      <div className="wallet-live-summary result-summary">
        <div><span>Transaction No.</span><b>{result.transactionId}</b></div>
        <div><span>Amount</span><b>₹{money(result.amount)}</b></div>
        <div><span>Final Status</span><b className={'live-status '+(success?'success':'failed')}>{String(result.status).replace(/_/g,' ')}</b></div>
      </div>
-     <p>{success?'Admin confirmed the payment and the amount has been credited to your Money Wallet.':notReceived?'Admin could not confirm the payment. You can retry using a fresh payment link.':'Admin rejected the payment request. No amount was added to your Money Wallet.'}</p>
+     <p>{success?'Razorpay payment was verified and the amount has been credited to your Money Wallet.':notReceived?'The previous payment was not confirmed. You can start a fresh Razorpay payment.':resultStatus==='PAYMENT_REVIEW'?'The registered mobile number requires verification. No wallet credit has been made. Please contact support.':resultStatus==='PAYMENT_AMOUNT_MISMATCH'?'The received amount did not match the wallet request. No wallet credit has been made. Please contact support.':'Razorpay reported that the payment failed. No amount was added to your Money Wallet.'}</p>
      <div className="wallet-result-actions">
-       {notReceived&&<button className="wallet-submit" onClick={()=>{onClose();onRetry(result)}}>Retry Payment <RefreshCw size={16}/></button>}
+       {(notReceived||failed)&&<button className="wallet-submit" onClick={()=>{onClose();onRetry(result)}}>Try Again <RefreshCw size={16}/></button>}
        <button className="wallet-secondary-btn" onClick={onViewBalance}>Refresh Wallet Balance</button>
        <button className="wallet-secondary-btn" onClick={onClose}>Close</button>
      </div>
