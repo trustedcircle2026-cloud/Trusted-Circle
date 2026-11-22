@@ -420,17 +420,14 @@ function razorpayPhoneMatch_(value){
   return digits;
 }
 function moneyWalletAddRazorpay_(data){
+  // Razorpay Payment Button flow: no API Key ID/Secret and no dynamic Orders API.
   var user=walletUserFromIdentity_(data);
   var amount=Math.round(Number(data.amount||0)*100)/100;
   var contact=razorpayPhoneMatch_(data.contact||data.mobile||'');
   require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
-  require_(isValidEmail_(normalizeEmail_(user.Email)),'A valid account email is required for Razorpay Checkout.');
+  require_(isValidEmail_(normalizeEmail_(user.Email)),'A valid account email is required for wallet top-up.');
   require_(contact.length>=10&&contact.length<=15,'Enter a valid mobile number (10 to 15 digits).');
-  var props=getScriptProperties_();
-  var keyId=String(props.getProperty('RAZORPAY_KEY_ID')||'').trim();
-  var keySecret=String(props.getProperty('RAZORPAY_KEY_SECRET')||'').trim();
-  require_(keyId&&keySecret,'Razorpay API credentials are not configured in Apps Script Script Properties.');
-  var tx,now=isoNow_(),lock=LockService.getScriptLock();
+  var lock=LockService.getScriptLock(),tx,now=isoNow_();
   lock.waitLock(20000);
   try{
     ensureMoneyWalletRazorpaySchema_();
@@ -446,39 +443,16 @@ function moneyWalletAddRazorpay_(data){
       BalanceBefore:balance,BalanceAfter:balance,ReservedBefore:Number(wallet.ReservedBalance||0),
       ReservedAfter:Number(wallet.ReservedBalance||0),UPIId:'',PaymentLink:'',PaymentLinkStockID:'',
       Attempt:1,ParentTransactionID:String(data.parentTransactionId||''),CreatedAt:now,UpdatedAt:now,CompletedAt:'',
-      Notes:'Awaiting Razorpay Order payment and signed webhook verification',AdminNote:'',
+      Notes:'Awaiting Razorpay Payment Button webhook verification',AdminNote:'',
       PaymentProvider:'RAZORPAY',GatewayOrderID:'',GatewayPaymentID:'',GatewayEventID:'',
       GatewayEmail:normalizeEmail_(user.Email),GatewayContact:contact,GatewayAmountPaise:''
     };
     appendRowObject_(TC_MONEY_WALLET.TX,tx);
   }finally{lock.releaseLock();}
-
-  var orderResponse;
-  try{
-    var orderPayload={amount:Math.round(amount*100),currency:'INR',receipt:String(tx.TransactionID).slice(0,40),
-      notes:{wallet_transaction_id:String(tx.TransactionID),trusted_circle_user_id:String(user.UserID)}};
-    var response=UrlFetchApp.fetch('https://api.razorpay.com/v1/orders',{
-      method:'post',contentType:'application/json',
-      headers:{Authorization:'Basic '+Utilities.base64Encode(keyId+':'+keySecret)},
-      payload:JSON.stringify(orderPayload),muteHttpExceptions:true
-    });
-    var status=response.getResponseCode(),body=response.getContentText()||'';
-    orderResponse=safeJsonParse_(body)||{};
-    if(status<200||status>=300||!orderResponse.id)throw new Error(orderResponse.error&&orderResponse.error.description||'Razorpay could not create the payment order.');
-  }catch(orderError){
-    updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'PAYMENT_SETUP_FAILED',UpdatedAt:isoNow_(),Notes:'Razorpay order creation failed: '+String(orderError&&orderError.message||orderError)});
-    throw new Error('Could not create Razorpay order. '+String(orderError&&orderError.message||orderError));
-  }
-  var orderId=String(orderResponse.id);
-  updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{GatewayOrderID:orderId,UpdatedAt:isoNow_()});
-  tx.GatewayOrderID=orderId;
   var adminEmailSent=true;
   try{moneyWalletAdminActions_(tx);}catch(mailError){adminEmailSent=false;console.error('Razorpay wallet request email failed: '+String(mailError&&mailError.message||mailError));}
-  var razorpayOrder={keyId:keyId,orderId:orderId,amount:Math.round(amount*100),currency:'INR',
-    name:'Trusted Circle',description:'Money Wallet Top-up',prefill:{email:normalizeEmail_(user.Email),contact:contact},
-    transactionId:String(tx.TransactionID)};
   return{paymentLink:'',expiresAt:'',adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),
-    razorpayOrder:razorpayOrder,data:{transaction:moneyTxPublic_(tx),razorpayOrder:razorpayOrder,adminEmailSent:adminEmailSent}};
+    data:{transaction:moneyTxPublic_(tx),adminEmailSent:adminEmailSent}};
 }
 
 /**
