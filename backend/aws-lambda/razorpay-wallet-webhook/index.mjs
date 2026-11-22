@@ -67,6 +67,7 @@ export const handler = async (event) => {
     event: eventName,
     payment: {
       id: paymentId,
+      orderId: String(payment.order_id || ""),
       email: String(payment.email || ""),
       contact: String(payment.contact || ""),
       amount: Number(payment.amount || 0),
