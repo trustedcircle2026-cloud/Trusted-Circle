@@ -2,7 +2,6 @@ import React,{useEffect,useState} from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import ErpApp from './ErpApp'
-import GlobalLoading from './GlobalLoading'
 import './styles.css'
 import './site.css'
 import './public-ui.css'
@@ -16,7 +15,6 @@ function Root(){
   const[erp,setErp]=useState(isErpRoute())
   useEffect(()=>{const onHash=()=>setErp(isErpRoute());window.addEventListener('hashchange',onHash);return()=>window.removeEventListener('hashchange',onHash)},[])
   return <React.StrictMode>
-    <GlobalLoading />
     {erp?<ErpApp/>:<App/>}
   </React.StrictMode>
 }
