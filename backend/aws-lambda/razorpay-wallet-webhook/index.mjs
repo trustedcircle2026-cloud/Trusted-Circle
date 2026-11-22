@@ -52,7 +52,7 @@ export const handler = async (event) => {
   }
 
   const eventName = String(payload?.event || "").toLowerCase();
-  if (!["payment.captured", "payment.failed", "order.paid"].includes(eventName)) {
+  if (!["payment.captured", "payment.failed"].includes(eventName)) {
     return json(200, { ok: true, ignored: true, event: eventName });
   }
 
