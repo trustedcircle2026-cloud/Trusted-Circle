@@ -459,7 +459,7 @@ function ensureMoneyWalletRazorpaySchema_(){
   extra.forEach(function(name){if(headers.indexOf(name)<0){tx.getRange(1,tx.getLastColumn()+1).setValue(name);headers.push(name);}});
   ensureSheet_('MoneyWalletWebhookEvents',['EventID','EventType','PaymentID','Email','Contact','AmountPaise','Currency','ProcessingStatus','TransactionID','ReceivedAt','Details']);
 }
-function razorpayDigits_(value){return String(value||'').replace(/\D/g,'');}
+function razorpayDigits_(value){var digits=String(value||'').replace(/\D/g,'');if(digits.length===12&&digits.indexOf('91')===0)digits=digits.slice(2);if(digits.length===11&&digits.charAt(0)==='0')digits=digits.slice(1);return digits;}
 function moneyWalletAddRazorpay_(data){
   var user=walletUserFromIdentity_(data),amount=Math.round(Number(data.amount||0)*100)/100;
   require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
