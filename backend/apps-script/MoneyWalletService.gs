@@ -59,7 +59,7 @@ function moneyWalletPublic_(userId){
   return{walletId:String(w.WalletID||''),balance:balance,reservedBalance:reserved,availableBalance:Math.max(0,balance-reserved),totalAdded:Number(w.TotalAdded||0),totalWithdrawn:Number(w.TotalWithdrawn||0)};
 }
 function moneyTxPublic_(r){
-  return{transactionId:String(r.TransactionID||''),type:String(r.Type||''),amount:Number(r.Amount||0),status:String(r.Status||''),balanceBefore:Number(r.BalanceBefore||0),balanceAfter:Number(r.BalanceAfter||0),reservedBalance:Number(r.ReservedAfter||0),upiId:String(r.UPIId||''),paymentLinkLabel:String(r.PaymentProvider||'').toUpperCase()==='RAZORPAY'?'Razorpay Checkout':'Shopping Payment Link',paymentLink:String(r.PaymentLink||''),paymentProvider:String(r.PaymentProvider||''),gatewayOrderId:String(r.GatewayOrderID||''),attempt:Number(r.Attempt||1),parentTransactionId:String(r.ParentTransactionID||''),createdAt:r.CreatedAt,updatedAt:r.UpdatedAt,completedAt:r.CompletedAt||'',notes:String(r.Notes||'')};
+  return{transactionId:String(r.TransactionID||''),type:String(r.Type||''),amount:Number(r.Amount||0),requestedAmount:Number(r.RequestedAmount||r.Amount||0),receivedAmount:Number(r.ReceivedAmount||r.Amount||0),razorpayPaymentId:String(r.GatewayPaymentID||''),status:String(r.Status||''),balanceBefore:Number(r.BalanceBefore||0),balanceAfter:Number(r.BalanceAfter||0),reservedBalance:Number(r.ReservedAfter||0),upiId:String(r.UPIId||''),paymentLinkLabel:String(r.PaymentProvider||'').toUpperCase()==='RAZORPAY'?'Razorpay Checkout':'Shopping Payment Link',paymentLink:String(r.PaymentLink||''),paymentProvider:String(r.PaymentProvider||''),gatewayOrderId:String(r.GatewayOrderID||''),attempt:Number(r.Attempt||1),parentTransactionId:String(r.ParentTransactionID||''),createdAt:r.CreatedAt,updatedAt:r.UpdatedAt,completedAt:r.CompletedAt||'',notes:String(r.Notes||'')};
 }
 function walletServicesData_(data){
   var user=walletUserFromIdentity_(data);
@@ -407,7 +407,7 @@ function testMoneyWalletAdminEmails(){
 function ensureMoneyWalletRazorpaySchema_(){
   ensureMoneyWalletSheets_();
   var ss=getSpreadsheet_(),tx=ss.getSheetByName(TC_MONEY_WALLET.TX);
-  var extra=['PaymentProvider','GatewayOrderID','GatewayPaymentID','GatewayEventID','GatewayEmail','GatewayContact','GatewayAmountPaise'];
+  var extra=['PaymentProvider','GatewayOrderID','GatewayPaymentID','GatewayEventID','GatewayEmail','GatewayContact','GatewayAmountPaise','RequestedAmount','ReceivedAmount'];
   var headers=tx.getRange(1,1,1,Math.max(1,tx.getLastColumn())).getValues()[0].map(String);
   extra.forEach(function(name){if(headers.indexOf(name)<0){tx.getRange(1,tx.getLastColumn()+1).setValue(name);headers.push(name);}});
   ensureSheet_('MoneyWalletWebhookEvents',['EventID','EventType','PaymentID','OrderID','Email','Contact','AmountPaise','Currency','ProcessingStatus','TransactionID','ReceivedAt','Details']);
@@ -505,16 +505,15 @@ function moneyWalletRazorpayWebhook_(data){
         normalizeEmail_(x.GatewayEmail)===email&&razorpayPhoneMatch_(x.GatewayContact)===contact&&
         sameOrder&&age>=-60000&&age<=24*60*60*1000;
     });
-    var matching=candidates.filter(function(x){return Math.round(Number(x.Amount||0)*100)===amountPaise;});
-    if(matching.length!==1){
-      var reason=matching.length>1?'AMBIGUOUS_PENDING_TRANSACTIONS':(candidates.length?'PAYMENT_AMOUNT_MISMATCH':'NO_MATCHING_WALLET_TRANSACTION');
-      if(candidates.length&&matching.length===0){
-        candidates.forEach(function(x){updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',x.TransactionID,{Status:'PAYMENT_AMOUNT_MISMATCH',GatewayPaymentID:paymentId,GatewayEventID:eventId,GatewayEmail:email,GatewayContact:contact,GatewayAmountPaise:amountPaise,UpdatedAt:isoNow_(),Notes:'Razorpay amount did not match the requested wallet top-up. No balance was credited.'});});
-      }
-      appendRowObject_('MoneyWalletWebhookEvents',{EventID:eventId,EventType:eventType,PaymentID:paymentId,OrderID:cleanText_(p.orderId||p.order_id||'',120),Email:email,Contact:contact,AmountPaise:amountPaise,Currency:currency,ProcessingStatus:reason,TransactionID:candidates.length===1?candidates[0].TransactionID:'',ReceivedAt:isoNow_(),Details:'No wallet credit performed'});
+    // Payment Button amounts can differ from the selected denomination.
+    // Match the unique pending attempt by account identity, contact and time,
+    // then credit the actual captured Razorpay amount.
+    if(candidates.length!==1){
+      var reason=candidates.length>1?'AMBIGUOUS_PENDING_TRANSACTIONS':'NO_MATCHING_WALLET_TRANSACTION';
+      appendRowObject_('MoneyWalletWebhookEvents',{EventID:eventId,EventType:eventType,PaymentID:paymentId,OrderID:cleanText_(p.orderId||p.order_id||'',120),Email:email,Contact:contact,AmountPaise:amountPaise,Currency:currency,ProcessingStatus:reason,TransactionID:'',ReceivedAt:isoNow_(),Details:'No unique pending wallet top-up; no wallet credit performed'});
       return{ok:true,credited:false,reason:reason};
     }
-    var tx=matching[0],profile=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',tx.UserID);
+    var tx=candidates[0],requestedAmount=Number(tx.Amount||0),receivedAmount=amountPaise/100,profile=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',tx.UserID);
     var profilePhone=razorpayPhoneMatch_(profile&&(profile.Mobile||profile.MobileNo||profile.MobileNumber||profile.Phone||profile.PhoneNumber||profile.Contact)||'');
     if((profilePhone&&profilePhone!==contact)||razorpayPhoneMatch_(tx.GatewayContact)!==contact){
       updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'PAYMENT_REVIEW',GatewayPaymentID:paymentId,GatewayEventID:eventId,GatewayEmail:email,GatewayContact:contact,GatewayAmountPaise:amountPaise,UpdatedAt:isoNow_(),Notes:'Razorpay mobile number did not match the registered account mobile. Manual review required.'});
@@ -528,12 +527,12 @@ function moneyWalletRazorpayWebhook_(data){
     }
     require_(currency==='INR','Only INR Razorpay wallet payments are accepted.');
     require_(paymentStatus==='captured'||eventType==='payment.captured'||eventType==='order.paid','Razorpay payment is not captured.');
-    var wallet=moneyWalletRow_(tx.UserID),before=Number(wallet.Balance||0),credit=Number(tx.Amount||0),after=before+credit,now=isoNow_();
+    var wallet=moneyWalletRow_(tx.UserID),before=Number(wallet.Balance||0),credit=receivedAmount,after=before+credit,now=isoNow_();
     updateRowById_(TC_MONEY_WALLET.WALLET,'UserID',tx.UserID,{Balance:after,TotalAdded:Number(wallet.TotalAdded||0)+credit,UpdatedAt:now});
     updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{
-      Status:'COMPLETED',BalanceBefore:before,BalanceAfter:after,UpdatedAt:now,CompletedAt:now,
+      Status:'COMPLETED',Amount:credit,RequestedAmount:requestedAmount,ReceivedAmount:credit,BalanceBefore:before,BalanceAfter:after,UpdatedAt:now,CompletedAt:now,
       GatewayPaymentID:paymentId,GatewayEventID:eventId,GatewayEmail:email,GatewayContact:contact,
-      GatewayAmountPaise:amountPaise,Notes:'Razorpay payment captured and verified by signed webhook'
+      GatewayAmountPaise:amountPaise,Notes:'Razorpay captured amount ₹'+credit+' credited (selected amount ₹'+requestedAmount+')'
     });
     completed=findOne_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID)||tx;
     appendRowObject_('MoneyWalletWebhookEvents',{EventID:eventId,EventType:eventType,PaymentID:paymentId,OrderID:cleanText_(p.orderId||p.order_id||'',120),Email:email,Contact:contact,AmountPaise:amountPaise,Currency:currency,ProcessingStatus:'CREDITED',TransactionID:tx.TransactionID,ReceivedAt:now,Details:'Wallet credited '+credit});
