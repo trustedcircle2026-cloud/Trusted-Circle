@@ -1,59 +1,56 @@
-# Trusted Circle Backend — Google Apps Script
+# Trusted Circle Apps Script Backend
 
-This folder contains the server-side API for the Trusted Circle shopping website.
+## Money Wallet — Razorpay Orders
 
-## Architecture
+Money Wallet top-ups use Razorpay Orders created server-side by Google Apps Script. No fixed Payment Button IDs or finite PaymentLinkStock records are required for new Money Wallet top-ups.
 
-`React/Vite frontend → HTTPS Apps Script Web App → Google Sheets`
+### Required Apps Script Script Properties
 
-The browser must never access the operational spreadsheet directly.
+Keep these values in **Project Settings → Script Properties**. Never commit credentials to GitHub or expose them in frontend code.
 
-## Shopping API
+- `SPREADSHEET_ID` — existing Trusted Circle Shopping spreadsheet ID.
+- `ADMIN_EMAIL` — admin notification email.
+- `RAZORPAY_KEY_ID` — Razorpay API Key ID.
+- `RAZORPAY_KEY_SECRET` — Razorpay API Key Secret.
+- `WALLET_RAZORPAY_INTERNAL_SECRET` — existing shared secret used by the AWS webhook integration (retain it).
 
-- `health`
-- `setupBackend` — initializes sheets and seeds the requested shopping catalog
-- `requestOtp`
-- `verifyOtp`
-- `me`
-- `profileUpdate`
-- `logout`
-- `brands`
-- `products`
-- `product`
-- `cart`
-- `cartAdd`
-- `cartUpdate`
-- `cartRemove`
-- `placeOrder`
-- `orders`
+The Razorpay Key ID is returned to the browser for Checkout initialization. The Key Secret remains server-side and is used only by Apps Script to create Orders.
 
-## Current catalog
+### Razorpay Dashboard Webhook
 
-`CatalogService.gs` contains the requested 15 shopping voucher entries and discount rates. The setup seed uses a **₹1,000 demo denomination** so the UI can be populated immediately. Live voucher denominations, inventory and fulfilment must be configured before production.
+Point the Razorpay webhook to the AWS Lambda Function URL and subscribe to:
 
-## First-time / upgrade deployment
+- `payment.captured`
+- `payment.failed`
 
-1. Keep the operational Google Spreadsheet connected to Apps Script.
-2. Add/update all files from this folder in the Apps Script project, including `OrderService.gs` and `CatalogService.gs`.
-3. In **Project Settings → Script Properties**, keep `SPREADSHEET_ID` and `ADMIN_EMAIL` configured.
-4. Run `setupBackend()` once after this upgrade. It initializes missing sheets and idempotently seeds/updates the default shopping catalog.
-5. Deploy a **new Web App version** using the same Web App URL.
-6. Confirm the `health` endpoint reports API version `1.3.0` or newer.
-7. Refresh the shopping website after the new Apps Script deployment is live.
+Use the separate Razorpay webhook secret in Lambda as `RAZORPAY_WEBHOOK_SECRET`. Do not use the API Key Secret as the webhook secret.
 
-## Order flow
+### AWS Lambda environment
 
-`Browse → Product → Cart → Checkout → Place Order → PENDING_PAYMENT order → Order Placed page`
+- `RAZORPAY_WEBHOOK_SECRET` — Razorpay webhook secret.
+- `WALLET_RAZORPAY_INTERNAL_SECRET` — same value as the Apps Script property.
+- `WALLET_APPS_SCRIPT_URL` — deployed main Apps Script Web App URL.
 
-The current checkout intentionally does **not** claim that payment was successful. Payment-gateway integration and server-side payment verification must be completed before production sales.
+### Customer flow
 
-## Security notes
+1. User selects ₹500, ₹1,000, ₹1,500 or ₹2,000.
+2. User must provide a valid email (their Trusted Circle account email) and mobile number.
+3. Apps Script creates a pending Money Wallet transaction.
+4. Apps Script calls Razorpay Orders API using server-side credentials.
+5. Frontend opens Razorpay Checkout using the returned Order ID.
+6. Razorpay sends a signed webhook to AWS Lambda.
+7. Lambda verifies the HMAC-SHA256 signature against the exact raw request body.
+8. Lambda forwards the payment ID, Order ID, email, mobile, amount and event to Apps Script.
+9. Apps Script matches the payment to the exact pending wallet order and credits only a captured INR payment.
+10. Duplicate event IDs and payment IDs are ignored; mismatched or ambiguous payments are not credited.
 
-- OTPs are stored only as SHA-256 hashes, never plaintext.
-- OTPs expire and have a maximum attempt count.
-- OTP resend has a server-side cooldown.
-- Sessions use random bearer tokens; only token hashes are stored.
-- User responses expose only non-sensitive profile fields.
-- Admin role is server-controlled and cannot be selected by a client.
-- Order creation, payment verification, voucher fulfilment and other privileged operations remain server-side.
-- Never commit payment credentials, API keys, service-account credentials or other secrets.
+### Deployment
+
+1. Save the updated Apps Script project.
+2. Confirm the required Script Properties above are configured.
+3. Deploy a **new version** of the main Apps Script Web App.
+4. Deploy the updated Lambda `index.mjs` to the existing function.
+5. Keep the existing Lambda Function URL and Razorpay webhook URL.
+6. Test a Razorpay payment in Test Mode before enabling live top-ups.
+
+Cashback Wallet and Money Wallet remain separate ledgers. Legacy payment-link stock features used by other Trusted Circle workflows are not removed; they are simply no longer used for new Money Wallet top-ups.
