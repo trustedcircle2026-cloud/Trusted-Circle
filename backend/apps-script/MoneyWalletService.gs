@@ -472,12 +472,13 @@ function moneyWalletAddRazorpay_(data){
   var orderId=String(orderResponse.id);
   updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{GatewayOrderID:orderId,UpdatedAt:isoNow_()});
   tx.GatewayOrderID=orderId;
-  try{moneyWalletAdminActions_(tx);}catch(mailError){console.error('Razorpay wallet request email failed: '+String(mailError&&mailError.message||mailError));}
+  var adminEmailSent=true;
+  try{moneyWalletAdminActions_(tx);}catch(mailError){adminEmailSent=false;console.error('Razorpay wallet request email failed: '+String(mailError&&mailError.message||mailError));}
   var razorpayOrder={keyId:keyId,orderId:orderId,amount:Math.round(amount*100),currency:'INR',
     name:'Trusted Circle',description:'Money Wallet Top-up',prefill:{email:normalizeEmail_(user.Email),contact:contact},
     transactionId:String(tx.TransactionID)};
-  return{paymentLink:'',expiresAt:'',adminEmailSent:true,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),
-    razorpayOrder:razorpayOrder,data:{transaction:moneyTxPublic_(tx),razorpayOrder:razorpayOrder}};
+  return{paymentLink:'',expiresAt:'',adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),
+    razorpayOrder:razorpayOrder,data:{transaction:moneyTxPublic_(tx),razorpayOrder:razorpayOrder,adminEmailSent:adminEmailSent}};
 }
 
 /**
