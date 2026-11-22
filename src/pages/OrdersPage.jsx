@@ -257,7 +257,7 @@ export default function OrdersPage({ orders, loading = false, onBack, onShop, on
     {olderLoading ? 'Loading…' : 'View Older Orders'} <ChevronDown size={16}/>
   </button>}
 </div></>})() : <div className="empty-panel"><PackageCheck size={30}/><h3>No orders yet</h3><p>Your orders will appear here.</p><button className="btn-primary" onClick={onBack}>Browse vouchers</button></div>}
-      <div className="orders-bottom-actions"><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
+      <div className="orders-bottom-actions"><a className="btn-quiet orders-razorpay-me" href="https://razorpay.me/@TrustedCircle" target="_blank" rel="noopener noreferrer"><Link2 size={16}/> Pay me</a><button className="btn-primary" onClick={onShop}><ShoppingBag size={16}/> Shop more</button><button className="btn-quiet" onClick={onHome}><Home size={16}/> Home</button></div>
     </div>
 
     {cancelTarget && <div className="cancel-confirm-backdrop" onClick={() => setCancelTarget(null)}><div className="cancel-confirm-modal" onClick={event => event.stopPropagation()}><div className="cancel-warning-icon"><AlertTriangle size={22}/></div><span className="eyebrow">CANCEL ORDER</span><h2>Cancel this order?</h2><p>This payment-pending order will be cancelled. You can create a new order later.</p><div className="cancel-confirm-actions"><button className="btn-quiet" onClick={() => setCancelTarget(null)}>Keep order</button><button className="cancel-confirm-btn" disabled={cancelLoading === cancelTarget.OrderID} onClick={() => cancel(cancelTarget)}>{cancelLoading === cancelTarget.OrderID ? 'Cancelling…' : 'Yes, cancel order'}</button></div></div></div>}
