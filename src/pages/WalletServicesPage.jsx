@@ -6,7 +6,7 @@ import {api} from '../api'
 import './wallet-services.css'
 
 const LOGO_URL='https://raw.githubusercontent.com/trustedcircle2026-cloud/Trusted-Circle/main/Logo%20new.jpg'
-const RAZORPAY_WALLET_BUTTONS={500:'pl_U3C2KDYnDEMEL9',1000:'',1500:'',2000:''};
+const RAZORPAY_WALLET_BUTTONS={500:'pl_U3C2KDYnDEMEL9',1000:'pl_U3CGJEPZ8hyjJu',1500:'',2000:''};
 const money=n=>Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})
 const statusClass=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')
 
