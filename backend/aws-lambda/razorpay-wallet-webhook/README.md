@@ -15,6 +15,8 @@ Set these Lambda environment variables (never commit their values):
 - `WALLET_RAZORPAY_INTERNAL_SECRET`: a separate long random secret shared with Apps Script.
 - `WALLET_APPS_SCRIPT_URL`: the deployed Trusted Circle main Apps Script Web App URL.
 
+The Razorpay Orders API credentials (`RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`) are stored only in the main Apps Script project's Script Properties. Apps Script creates each dynamic Order; this Lambda remains the signed webhook verifier/forwarder. Do not put the API Key Secret in Lambda webhook settings or frontend code.
+
 In the Apps Script project, set Script Property `WALLET_RAZORPAY_INTERNAL_SECRET` to the same internal secret.
 
 ## Razorpay Dashboard
@@ -31,7 +33,8 @@ Copy the webhook secret into the Lambda environment variable. Do not use the Raz
 
 - The Wallet creates a pending transaction before showing the Payment Button.
 - Captured payment email must exactly match the signed-in Trusted Circle account email.
-- Checkout mobile must be present and valid. If the Trusted Circle user record already contains a mobile number, it must match.
+- Checkout mobile must be present, valid, and exactly match the mobile number stored with the pending wallet transaction.
+- Razorpay Order ID must match the pending wallet transaction's stored GatewayOrderID.
 - Currency must be INR and the captured amount in paise must exactly equal the pending wallet transaction amount.
 - Only one pending Razorpay top-up per user is allowed to avoid ambiguous matches.
 - Duplicate event IDs and duplicate payment IDs are ignored.
