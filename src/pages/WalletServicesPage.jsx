@@ -33,7 +33,7 @@ function RazorpayWalletButton({buttonId,email,contact,onPaymentStart}){
   const observer=new MutationObserver(observeForms);observer.observe(mount,{childList:true,subtree:true});
   observeForms();
   return()=>{observer.disconnect();mount.innerHTML=''};
- },[buttonId,email,contact,onPaymentStart]);
+ },[buttonId,email,contact]);
  return <div id="tc-wallet-razorpay-button" className="wallet-razorpay-button-mount"><span className="wallet-razorpay-loading">Loading secure payment button…</span></div>;
 }
 async function logoDataUrl(){
