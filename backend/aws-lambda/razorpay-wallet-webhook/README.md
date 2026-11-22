@@ -34,8 +34,7 @@ Copy the webhook secret into the Lambda environment variable. Do not use the Raz
 - The Wallet creates a pending transaction before showing the Payment Button.
 - Captured payment email must exactly match the signed-in Trusted Circle account email.
 - Checkout mobile must be present, valid, and exactly match the mobile number stored with the pending wallet transaction.
-- Razorpay Order ID must match the pending wallet transaction's stored GatewayOrderID.
-- Currency must be INR and the captured amount in paise must exactly equal the pending wallet transaction amount.
+- - Currency must be INR and the captured amount in paise must exactly equal the pending wallet transaction amount.
 - Only one pending Razorpay top-up per user is allowed to avoid ambiguous matches.
 - Duplicate event IDs and duplicate payment IDs are ignored.
 - An unmatched, ambiguous, or amount-mismatched payment is logged and is **not credited**.
