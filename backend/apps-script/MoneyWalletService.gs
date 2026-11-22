@@ -520,7 +520,10 @@ function moneyWalletRazorpayWebhook_(data){
     var candidates=allTx.filter(function(x){
       var age=Date.now()-new Date(x.CreatedAt||0).getTime();
       var status=String(x.Status||'').toUpperCase();
-      var sameOrder=orderId?String(x.GatewayOrderID||'')===orderId:!String(x.GatewayOrderID||'');
+      var storedOrderId=String(x.GatewayOrderID||'');
+      // New dynamic Orders must match exactly. Legacy Payment Button attempts
+      // have no stored Order ID and are matched only when all other fields are unique.
+      var sameOrder=storedOrderId?storedOrderId===orderId:true;
       return String(x.Type).toUpperCase()==='ADD_MONEY'&&
         ['PENDING_PAYMENT','PAYMENT_FAILED'].indexOf(status)>=0&&
         String(x.PaymentProvider||'').toUpperCase()==='RAZORPAY'&&
