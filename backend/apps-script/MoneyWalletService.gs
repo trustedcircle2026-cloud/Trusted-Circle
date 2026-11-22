@@ -248,16 +248,17 @@ function moneyWalletAdminActions_(t){
   if(u&&u.Email)customer=String(u.Email);
   var amount=Number(t.Amount||0),link=String(t.PaymentLink||'');
   var source=String(t.PaymentProvider||'').toUpperCase()==='RAZORPAY'?'Razorpay Payment Button':(t.PaymentLinkStockID?'Paytm Payment Link':'Manual UPI (not automatically verifiable)');
+  var instructions=String(t.PaymentProvider||'').toUpperCase()==='RAZORPAY'?'Razorpay will notify Trusted Circle after the payment is captured. The wallet is credited only after webhook verification.':'Trusted Circle will automatically check supported Paytm payment links. If Paytm reports the link as paid, the wallet will be credited.';
   var body='<p>A <b>Money Wallet Add Money</b> payment request has been created.</p>'+
     '<table style="border-collapse:collapse;width:100%;font-size:14px;margin:18px 0">'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Transaction ID</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailEscape_(t.TransactionID)+'</b></td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Customer</td><td style="padding:9px;border-bottom:1px solid #edf1ee">'+walletMailEscape_(customer||'—')+'</td></tr>'+
     '<tr><td style="padding:9px;border-bottom:1px solid #edf1ee">Amount</td><td style="padding:9px;border-bottom:1px solid #edf1ee"><b>'+walletMailMoney_(amount)+'</b></td></tr>'+
     '<tr><td style="padding:9px">Payment Source</td><td style="padding:9px">'+walletMailEscape_(source)+'</td></tr></table>'+
-    '<p>Trusted Circle will automatically check supported Paytm payment links. If Paytm reports the link as paid, the wallet will be credited and a separate informational email will be sent.</p>'+
+    '<p>'+walletMailEscape_(instructions)+'</p>'+
     (link&&!/^upi:\/\//i.test(link)?'<p><a href="'+walletMailEscape_(link)+'">Open Paytm payment link</a></p>':'');
   var html=walletMailShell_('Money Wallet · Add Money Request Created',body);
-  var text='Trusted Circle Money Wallet Add Money request created.\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\nSource: '+source+'\nNo action is required. Supported Paytm links are checked automatically.\nPayment link: '+link;
+  var text='Trusted Circle Money Wallet Add Money request created.\nTransaction: '+t.TransactionID+'\nCustomer: '+(customer||'—')+'\nAmount: '+walletMailMoney_(amount)+'\nSource: '+source+'\n'+instructions+'\nPayment link: '+link;
   if(!walletMailSend_('Trusted Circle — Money Wallet Payment Request Created '+walletMailMoney_(amount),html,text))throw new Error('Wallet admin Add Money information email failed.');
   return true;
 }
@@ -538,7 +539,7 @@ function moneyWalletRazorpayWebhook_(data){
       return{ok:true,credited:false,reason:reason};
     }
     var tx=matching[0],profile=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',tx.UserID);
-    var profilePhone=razorpayDigits_(profile&&(profile.Mobile||profile.MobileNumber||profile.Phone||profile.PhoneNumber)||'');
+    var profilePhone=razorpayDigits_(profile&&(profile.Mobile||profile.MobileNo||profile.MobileNumber||profile.Phone||profile.PhoneNumber||profile.Contact)||'');
     if(profilePhone&&profilePhone!==contact){
       updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'PAYMENT_REVIEW',GatewayPaymentID:paymentId,GatewayEventID:eventId,GatewayEmail:email,GatewayContact:contact,GatewayAmountPaise:amountPaise,UpdatedAt:isoNow_(),Notes:'Razorpay mobile number did not match the registered account mobile. Manual review required.'});
       appendRowObject_('MoneyWalletWebhookEvents',{EventID:eventId,EventType:eventType,PaymentID:paymentId,Email:email,Contact:contact,AmountPaise:amountPaise,Currency:currency,ProcessingStatus:'MOBILE_MISMATCH_REVIEW',TransactionID:tx.TransactionID,ReceivedAt:isoNow_(),Details:'No wallet credit performed'});
