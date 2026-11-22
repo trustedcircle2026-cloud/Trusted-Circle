@@ -24,3 +24,6 @@
 @media (max-width:720px){
   .hero-buttons .btn-wallet-service{width:100%;}
 }
+
+/* Homepage now opens directly on the brand catalogue. */
+.page-home > .home-section:first-of-type{padding-top:30px}
