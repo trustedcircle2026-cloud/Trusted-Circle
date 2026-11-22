@@ -1605,6 +1605,15 @@ html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wal
 
 /* Razorpay Payment Button wallet top-up selector */
 .wallet-razorpay-select-modal{width:min(500px,100%)}
+/* Razorpay amount picker: place close control at the upper-left corner. */
+.wallet-razorpay-select-modal .wallet-modal-x{left:14px;right:auto;top:14px}
+.wallet-razorpay-select-modal .wallet-add-topline{padding-left:42px}
+.wallet-razorpay-return-modal{width:min(500px,100%);text-align:center}
+.wallet-razorpay-return-modal .wallet-live-summary{grid-template-columns:1fr}
+.wallet-razorpay-return-modal .wallet-live-summary>div{border-right:0;border-bottom:1px solid #dce8e1;text-align:left}
+.wallet-razorpay-return-modal .wallet-live-summary>div:last-child{border-bottom:0}
+.wallet-razorpay-warning{padding:11px 13px;border-radius:11px;background:#fff8e8;color:#85621a!important;font-size:12px}
+
 .wallet-add-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .wallet-add-topline .wallet-modal-logo{margin:0 0 12px}
 .wallet-custom-toggle{width:36px;height:36px;display:grid;place-items:center;border:1px solid #dce8e0;border-radius:11px;background:#f7faf8;color:#176b49;cursor:pointer;transition:all .18s}
