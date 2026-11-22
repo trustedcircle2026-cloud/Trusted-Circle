@@ -484,8 +484,8 @@ function moneyWalletAddRazorpay_(data){
     };
     appendRowObject_(TC_MONEY_WALLET.TX,tx);
   }finally{lock.releaseLock();}
-  try{moneyWalletAdminActions_(tx);}catch(mailError){console.error('Razorpay wallet request email failed: '+String(mailError&&mailError.message||mailError));}
-  return{paymentLink:'',expiresAt:'',adminEmailSent:true,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:'',transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID)}};
+  var adminEmailSent=true;try{moneyWalletAdminActions_(tx);}catch(mailError){adminEmailSent=false;console.error('Razorpay wallet request email failed: '+String(mailError&&mailError.message||mailError));}
+  return{paymentLink:'',expiresAt:'',adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID),data:{paymentLink:'',adminEmailSent:adminEmailSent,transaction:moneyTxPublic_(tx),wallet:moneyWalletPublic_(user.UserID)}};
 }
 
 /**
