@@ -1634,3 +1634,11 @@ html:has(.wallet-single-page.wallet-split-page),body:has(.wallet-single-page.wal
  .wallet-razorpay-select-modal{padding:24px 19px}
  .wallet-razorpay-denoms button{min-height:60px}
 }
+
+/* Animated Razorpay add-money success confirmation */
+.wallet-animated-success{color:#16834d!important;background:#e8f8ef!important;box-shadow:0 0 0 10px #e8f8ef,0 12px 32px rgba(16,125,72,.18)!important}
+.wallet-animated-success svg{width:76px!important;height:76px!important;overflow:visible}
+.wallet-success-circle{stroke-dasharray:196;stroke-dashoffset:196;animation:walletSuccessCircle .65s ease-out .12s forwards}
+.wallet-success-check{stroke-dasharray:52;stroke-dashoffset:52;animation:walletSuccessCheck .42s cubic-bezier(.2,1.4,.4,1) .72s forwards}
+@keyframes walletSuccessCircle{to{stroke-dashoffset:0}}
+@keyframes walletSuccessCheck{to{stroke-dashoffset:0}}
