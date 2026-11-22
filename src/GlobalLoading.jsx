@@ -16,5 +16,5 @@ export default function GlobalLoading(){
     return()=>window.removeEventListener('tc:loading',onLoading)
   },[])
   if(!active)return null
-  return <div className="global-loading" role="status" aria-live="polite" aria-busy="true"><div className="global-loading-mark"><img src={LOGO_URL} alt="Trusted Circle"/></div></div>
+  return <span className="global-loading" role="status" aria-label="Loading" aria-live="polite" aria-busy="true"><span className="global-loading-mark"><img src={LOGO_URL} alt="Trusted Circle"/></span></span>
 }
