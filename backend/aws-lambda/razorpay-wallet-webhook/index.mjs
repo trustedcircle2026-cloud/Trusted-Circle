@@ -80,12 +80,13 @@ export const handler = async (event) => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(normalized),
+      redirect: "follow",
     });
     const responseText = await response.text();
     let result;
     try { result = JSON.parse(responseText); }
     catch { throw new Error("Apps Script returned a non-JSON response."); }
-    if (!response.ok || result?.ok === false) {
+    if (!response.ok || result?.success === false || result?.ok === false) {
       console.error("Apps Script webhook processing failed.", { status: response.status, result });
       return json(502, { ok: false, error: "Wallet webhook processing failed." });
     }
