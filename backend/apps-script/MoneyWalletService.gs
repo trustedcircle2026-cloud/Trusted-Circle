@@ -431,7 +431,7 @@ function moneyWalletAddRazorpay_(data){
     var existing=getRows_(TC_MONEY_WALLET.TX).filter(function(row){
       return String(row.UserID)===String(user.UserID)&&String(row.Type).toUpperCase()==='ADD_MONEY'&&
         String(row.PaymentProvider||'').toUpperCase()==='RAZORPAY'&&
-        ['PENDING_PAYMENT','PAYMENT_FAILED','PAYMENT_REVIEW'].indexOf(String(row.Status).toUpperCase())>=0;
+        ['PENDING_PAYMENT','PAYMENT_REVIEW'].indexOf(String(row.Status).toUpperCase())>=0;
     });
     require_(existing.length===0,'You already have a Razorpay wallet payment awaiting confirmation or review. Check its status before starting another payment.');
     var wallet=moneyWalletRow_(user.UserID),balance=Number(wallet.Balance||0),tid=newId_('TCMWTX');
