@@ -23,7 +23,7 @@ Create a webhook pointing to the Lambda Function URL. Subscribe to:
 
 - `payment.captured`
 - `payment.failed`
-- `order.paid`
+
 
 Copy the webhook secret into the Lambda environment variable. Do not use the Razorpay API Key Secret here; this is the separate webhook secret.
 
