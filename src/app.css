@@ -825,3 +825,12 @@
 @keyframes walletAdminSpin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.wallet-admin-result-modal{width:calc(100vw - 30px);max-height:calc(100dvh - 30px);overflow-y:auto;padding:27px 20px 22px}.wallet-admin-result-icon{width:88px;height:88px;margin:5px auto 16px}.wallet-admin-result-summary{padding:13px;gap:8px 10px}.wallet-admin-result-summary strong{max-width:175px;font-size:11px}.wallet-admin-result-modal>p{font-size:13px}}
 @media(prefers-reduced-motion:reduce){.wallet-admin-result-modal,.wallet-admin-result-icon,.wallet-admin-result-icon:before,.wallet-admin-result-icon:after,.wallet-admin-spin{animation:none!important}}
+
+
+/* Shopping experience: prevent accidental browser text highlighting.
+   Inputs and editable fields remain selectable for normal form editing. */
+.app-root,.app-root *{ -webkit-user-select:none; user-select:none; }
+.app-root input,.app-root textarea,.app-root select,.app-root [contenteditable="true"],.app-root .allow-text-select{
+  -webkit-user-select:text;
+  user-select:text;
+}
