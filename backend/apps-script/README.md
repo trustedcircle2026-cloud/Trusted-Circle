@@ -2,7 +2,7 @@
 
 ## Money Wallet — Razorpay Orders
 
-Money Wallet top-ups use Razorpay Orders created server-side by Google Apps Script. No fixed Payment Button IDs or finite PaymentLinkStock records are required for new Money Wallet top-ups.
+Money Wallet top-ups use your Razorpay Payment Button IDs. This flow does not require Razorpay API Key ID or API Key Secret and does not reserve finite PaymentLinkStock records.
 
 ### Required Apps Script Script Properties
 
@@ -10,8 +10,6 @@ Keep these values in **Project Settings → Script Properties**. Never commit cr
 
 - `SPREADSHEET_ID` — existing Trusted Circle Shopping spreadsheet ID.
 - `ADMIN_EMAIL` — admin notification email.
-- `RAZORPAY_KEY_ID` — Razorpay API Key ID.
-- `RAZORPAY_KEY_SECRET` — Razorpay API Key Secret.
 - `WALLET_RAZORPAY_INTERNAL_SECRET` — existing shared secret used by the AWS webhook integration (retain it).
 
 The Razorpay Key ID is returned to the browser for Checkout initialization. The Key Secret remains server-side and is used only by Apps Script to create Orders.
@@ -33,16 +31,15 @@ Use the separate Razorpay webhook secret in Lambda as `RAZORPAY_WEBHOOK_SECRET`.
 
 ### Customer flow
 
-1. User selects ₹500, ₹1,000, ₹1,500 or ₹2,000.
-2. User must provide a valid email (their Trusted Circle account email) and mobile number.
-3. Apps Script creates a pending Money Wallet transaction.
-4. Apps Script calls Razorpay Orders API using server-side credentials.
-5. Frontend opens Razorpay Checkout using the returned Order ID.
-6. Razorpay sends a signed webhook to AWS Lambda.
-7. Lambda verifies the HMAC-SHA256 signature against the exact raw request body.
-8. Lambda forwards the payment ID, Order ID, email, mobile, amount and event to Apps Script.
-9. Apps Script matches the payment to the exact pending wallet order and credits only a captured INR payment.
-10. Duplicate event IDs and payment IDs are ignored; mismatched or ambiguous payments are not credited.
+1. User selects a configured amount and provides a valid account email and mobile number.
+2. Apps Script creates a pending Money Wallet transaction.
+3. Frontend loads the matching Razorpay Payment Button ID.
+4. Customer completes payment in Razorpay.
+5. Razorpay sends a signed webhook to AWS Lambda.
+6. Lambda verifies the HMAC-SHA256 signature against the exact raw request body.
+7. Lambda forwards the payment ID, email, mobile, amount and event to Apps Script.
+8. Apps Script matches the payment to one pending wallet transaction using account email, mobile and exact amount, and credits only a captured INR payment.
+9. Duplicate event IDs and payment IDs are ignored; mismatched or ambiguous payments are not credited.
 
 ### Deployment
 
