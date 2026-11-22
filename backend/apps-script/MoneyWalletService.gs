@@ -413,10 +413,16 @@ function ensureMoneyWalletRazorpaySchema_(){
   ensureSheet_('MoneyWalletWebhookEvents',['EventID','EventType','PaymentID','OrderID','Email','Contact','AmountPaise','Currency','ProcessingStatus','TransactionID','ReceivedAt','Details']);
 }
 function razorpayDigits_(value){var digits=String(value||'').replace(/\D/g,'');if(digits.length===12&&digits.indexOf('91')===0)digits=digits.slice(2);if(digits.length===11&&digits.charAt(0)==='0')digits=digits.slice(1);return digits;}
+function razorpayPhoneMatch_(value){
+  var digits=razorpayDigits_(value);
+  if(digits.length===12&&digits.indexOf('91')===0)digits=digits.slice(2);
+  if(digits.length===11&&digits.charAt(0)==='0')digits=digits.slice(1);
+  return digits;
+}
 function moneyWalletAddRazorpay_(data){
   var user=walletUserFromIdentity_(data);
   var amount=Math.round(Number(data.amount||0)*100)/100;
-  var contact=razorpayDigits_(data.contact||data.mobile||'');
+  var contact=razorpayPhoneMatch_(data.contact||data.mobile||'');
   require_(TC_MONEY_WALLET.ADD.indexOf(amount)>=0,'Choose ₹500, ₹1,000, ₹1,500 or ₹2,000.');
   require_(isValidEmail_(normalizeEmail_(user.Email)),'A valid account email is required for Razorpay Checkout.');
   require_(contact.length>=10&&contact.length<=15,'Enter a valid mobile number (10 to 15 digits).');
@@ -518,7 +524,7 @@ function moneyWalletRazorpayWebhook_(data){
       return String(x.Type).toUpperCase()==='ADD_MONEY'&&
         ['PENDING_PAYMENT','PAYMENT_FAILED'].indexOf(status)>=0&&
         String(x.PaymentProvider||'').toUpperCase()==='RAZORPAY'&&
-        normalizeEmail_(x.GatewayEmail)===email&&razorpayDigits_(x.GatewayContact)===contact&&
+        normalizeEmail_(x.GatewayEmail)===email&&razorpayPhoneMatch_(x.GatewayContact)===contact&&
         sameOrder&&age>=-60000&&age<=24*60*60*1000;
     });
     var matching=candidates.filter(function(x){return Math.round(Number(x.Amount||0)*100)===amountPaise;});
@@ -531,8 +537,8 @@ function moneyWalletRazorpayWebhook_(data){
       return{ok:true,credited:false,reason:reason};
     }
     var tx=matching[0],profile=findOne_(TC_CONFIG.SHEETS.USERS,'UserID',tx.UserID);
-    var profilePhone=razorpayDigits_(profile&&(profile.Mobile||profile.MobileNo||profile.MobileNumber||profile.Phone||profile.PhoneNumber||profile.Contact)||'');
-    if((profilePhone&&profilePhone!==contact)||razorpayDigits_(tx.GatewayContact)!==contact){
+    var profilePhone=razorpayPhoneMatch_(profile&&(profile.Mobile||profile.MobileNo||profile.MobileNumber||profile.Phone||profile.PhoneNumber||profile.Contact)||'');
+    if((profilePhone&&profilePhone!==contact)||razorpayPhoneMatch_(tx.GatewayContact)!==contact){
       updateRowById_(TC_MONEY_WALLET.TX,'TransactionID',tx.TransactionID,{Status:'PAYMENT_REVIEW',GatewayPaymentID:paymentId,GatewayEventID:eventId,GatewayEmail:email,GatewayContact:contact,GatewayAmountPaise:amountPaise,UpdatedAt:isoNow_(),Notes:'Razorpay mobile number did not match the registered account mobile. Manual review required.'});
       appendRowObject_('MoneyWalletWebhookEvents',{EventID:eventId,EventType:eventType,PaymentID:paymentId,OrderID:cleanText_(p.orderId||p.order_id||'',120),Email:email,Contact:contact,AmountPaise:amountPaise,Currency:currency,ProcessingStatus:'MOBILE_MISMATCH_REVIEW',TransactionID:tx.TransactionID,ReceivedAt:isoNow_(),Details:'No wallet credit performed'});
       return{ok:true,credited:false,reason:'MOBILE_MISMATCH_REVIEW'};
