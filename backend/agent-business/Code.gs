@@ -1506,7 +1506,10 @@ function sendInvoiceInsuranceBills_(p){
     // First try the saved Drive ID. Older Receipts rows may have shifted values
     // because the sheet schema changed; in that case recover by Payment ID.
     if(fileId){
-      try{file=DriveApp.getFileById(fileId);}catch(fileLookupError){file=null;}
+      try{
+        var savedFile=DriveApp.getFileById(fileId);
+        if(String(savedFile.getName()).indexOf(String(item.PaymentID||''))!==-1)file=savedFile;
+      }catch(fileLookupError){file=null;}
     }
     if(!file){
       try{
@@ -1520,6 +1523,8 @@ function sendInvoiceInsuranceBills_(p){
     }
     if(!file){skipped.push({clientName:name,reason:'Receipt attachment not found in the insurance receipt folder for Payment ID '+String(item.PaymentID||'')+'.'});return;}
     // Repair legacy/misaligned receipt rows so subsequent sends use the right ID.
+    var oldReceiptDate=receipt.ReceiptDate instanceof Date?Utilities.formatDate(receipt.ReceiptDate,Session.getScriptTimeZone(),'yyyy-MM-dd'):String(receipt.ReceiptDate||'');
+    if(!/^\\d{4}-\\d{2}-\\d{2}/.test(oldReceiptDate))oldReceiptDate=String(payment.PaymentDate||'');
     var repairedReceipt=Object.assign({},receipt,{
       ReceiptID:receipt.ReceiptID||newId_('ReceiptID'),
       PaymentID:item.PaymentID,
@@ -1528,7 +1533,7 @@ function sendInvoiceInsuranceBills_(p){
       ReceiptFileId:file.getId(),
       FileName:file.getName(),
       MimeType:file.getMimeType(),
-      ReceiptDate:receipt.ReceiptDate instanceof Date?Utilities.formatDate(receipt.ReceiptDate,Session.getScriptTimeZone(),'yyyy-MM-dd'):String(receipt.ReceiptDate||payment.PaymentDate||'')
+      ReceiptDate:oldReceiptDate
     });
     saveRow_(ss,'Receipts',repairedReceipt);
     if(MailApp.getRemainingDailyQuota()<=0){skipped.push({clientName:name,reason:'Daily email quota exhausted.'});return;}
