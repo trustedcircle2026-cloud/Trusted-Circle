@@ -42,7 +42,7 @@ var AGENT_BUSINESS = {
     Expenses:['ExpenseID','ExpenseDate','Category','Description','Amount','PaymentMode','ReferenceNumber','Notes','CreatedAt'],
     Notifications:['NotificationID','RecipientType','RecipientID','Type','Title','Message','Status','CreatedAt','ReadAt'],
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
-    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt','PaidAmount','OutstandingAmount'],
+    Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','Charges','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt','PaidAmount','OutstandingAmount'],
     AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
     InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt','PaidAmount','OutstandingAmount','PaymentStatus','UpdatedAt'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
@@ -486,7 +486,7 @@ function agentInvoices_(p){
     var sums=byId[String(x.InvoiceID)]||{paid:0,outstanding:Number(x.NetPayable||0)},status=String(x.PaymentStatus||'PAYABLE').toUpperCase();
     if(sums.outstanding<=0.009)status='PAID';else if(sums.paid>0)status='PARTIALLY_PAID';else if(['PAID','SETTLED'].includes(status))status='PAID';else status='PAYABLE';
     var premiumItems=allInvoiceItems.filter(function(it){return String(it.InvoiceID)===String(x.InvoiceID);}).map(function(it){var invoiceStatus=String(x.PaymentStatus||'').toUpperCase(),net=Number(it.NetAmount||0),paid=['PAID','SETTLED','CANCELLED'].includes(invoiceStatus)?net:Math.min(net,Number(summary.paidByItem[String(it.InvoiceItemID)]||0)),due=invoiceStatus==='CANCELLED'?0:Math.max(0,Math.round((net-paid)*100)/100);return {InvoiceItemID:it.InvoiceItemID||'',ClientID:it.ClientID||'',ClientName:it.ClientName||'',PolicyNumber:it.PolicyNumber||'',Amount:Number(it.Amount||0),DiscountAmount:Number(it.DiscountAmount||0),NetAmount:net,PaidAmount:Math.round(paid*100)/100,OutstandingAmount:due,PaymentStatus:invoiceStatus==='CANCELLED'?'CANCELLED':due<=0.009?'PAID':paid>0?'PARTIALLY_PAID':'PAYABLE'};});
-    return {InvoiceID:x.InvoiceID||'',InvoiceNumber:x.InvoiceNumber||'',InvoiceDate:x.InvoiceDate||'',TotalAmount:Number(x.TotalAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetPayable:Number(x.NetPayable||0),PaidAmount:sums.paid,OutstandingAmount:sums.outstanding,PremiumItems:premiumItems,Status:x.Status||'GENERATED',PdfUrl:x.PdfUrl||'',PaymentLink:x.PaymentLink||COMMON_AGENT_PAYMENT_LINK,PaymentLinkAssigned:Boolean(String(x.PaymentLink||'').trim()),PaymentStatus:status,PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''};
+    return {InvoiceID:x.InvoiceID||'',InvoiceNumber:x.InvoiceNumber||'',InvoiceDate:x.InvoiceDate||'',TotalAmount:Number(x.TotalAmount||0),DiscountAmount:Number(x.DiscountAmount||0),NetPayable:Number(x.NetPayable||0),PaidAmount:sums.paid,OutstandingAmount:sums.outstanding,PremiumItems:premiumItems,Status:x.Status||'GENERATED',PdfUrl:x.PdfUrl||'',Charges:Number(x.Charges||0),PaymentLink:x.PaymentLink||'',PaymentLinkAssigned:Boolean(String(x.PaymentLink||'').trim()),PaymentStatus:status,PaymentLinkAssignedAt:x.PaymentLinkAssignedAt||''};
   }),total:invoices.length,outstandingAmount:Math.round(outstanding*100)/100,earningsToDate:Math.round(receivedDiscount*100)/100};
 }
 function agentOutstandingSummary_(p){
@@ -508,6 +508,8 @@ function agentOutstandingSummary_(p){
       gross+=remainingGross;discount+=remainingDiscount;net+=due;
       rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(pay.PaymentDate||inv.InvoiceDate),String(it.ClientName||''),String(it.PolicyNumber||''),formatInvoiceDate_(it.DateOfBirth||''),formatMoney_(remainingGross),applied>0?'PARTIALLY PAID':'PAYABLE',formatMoney_(due)]);
     });
+    var charge=Number(inv.Charges||0);
+    if(charge){net+=charge;gross+=charge;rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(inv.InvoiceDate),'Invoice charges / adjustment','—','—',formatMoney_(charge),charge<0?'ADJUSTMENT':'CHARGE',formatMoney_(charge)]);}
   });
   var reportDate=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'dd-MMM-yyyy');
   var doc=DocumentApp.create('Outstanding Summary · '+String(s.AgentID));
@@ -537,8 +539,8 @@ function agentOutstandingSummary_(p){
     }
   }
   body.appendParagraph('').setSpacingAfter(1);
-  var totals=body.appendTable([['TOTAL AMOUNT',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
-  totals.setBorderWidth(1);for(var tr=0;tr<3;tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(9);totals.getCell(tr,1).editAsText().setBold(true).setFontSize(9);}
+  var totals=body.appendTable([['PREMIUM / CHARGES',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['CHARGES / ADJUSTMENT',formatMoney_(invoices.reduce(function(s,x){return s+Number(x.Charges||0);},0))],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
+  totals.setBorderWidth(1);for(var tr=0;tr<totals.getNumRows();tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(9);totals.getCell(tr,1).editAsText().setBold(true).setFontSize(9);}
   body.appendParagraph('SYSTEM GENERATED SUMMARY — NO SIGNATURE REQUIRED.').setFontSize(7).setItalic(true).setSpacingBefore(10);
   doc.saveAndClose();
   var file=DriveApp.getFileById(doc.getId());
@@ -626,7 +628,7 @@ function agentReportInvoicePaymentDone_(p){
   if(!invoice)throw new Error('Invoice not found.');
   var current=String(invoice.PaymentStatus||'UNPAID').toUpperCase();
   if(['PAID','SETTLED'].includes(current))throw new Error('This invoice is already marked as received.');
-  var effectivePaymentLink=String(invoice.PaymentLink||COMMON_AGENT_PAYMENT_LINK).trim();
+  var effectivePaymentLink=String(invoice.PaymentLink||'').trim();
   if(!effectivePaymentLink)throw new Error('Payment link is not available for this invoice.');
   invoice.PaymentStatus='AGENT_REPORTED';
   invoice.Status='PAYMENT_REPORTED';
@@ -1141,12 +1143,14 @@ function createInvoice_(p){
   if(!selected.length)throw new Error('No un-invoiced receivables were selected.');
   var grossTotal=selected.reduce(function(sum,x){return sum+Number(x.GrossAmount||x.ReceivableAmount||0);},0);
   var invoiceDiscount=Math.round(grossTotal*AGENT_BUSINESS.DISCOUNT_RATE*100)/100;
-  var net=Math.max(0,Math.round((grossTotal-invoiceDiscount)*100)/100);
+  var charges=Math.round(Number(p.charges||0)*100)/100;
+  if(!isFinite(charges))throw new Error('Charges must be a valid amount.');
+  var net=Math.max(0,Math.round((grossTotal-invoiceDiscount+charges)*100)/100);
   var invoiceId=newId_('InvoiceID');
   var invoiceNumber='TC-INV-'+Utilities.formatDate(new Date(invoiceDate+'T00:00:00'),Session.getScriptTimeZone(),'yyyyMMdd')+'-'+String(invoiceId).slice(-6);
   var invoice=saveRow_(ss,'Invoices',{
     InvoiceID:invoiceId,InvoiceNumber:invoiceNumber,AgentID:agentId,InvoiceDate:invoiceDate,
-    TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,NetPayable:net,Status:'GENERATING',
+    TotalAmount:grossTotal,DiscountRate:AGENT_BUSINESS.DISCOUNT_RATE,DiscountAmount:invoiceDiscount,Charges:charges,NetPayable:net,Status:'GENERATING',
     AgentEmail:String(agent.Email||'').trim(),PdfUrl:'',PdfFileId:'',PaymentLink:'',PaymentStatus:'PAYABLE',PaymentLinkAssignedAt:'',AgentPaymentReportedAt:'',AgentPaymentReportedBy:'',PaymentDecisionAt:''
   });
   var items=[];
@@ -1254,6 +1258,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
   var totals=body.appendTable([
     ['GROSS PREMIUM PAID',formatMoney_(invoice.TotalAmount)],
     ['TRUSTED CIRCLE DISCOUNT ('+(Number(invoice.DiscountRate||0)*100).toFixed(0)+'%)','− '+formatMoney_(invoice.DiscountAmount)],
+    ['CHARGES / ADJUSTMENT',((Number(invoice.Charges||0)<0?'− ':'+ ')+formatMoney_(Math.abs(Number(invoice.Charges||0))))],
     ['TOTAL AMOUNT PAYABLE',formatMoney_(invoice.NetPayable)]
   ]);
   totals.setBorderWidth(1).setBorderColor(line);
