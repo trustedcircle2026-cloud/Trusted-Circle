@@ -604,7 +604,7 @@ function agentReceiptFile_(p){
   if(receipt&&receipt.ReceiptFileId){
     try{file=DriveApp.getFileById(String(receipt.ReceiptFileId));}catch(e){file=null;}
   }
-  // Recover receipts uploaded before the Receipts row was persisted.
+  // Recover missing or invalid legacy file IDs by matching the stored Payment ID.
   if(!file){
     var folder=DriveApp.getFolderById(INSURANCE_PREMIUM_RECEIPT_FOLDER_ID);
     var files=folder.getFiles();
@@ -612,13 +612,16 @@ function agentReceiptFile_(p){
       var candidate=files.next();
       if(String(candidate.getName()).indexOf(paymentId)!==-1){file=candidate;break;}
     }
-    if(file&&!receipt){
-      saveRow_(ss,'Receipts',{
-        ReceiptID:newId_('ReceiptID'),PaymentID:paymentId,
-        ReceiptNumber:'TC-REC-'+paymentId.slice(-8),ReceiptUrl:file.getUrl(),
-        ReceiptFileId:file.getId(),FileName:file.getName(),MimeType:file.getMimeType(),
-        ReceiptDate:payment.PaymentDate||'',Notes:'Recovered premium payment receipt'
-      });
+    if(file){
+      saveRow_(ss,'Receipts',Object.assign({},receipt||{},{
+        ReceiptID:receipt&&receipt.ReceiptID||newId_('ReceiptID'),
+        PaymentID:paymentId,
+        ReceiptNumber:receipt&&receipt.ReceiptNumber||'TC-REC-'+paymentId.slice(-8),
+        ReceiptUrl:file.getUrl(),ReceiptFileId:file.getId(),
+        FileName:file.getName(),MimeType:file.getMimeType(),
+        ReceiptDate:receipt&&receipt.ReceiptDate||payment.PaymentDate||'',
+        Notes:receipt&&receipt.Notes||'Recovered/repair premium payment receipt'
+      }));
     }
   }
   if(!file)throw new Error('Payment receipt is not available.');
@@ -1498,11 +1501,39 @@ function sendInvoiceInsuranceBills_(p){
     var amount=Number(item.Amount||item.NetAmount||0);
     var payment=paymentById[String(item.PaymentID||'')]||{};
     var receipt=receiptById[String(payment.ReceiptID||'')]||receiptByPayment[String(item.PaymentID||'')]||{};
+    var file=null;
     var fileId=String(receipt.ReceiptFileId||'').trim();
-    if(!fileId){skipped.push({clientName:name,reason:'No insurance payment challan/receipt attachment is saved for this client.'});return;}
+    // First try the saved Drive ID. Older Receipts rows may have shifted values
+    // because the sheet schema changed; in that case recover by Payment ID.
+    if(fileId){
+      try{file=DriveApp.getFileById(fileId);}catch(fileLookupError){file=null;}
+    }
+    if(!file){
+      try{
+        var receiptFolder=DriveApp.getFolderById(INSURANCE_PREMIUM_RECEIPT_FOLDER_ID);
+        var receiptFiles=receiptFolder.getFiles();
+        while(receiptFiles.hasNext()){
+          var candidate=receiptFiles.next();
+          if(String(candidate.getName()).indexOf(String(item.PaymentID||''))!==-1){file=candidate;break;}
+        }
+      }catch(folderLookupError){}
+    }
+    if(!file){skipped.push({clientName:name,reason:'Receipt attachment not found in the insurance receipt folder for Payment ID '+String(item.PaymentID||'')+'.'});return;}
+    // Repair legacy/misaligned receipt rows so subsequent sends use the right ID.
+    var repairedReceipt=Object.assign({},receipt,{
+      ReceiptID:receipt.ReceiptID||newId_('ReceiptID'),
+      PaymentID:item.PaymentID,
+      ReceiptNumber:receipt.ReceiptNumber||'TC-REC-'+String(item.PaymentID||'').slice(-8),
+      ReceiptUrl:file.getUrl(),
+      ReceiptFileId:file.getId(),
+      FileName:file.getName(),
+      MimeType:file.getMimeType(),
+      ReceiptDate:receipt.ReceiptDate instanceof Date?Utilities.formatDate(receipt.ReceiptDate,Session.getScriptTimeZone(),'yyyy-MM-dd'):String(receipt.ReceiptDate||payment.PaymentDate||'')
+    });
+    saveRow_(ss,'Receipts',repairedReceipt);
     if(MailApp.getRemainingDailyQuota()<=0){skipped.push({clientName:name,reason:'Daily email quota exhausted.'});return;}
     try{
-      var blob=DriveApp.getFileById(fileId).getBlob();
+      var blob=file.getBlob();
       var safeName=String(receipt.FileName||blob.getName()||'Insurance-Payment-Challan').replace(/[\\/:*?"<>|]/g,'_');
       var subject=name+' - '+formatMoney_(amount);
       var policy=String(item.PolicyNumber||'').trim();
