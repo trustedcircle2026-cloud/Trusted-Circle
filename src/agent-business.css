@@ -588,3 +588,5 @@ body{background:#fff}
 .tc-agent-payment-report-actions button:last-child{background:#fff4f2;color:#a63f35;border-color:#f0d7d2}
 .tc-agent-payment-report-actions button:disabled{opacity:.55;cursor:wait}
 @media(max-width:430px){.tc-agent-payment-report-row{grid-template-columns:minmax(0,1fr)}.tc-agent-payment-report-amount{display:flex;align-items:center;justify-content:space-between}.tc-agent-payment-report-actions{grid-template-columns:1fr 1fr}}
+
+.tc-invoice-charges-field{margin-top:12px!important}.tc-invoice-charges-field>small{display:block;margin-top:-2px;color:#78847e;font-size:8px;font-weight:500;line-height:1.4}.tc-charge-input-wrap{display:flex;align-items:center;min-height:44px;border:1px solid #d9e4de;border-radius:10px;background:#fff;overflow:hidden}.tc-charge-input-wrap>span{padding:0 12px;color:#064f3b;font-weight:800}.tc-charge-input-wrap input{width:100%;min-width:0;min-height:42px;border:0!important;border-radius:0!important;outline:none;padding:0 10px 0 0!important;background:transparent!important;font-size:12px!important;color:#17231d}
