@@ -1278,7 +1278,9 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
     amountCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
   }
 
-  body.appendParagraph('PAYMENT INSTRUCTIONS').setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(10).setSpacingAfter(4);
+  // Always begin payment instructions on a fresh second page, after the payable summary.
+  body.appendPageBreak();
+  body.appendParagraph('PAYMENT INSTRUCTIONS').setBold(true).setFontSize(10).setForegroundColor(green).setSpacingBefore(2).setSpacingAfter(5);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   var paymentTable=body.appendTable([['BANK TRANSFER DETAILS','SCAN TO PAY','AUTHORISED SEAL']]);
   paymentTable.setBorderWidth(1).setBorderColor(line);
@@ -1305,7 +1307,61 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
     var stampImage=sealCell.appendImage(stampBlob);stampImage.setWidth(105);stampImage.setHeight(105);stampImage.getParent().asParagraph().setAlignment(DocumentApp.HorizontalAlignment.CENTER);
   }catch(stampError){sealCell.appendParagraph('TRUSTED CIRCLE').setBold(true).setFontSize(10).setForegroundColor(green).setAlignment(DocumentApp.HorizontalAlignment.CENTER);}
 
-  body.appendParagraph('Please quote the invoice number when making payment. This invoice records the agent receivable after the Trusted Circle discount.').setFontSize(7).setForegroundColor(muted).setSpacingBefore(7).setSpacingAfter(4);
+  // Show only payments confirmed by Admin and allocated to this invoice.
+  body.appendParagraph('INVOICE COLLECTIONS / RECEIPTS').setBold(true).setFontSize(9).setForegroundColor(green).setSpacingBefore(9).setSpacingAfter(4);
+  var invoiceItemIds={};items.forEach(function(x){invoiceItemIds[String(x.InvoiceItemID||'')]=true;});
+  var collectionReports=sheetRows_(ensureBusinessSheet_(agentBusinessSpreadsheet_(),'AgentInvoicePayments'))
+    .filter(function(r){return String(r.AgentID||'')===String(invoice.AgentID||'')&&String(r.Status||'').toUpperCase()==='RECEIVED';})
+    .sort(function(a,b){return new Date(a.ReportedAt||a.AdminDecisionAt||a.CreatedAt||0).getTime()-new Date(b.ReportedAt||b.AdminDecisionAt||b.CreatedAt||0).getTime();});
+  var collectionRows=[],runningOutstanding=Math.max(0,Math.round(Number(invoice.NetPayable||0)*100)/100),collectedTotal=0;
+  collectionReports.forEach(function(report){
+    var allocations=[];try{allocations=JSON.parse(String(report.AllocationsJson||'[]'));}catch(allocationError){}
+    var applied=Math.round(allocations.reduce(function(sum,a){return sum+(invoiceItemIds[String(a.InvoiceItemID||'')]?Number(a.Amount||0):0);},0)*100)/100;
+    if(applied<=0)return;
+    collectedTotal=Math.round((collectedTotal+applied)*100)/100;
+    runningOutstanding=Math.max(0,Math.round((runningOutstanding-applied)*100)/100);
+    var receiptLabel=String(report.PaymentReportID||'Payment');
+    collectionRows.push({date:formatInvoiceDate_(report.ReportedAt||report.AdminDecisionAt||report.CreatedAt||''),reference:receiptLabel,amount:applied,balance:runningOutstanding,receiptUrl:String(report.ReceiptUrl||'')});
+  });
+  if(!collectionRows.length&&Number(invoice.PaidAmount||0)>0){
+    var legacyPaid=Math.min(Number(invoice.NetPayable||0),Number(invoice.PaidAmount||0));
+    collectedTotal=legacyPaid;runningOutstanding=Math.max(0,Math.round((Number(invoice.NetPayable||0)-legacyPaid)*100)/100);
+    collectionRows.push({date:formatInvoiceDate_(invoice.UpdatedAt||invoice.InvoiceDate||''),reference:'Previously recorded collection',amount:legacyPaid,balance:runningOutstanding,receiptUrl:''});
+  }
+  var collectionTable=body.appendTable([['DATE','RECEIPT / PAYMENT REFERENCE','AMOUNT RECEIVED','BALANCE OUTSTANDING']]);
+  collectionTable.setBorderWidth(1).setBorderColor(line);
+  try{collectionTable.setColumnWidth(0,95);collectionTable.setColumnWidth(1,185);collectionTable.setColumnWidth(2,105);collectionTable.setColumnWidth(3,110);}catch(collectionWidthError){}
+  for(var ch=0;ch<4;ch++){
+    var headerCell=collectionTable.getCell(0,ch);headerCell.setBackgroundColor(green2);headerCell.setPaddingTop(6);headerCell.setPaddingBottom(6);headerCell.setPaddingLeft(5);headerCell.setPaddingRight(4);
+    headerCell.editAsText().setBold(true).setFontSize(7).setForegroundColor(white);
+  }
+  if(collectionRows.length){
+    collectionRows.forEach(function(row,index){
+      var tableRow=collectionTable.appendTableRow();
+      var values=[row.date,row.reference,formatMoney_(row.amount),formatMoney_(row.balance)];
+      values.forEach(function(value,col){
+        var cell=tableRow.appendTableCell(String(value));cell.setPaddingTop(5);cell.setPaddingBottom(5);cell.setPaddingLeft(5);cell.setPaddingRight(4);
+        cell.setBackgroundColor(index%2===0?white:pale);cell.editAsText().setFontSize(7).setForegroundColor(ink);
+        if(col>=2)cell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+        if(col===1&&row.receiptUrl)cell.editAsText().setLinkUrl(row.receiptUrl).setForegroundColor(green2);
+      });
+    });
+  }else{
+    var noCollection=collectionTable.appendTableRow();
+    var noCollectionCell=noCollection.appendTableCell('No confirmed collections received as of this invoice date.');
+    noCollectionCell.setPaddingTop(7).setPaddingBottom(7);noCollectionCell.editAsText().setFontSize(8).setForegroundColor(muted);
+    try{noCollectionCell.merge();}catch(mergeCollectionError){}
+  }
+  var collectionTotal=body.appendTable([['TOTAL COLLECTIONS RECEIVED',formatMoney_(collectedTotal)],['BALANCE OUTSTANDING',formatMoney_(runningOutstanding)]]);
+  collectionTotal.setBorderWidth(1).setBorderColor(line);
+  try{collectionTotal.setColumnWidth(0,390);collectionTotal.setColumnWidth(1,105);}catch(collectionTotalWidthError){}
+  for(var cr=0;cr<2;cr++)for(var cc=0;cc<2;cc++){
+    var totalCell=collectionTotal.getCell(cr,cc);totalCell.setPaddingTop(5);totalCell.setPaddingBottom(5);totalCell.setPaddingLeft(6);totalCell.setPaddingRight(5);
+    totalCell.setBackgroundColor(cr===1?mint:white);totalCell.editAsText().setBold(true).setFontSize(8).setForegroundColor(green);
+    if(cc===1)totalCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+  }
+  body.appendParagraph('Only collections confirmed by Admin and allocated to this invoice are shown above. Pending payment reports are excluded.').setFontSize(7).setForegroundColor(muted).setSpacingBefore(5).setSpacingAfter(4);
+  body.appendParagraph('Please quote the invoice number when making payment. This invoice records the agent receivable after the Trusted Circle discount.').setFontSize(7).setForegroundColor(muted).setSpacingBefore(3).setSpacingAfter(4);
   body.appendHorizontalRule();
   var footer=body.appendTable([['TRUSTED CIRCLE  |  info@trustedcircle.in','www.trustedcircle.shop']]);footer.setBorderWidth(0);
   for(var fc=0;fc<2;fc++){
