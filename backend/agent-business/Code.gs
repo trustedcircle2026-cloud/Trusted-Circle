@@ -1263,10 +1263,11 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
   ]);
   totals.setBorderWidth(1).setBorderColor(line);
   try{totals.setColumnWidth(0,390);totals.setColumnWidth(1,140);}catch(totalWidthError){}
-  for(var tr=0;tr<3;tr++){
+  for(var tr=0;tr<totals.getNumRows();tr++){
+    var isFinalTotal=tr===totals.getNumRows()-1;
     var labelCell=totals.getCell(tr,0),amountCell=totals.getCell(tr,1);
-    [labelCell,amountCell].forEach(function(c){c.setPaddingTop(6);c.setPaddingBottom(6);c.setPaddingLeft(7);c.setPaddingRight(7);c.editAsText().setFontSize(tr===2?10:8).setBold(true).setForegroundColor(tr===2?white:ink);});
-    labelCell.setBackgroundColor(tr===2?green:tr===1?pale:white);amountCell.setBackgroundColor(tr===2?green:tr===1?pale:white);
+    [labelCell,amountCell].forEach(function(c){c.setPaddingTop(6);c.setPaddingBottom(6);c.setPaddingLeft(7);c.setPaddingRight(7);c.editAsText().setFontSize(isFinalTotal?10:8).setBold(true).setForegroundColor(isFinalTotal?white:ink);});
+    labelCell.setBackgroundColor(isFinalTotal?green:tr===1?pale:white);amountCell.setBackgroundColor(isFinalTotal?green:tr===1?pale:white);
     amountCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
   }
 
