@@ -1503,7 +1503,8 @@ function sendInvoiceInsuranceBills_(p){
       var safeName=String(receipt.FileName||blob.getName()||'Insurance-Payment-Challan').replace(/[\\/:*?"<>|]/g,'_');
       var subject=name+' - '+formatMoney_(amount);
       var policy=String(item.PolicyNumber||'').trim();
-      var body='Dear '+String(agent.AgentName||'Agent')+',\\n\\nPlease find attached the insurance premium payment challan/receipt for '+name+'.\\n'+(policy?'Policy Number: '+policy+'\\n':'')+'Premium Amount: '+formatMoney_(amount)+'\\nInvoice: '+String(invoice.InvoiceNumber||'')+'\\n\\nRegards,\\nTrusted Circle';
+      var nl=String.fromCharCode(10);
+      var body='Dear '+String(agent.AgentName||'Agent')+','+nl+nl+'Please find attached the insurance premium payment challan/receipt for '+name+'.'+nl+(policy?'Policy Number: '+policy+nl:'')+'Premium Amount: '+formatMoney_(amount)+nl+'Invoice: '+String(invoice.InvoiceNumber||'')+nl+nl+'Regards,'+nl+'Trusted Circle';
       MailApp.sendEmail({to:email,subject:subject,body:body,htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the insurance premium payment challan/receipt for <b>'+escapeHtml_(name)+'</b>.</p>'+(policy?'<p>Policy Number: <b>'+escapeHtml_(policy)+'</b></p>':'')+'<p>Premium Amount: <b>'+formatMoney_(amount)+'</b></p><p>Invoice: '+escapeHtml_(invoice.InvoiceNumber||'')+'</p><p>Regards,<br>Trusted Circle</p>',attachments:[blob.setName(safeName)],name:'Trusted Circle'});
       item.InsuranceBillEmailStatus='SENT';item.InsuranceBillEmailSentAt=new Date().toISOString();item.InsuranceBillEmailTo=email;
       saveRow_(ss,'InvoiceItems',item);
