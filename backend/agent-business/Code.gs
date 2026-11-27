@@ -44,7 +44,7 @@ var AGENT_BUSINESS = {
     AuditLogs:['AuditID','Action','Entity','EntityID','Actor','Metadata','CreatedAt'],
     Invoices:['InvoiceID','InvoiceNumber','AgentID','InvoiceDate','TotalAmount','DiscountRate','DiscountAmount','Charges','NetPayable','Status','AgentEmail','PdfUrl','PdfFileId','PaymentLink','PaymentStatus','PaymentLinkAssignedAt','AgentPaymentReportedAt','AgentPaymentReportedBy','PaymentDecisionAt','CreatedAt','UpdatedAt','PaidAmount','OutstandingAmount'],
     AgentInvoicePayments:['PaymentReportID','AgentID','Amount','Status','ReceiptFileId','ReceiptUrl','ReceiptFileName','ReceiptMimeType','ReportedAt','AdminDecisionAt','AdminDecisionBy','AllocationsJson','Notes','CreatedAt','UpdatedAt'],
-    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt','PaidAmount','OutstandingAmount','PaymentStatus','UpdatedAt'],
+    InvoiceItems:['InvoiceItemID','InvoiceID','PaymentID','ClientID','ClientName','PolicyNumber','DateOfBirth','Amount','DiscountAmount','NetAmount','CreatedAt','PaidAmount','OutstandingAmount','PaymentStatus','UpdatedAt','InsuranceBillEmailStatus','InsuranceBillEmailSentAt','InsuranceBillEmailTo'],
     AgentReceivables:['ReceivableID','AgentID','PaymentID','InvoiceID','ClientID','ClientName','PolicyNumber','DateOfBirth','GrossAmount','DiscountAmount','ReceivableAmount','Status','ReceivableDate','SettledDate','Notes','CreatedAt','UpdatedAt'],
     GiftCardPurchaseOrders:['PurchaseOrderID','ProductUrl','Status','ClaimCode','FaceValue','ActualCost','PurchaseDate','OrderReference','CreatedAt','UpdatedAt','CancelledAt','RedeemedAt','Notes'],
     Settings:['Key','Value','Description','UpdatedAt']
@@ -237,6 +237,7 @@ function agentBusinessRoute_(p){
   if(action==='sendInvoiceEmail') return sendExistingInvoiceEmail_(p);
   if(action==='adminInvoicePdf') return adminInvoicePdf_(p);
   if(action==='resendAgentInvoice') return resendAgentInvoice_(p);
+  if(action==='sendInvoiceInsuranceBills') return sendInvoiceInsuranceBills_(p);
   if(action==='regenerateAgentInvoice') return regenerateAgentInvoice_(p);
   if(action==='updateManagedInvoice') return updateManagedInvoice_(p);
   if(action==='deleteManagedInvoice') return deleteManagedInvoice_(p);
@@ -1469,6 +1470,48 @@ function resendAgentInvoice_(p){
   var sent=sendInvoicePdfToAgent_(agent,invoice,pdf);
   if(!sent)throw new Error('Invoice email was not sent. Check the agent email address and remaining daily email quota.');
   return {sent:true,invoiceNumber:invoice.InvoiceNumber,email:String(agent.Email||invoice.AgentEmail||'')};
+}
+
+function sendInvoiceInsuranceBills_(p){
+  requireAdmin_(p);
+  var invoiceId=String(p.invoiceId||'').trim();
+  if(!invoiceId)throw new Error('Invoice ID is required.');
+  var ss=agentBusinessSpreadsheet_();
+  var invoice=sheetRows_(ensureBusinessSheet_(ss,'Invoices')).find(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!invoice)throw new Error('Invoice not found.');
+  var agent=sheetRows_(ensureBusinessSheet_(ss,'Agents')).find(function(x){return String(x.AgentID)===String(invoice.AgentID);})||{};
+  var email=String(agent.Email||invoice.AgentEmail||'').trim();
+  if(!email)throw new Error('Agent email address is missing. Add the agent email before sending insurance bills.');
+  var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems')).filter(function(x){return String(x.InvoiceID)===invoiceId;});
+  if(!items.length)throw new Error('No client items were found for this invoice.');
+  var payments=sheetRows_(ensureBusinessSheet_(ss,'Payments'));
+  var receipts=sheetRows_(ensureBusinessSheet_(ss,'Receipts'));
+  var paymentById={},receiptById={},receiptByPayment={};
+  payments.forEach(function(x){paymentById[String(x.PaymentID||'')]=x;});
+  receipts.forEach(function(x){receiptById[String(x.ReceiptID||'')]=x;receiptByPayment[String(x.PaymentID||'')]=x;});
+  var sent=[],skipped=[],failed=[];
+  items.forEach(function(item){
+    var name=String(item.ClientName||'Client').trim();
+    var amount=Number(item.Amount||item.NetAmount||0);
+    var payment=paymentById[String(item.PaymentID||'')]||{};
+    var receipt=receiptById[String(payment.ReceiptID||'')]||receiptByPayment[String(item.PaymentID||'')]||{};
+    var fileId=String(receipt.ReceiptFileId||'').trim();
+    if(!fileId){skipped.push({clientName:name,reason:'No insurance payment challan/receipt attachment is saved for this client.'});return;}
+    if(MailApp.getRemainingDailyQuota()<=0){skipped.push({clientName:name,reason:'Daily email quota exhausted.'});return;}
+    try{
+      var blob=DriveApp.getFileById(fileId).getBlob();
+      var safeName=String(receipt.FileName||blob.getName()||'Insurance-Payment-Challan').replace(/[\\/:*?"<>|]/g,'_');
+      var subject=name+' - '+formatMoney_(amount);
+      var policy=String(item.PolicyNumber||'').trim();
+      var body='Dear '+String(agent.AgentName||'Agent')+',\\n\\nPlease find attached the insurance premium payment challan/receipt for '+name+'.\\n'+(policy?'Policy Number: '+policy+'\\n':'')+'Premium Amount: '+formatMoney_(amount)+'\\nInvoice: '+String(invoice.InvoiceNumber||'')+'\\n\\nRegards,\\nTrusted Circle';
+      MailApp.sendEmail({to:email,subject:subject,body:body,htmlBody:'<p>Dear '+escapeHtml_(agent.AgentName||'Agent')+',</p><p>Please find attached the insurance premium payment challan/receipt for <b>'+escapeHtml_(name)+'</b>.</p>'+(policy?'<p>Policy Number: <b>'+escapeHtml_(policy)+'</b></p>':'')+'<p>Premium Amount: <b>'+formatMoney_(amount)+'</b></p><p>Invoice: '+escapeHtml_(invoice.InvoiceNumber||'')+'</p><p>Regards,<br>Trusted Circle</p>',attachments:[blob.setName(safeName)],name:'Trusted Circle'});
+      item.InsuranceBillEmailStatus='SENT';item.InsuranceBillEmailSentAt=new Date().toISOString();item.InsuranceBillEmailTo=email;
+      saveRow_(ss,'InvoiceItems',item);
+      sent.push({clientName:name,amount:amount,email:email,subject:subject});
+    }catch(err){failed.push({clientName:name,reason:String(err&&err.message||err)});}
+  });
+  invalidateSheetCache_('InvoiceItems');
+  return {invoiceNumber:String(invoice.InvoiceNumber||''),email:email,total:items.length,sent:sent.length,skipped:skipped.length,failed:failed.length,details:{sent:sent,skipped:skipped,failed:failed}};
 }
 
 function formatInvoiceDate_(value){
