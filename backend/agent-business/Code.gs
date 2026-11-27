@@ -1323,8 +1323,8 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
     var receiptLabel=String(report.PaymentReportID||'Payment');
     collectionRows.push({date:formatInvoiceDate_(report.ReportedAt||report.AdminDecisionAt||report.CreatedAt||''),reference:receiptLabel,amount:applied,balance:runningOutstanding,receiptUrl:String(report.ReceiptUrl||'')});
   });
-  if(!collectionRows.length&&Number(invoice.PaidAmount||0)>0){
-    var legacyPaid=Math.min(Number(invoice.NetPayable||0),Number(invoice.PaidAmount||0));
+  if(!collectionRows.length&&(Number(invoice.PaidAmount||0)>0||['PAID','SETTLED'].includes(String(invoice.PaymentStatus||'').toUpperCase()))){
+    var legacyPaid=Math.min(Number(invoice.NetPayable||0),Number(invoice.PaidAmount||invoice.NetPayable||0));
     collectedTotal=legacyPaid;runningOutstanding=Math.max(0,Math.round((Number(invoice.NetPayable||0)-legacyPaid)*100)/100);
     collectionRows.push({date:formatInvoiceDate_(invoice.UpdatedAt||invoice.InvoiceDate||''),reference:'Previously recorded collection',amount:legacyPaid,balance:runningOutstanding,receiptUrl:''});
   }
