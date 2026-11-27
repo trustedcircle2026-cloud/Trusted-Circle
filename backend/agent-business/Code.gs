@@ -1278,9 +1278,13 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
     amountCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
   }
 
-  // Always begin payment instructions on a fresh second page, after the payable summary.
+  // End page 1 immediately after TOTAL AMOUNT PAYABLE. Insert a standalone
+  // break paragraph so no part of PAYMENT INSTRUCTIONS can remain on page 1.
+  body.appendParagraph('').setSpacingBefore(0).setSpacingAfter(0);
   body.appendPageBreak();
-  body.appendParagraph('PAYMENT INSTRUCTIONS').setBold(true).setFontSize(10).setForegroundColor(green).setSpacingBefore(2).setSpacingAfter(5);
+  var paymentHeading=body.appendParagraph('PAYMENT INSTRUCTIONS');
+  paymentHeading.setBold(true).setFontSize(10).setForegroundColor(green).setSpacingBefore(2).setSpacingAfter(5);
+  paymentHeading.setKeepWithNext(true);
   var bankName='Kotak Mahindra Bank',accountNumber='8949622673',ifsc='KKBK0008698',branch='TRICHY - THILLAI NAGAR',upi='6369175709@kotak811';
   var paymentTable=body.appendTable([['BANK TRANSFER DETAILS','SCAN TO PAY','AUTHORISED SEAL']]);
   paymentTable.setBorderWidth(1).setBorderColor(line);
@@ -1328,7 +1332,7 @@ function buildInvoicePdfAndSend_(agent,invoice,items,sendEmail){
     collectedTotal=legacyPaid;runningOutstanding=Math.max(0,Math.round((Number(invoice.NetPayable||0)-legacyPaid)*100)/100);
     collectionRows.push({date:formatInvoiceDate_(invoice.UpdatedAt||invoice.InvoiceDate||''),reference:'Previously recorded collection',amount:legacyPaid,balance:runningOutstanding,receiptUrl:''});
   }
-  var collectionTable=body.appendTable([['DATE','RECEIPT / PAYMENT REFERENCE','AMOUNT RECEIVED','BALANCE OUTSTANDING']]);
+  var collectionTable=body.appendTable([['PAYMENT DATE','RECEIPT / PAYMENT REFERENCE','AMOUNT RECEIVED','BALANCE OUTSTANDING']]);
   collectionTable.setBorderWidth(1).setBorderColor(line);
   try{collectionTable.setColumnWidth(0,95);collectionTable.setColumnWidth(1,185);collectionTable.setColumnWidth(2,105);collectionTable.setColumnWidth(3,110);}catch(collectionWidthError){}
   for(var ch=0;ch<4;ch++){
