@@ -499,7 +499,7 @@ function agentOutstandingSummary_(p){
   var items=sheetRows_(ensureBusinessSheet_(ss,'InvoiceItems'));
   var payments=sheetRows_(ss.getSheetByName('Payments'));
   var allocationSummary=invoicePaymentSummary_(ss,s.AgentID),allocations=allocationSummary.paidByItem;
-  var rows=[],gross=0,discount=0,net=0;
+  var rows=[],gross=0,discount=0,net=0,chargesTotal=0;
   invoices.forEach(function(inv){
     items.filter(function(it){return String(it.InvoiceID)===String(inv.InvoiceID);}).forEach(function(it){
       var pay=payments.find(function(x){return String(x.PaymentID)===String(it.PaymentID);})||{};
@@ -510,7 +510,10 @@ function agentOutstandingSummary_(p){
       rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(pay.PaymentDate||inv.InvoiceDate),String(it.ClientName||''),String(it.PolicyNumber||''),formatInvoiceDate_(it.DateOfBirth||''),formatMoney_(remainingGross),applied>0?'PARTIALLY PAID':'PAYABLE',formatMoney_(due)]);
     });
     var charge=Number(inv.Charges||0);
-    if(charge){net+=charge;gross+=charge;rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(inv.InvoiceDate),'Invoice charges / adjustment','—','—',formatMoney_(charge),charge<0?'ADJUSTMENT':'CHARGE',formatMoney_(charge)]);}
+    chargesTotal+=charge;
+    net+=charge;
+    gross+=charge;
+    rows.push([String(inv.InvoiceNumber||''),formatInvoiceDate_(inv.InvoiceDate),'Invoice charges / adjustment','—','—',formatMoney_(charge),charge<0?'ADJUSTMENT':'CHARGE',formatMoney_(charge)]);
   });
   var reportDate=Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'dd-MMM-yyyy');
   var doc=DocumentApp.create('Outstanding Summary · '+String(s.AgentID));
@@ -540,7 +543,7 @@ function agentOutstandingSummary_(p){
     }
   }
   body.appendParagraph('').setSpacingAfter(1);
-  var totals=body.appendTable([['PREMIUM / CHARGES',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['CHARGES / ADJUSTMENT',formatMoney_(invoices.reduce(function(s,x){return s+Number(x.Charges||0);},0))],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
+  var totals=body.appendTable([['PREMIUM / CHARGES',formatMoney_(gross)],['LESS: DISCOUNT (2%)',formatMoney_(discount)],['CHARGES / ADJUSTMENT',formatMoney_(chargesTotal)],['OUTSTANDING PAYABLE',formatMoney_(net)]]);
   totals.setBorderWidth(1);for(var tr=0;tr<totals.getNumRows();tr++){totals.getCell(tr,0).editAsText().setBold(true).setFontSize(9);totals.getCell(tr,1).editAsText().setBold(true).setFontSize(9);}
   body.appendParagraph('SYSTEM GENERATED SUMMARY — NO SIGNATURE REQUIRED.').setFontSize(7).setItalic(true).setSpacingBefore(10);
   doc.saveAndClose();
@@ -1576,15 +1579,18 @@ function listRows_(ss,sheetName,p){
 }
 function saveRow_(ss,sheetName,data){
   if(!AGENT_BUSINESS.SHEETS[sheetName]) throw new Error('Invalid sheet.');
-  var sheet=ensureBusinessSheet_(ss,sheetName),headers=AGENT_BUSINESS.SHEETS[sheetName],idField=headers[0],row=Object.assign({},data);
+  var sheet=ensureBusinessSheet_(ss,sheetName),schema=AGENT_BUSINESS.SHEETS[sheetName],idField=schema[0],row=Object.assign({},data);
   var id=String(row[idField]||newId_(idField));
   row[idField]=id;
-  if(!row.CreatedAt) row.CreatedAt=new Date().toISOString();
+  if(!row.CreatedAt)row.CreatedAt=new Date().toISOString();
   row.UpdatedAt=new Date().toISOString();
-  var values=headers.map(function(h){return row[h]===undefined?'':row[h];});
+  // Existing spreadsheets may have newly-added schema columns appended at the end.
+  // Always write by the sheet's actual header order, not the current schema order.
+  var actualHeaders=sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String);
+  var values=actualHeaders.map(function(h){return row[h]===undefined?'':row[h];});
   var rows=sheetRows_(sheet),idx=rows.findIndex(function(r){return String(r[idField])===id;});
-  if(idx>=0) sheet.getRange(idx+2,1,1,headers.length).setValues([values]);
-  else sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([values]);
+  if(idx>=0)sheet.getRange(idx+2,1,1,actualHeaders.length).setValues([values]);
+  else sheet.getRange(sheet.getLastRow()+1,1,1,actualHeaders.length).setValues([values]);
   invalidateSheetCache_(sheetName);
   return {id:id,item:row};
 }
